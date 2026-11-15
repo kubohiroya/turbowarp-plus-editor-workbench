@@ -97,6 +97,28 @@ workspaceLayout: {
 - To forget every layout, delete the `twPlusWorkspaceLayout` database from the browser's developer tools (in Chrome: Application, then IndexedDB), or run `indexedDB.deleteDatabase('twPlusWorkspaceLayout')` in the console.
 - Earlier versions kept a single layout in `localStorage` (`twPlusDockviewLayout` and `twPlusDockviewLayout.tabs`). Those keys are removed without being moved.
 
+## Menus, project dialogs, stage controls and the backpack window
+
+These moved here from `packages/editor-ui` and `packages/editor-backpack` in turbowarp-plus-editor.
+
+| Import | Contents |
+| --- | --- |
+| `./project-info-menu` | The project and settings menu, with the project title field and the GUI's display settings the host passes in |
+| `./edit-menu` | The Edit menu's workspace commands, restore and the replace shortcut |
+| `./project-file-menu`, `./project-file-dialogs` | The File menu, Save As (current, embedded or folder, and a new GitHub repository), the export view and the extension storage form |
+| `./project-search` | The project-wide search and replace box (the search itself is in `@kubohiroya/turbowarp-plus-editor-project-model`) |
+| `./project-load-progress`, `./project-load-progress-view`, `./project-size-approval` | Loading progress, and asking before opening a project over the standard size limit |
+| `./stage-controls`, `./stage-controls-view` | The stage controls that extensions register, and their view on the menu bar with the debugger and recorder buttons |
+| `./busy-cursor`, `./browser-tab-title` | The wait cursor around blocking work, and the browser tab title |
+| `./backpack` | The backpack in its own window, with copies between windows through `@kubohiroya/turbowarp-plus-editor-windows` |
+| `./edit-menu.css`, `./info-menu.css`, `./project-file-menu.css`, `./project-load-progress.css`, `./project-search.css`, `./stage-controls.css` | Their global stylesheets |
+
+Load those stylesheets as global stylesheets, together with the `styles.css` of `@kubohiroya/turbowarp-plus-editor-windows`, whose dialog actions the dialogs use.
+
+The debugger button comes from a GUI add-on. When handing it to `setDebuggerButton`, the host marks the add-on's button with `data-tw-stage-button`, its icon with `data-tw-stage-button-icon` and its content with `data-tw-stage-button-content`; the stylesheet and the keyboard handling use those marks instead of the GUI's class names.
+
+These came from the same author and changed from GPL-3.0 to MPL-2.0 in the move. The provenance audit is in the "由来の監査（7b）" section of the [migration plan in turbowarp-plus-packages](https://github.com/kubohiroya/turbowarp-plus-packages/blob/main/docs/editor-migration-plan.ja.md). The Mark GitHub and Law icons in the project menu are from GitHub Octicons (MIT); see `NOTICE`.
+
 ## Verification
 
 Run `npm test` to verify split sizing, aspect ratios, and settings persistence. Run `npm run test:browser` to test the standalone host. To open the test host manually, run `npm install` and `python3 -m http.server` in this directory, then open `/example/`.

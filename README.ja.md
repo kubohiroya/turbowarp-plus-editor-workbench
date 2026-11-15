@@ -95,6 +95,28 @@ workspaceLayout: {
 - すべてのレイアウトを消すには、ブラウザーの開発者ツールで `twPlusWorkspaceLayout` データベースを削除する（Chrome では Application の IndexedDB）。コンソールで `indexedDB.deleteDatabase('twPlusWorkspaceLayout')` を実行してもよい。
 - 以前の版は `localStorage`（`twPlusDockviewLayout` と `twPlusDockviewLayout.tabs`）に 1 件だけ保存していた。これらのキーは移さずに消す。
 
+## メニュー・作品のダイアログ・ステージの操作・バックパックの窓
+
+turbowarp-plus-editor の `packages/editor-ui` と `packages/editor-backpack` から移したもの。
+
+| import | 内容 |
+| --- | --- |
+| `./project-info-menu` | 作品と設定のメニュー。作品名の欄と、ホストが渡す GUI の表示設定を含む |
+| `./edit-menu` | 編集メニューのワークスペースの操作、復元、置換のショートカット |
+| `./project-file-menu`・`./project-file-dialogs` | ファイルメニュー、名前を付けて保存（現在の形式・埋め込み・フォルダ、GitHub の新しいリポジトリ）、書き出しの表示、拡張の置き場所のフォーム |
+| `./project-search` | 作品全体の検索と置換のボックス（検索そのものは `@kubohiroya/turbowarp-plus-editor-project-model` にある） |
+| `./project-load-progress`・`./project-load-progress-view`・`./project-size-approval` | 読み込みの進み具合と、標準の上限を超える作品を開く前の確認 |
+| `./stage-controls`・`./stage-controls-view` | 拡張が登録するステージの操作と、デバッガーと録画のボタンを含むメニューバーの表示 |
+| `./busy-cursor`・`./browser-tab-title` | 時間のかかる処理の待ちカーソルと、ブラウザーのタブの題名 |
+| `./backpack` | 別窓のバックパック。窓をまたぐコピーは `@kubohiroya/turbowarp-plus-editor-windows` を使う |
+| `./edit-menu.css`・`./info-menu.css`・`./project-file-menu.css`・`./project-load-progress.css`・`./project-search.css`・`./stage-controls.css` | 上のグローバルなスタイルシート |
+
+これらのスタイルシートはグローバルなスタイルシートとして読み込む。ダイアログの操作ボタンに使う `@kubohiroya/turbowarp-plus-editor-windows` の `styles.css` もあわせて読み込む。
+
+デバッガーのボタンは GUI のアドオンが作る。ホストは `setDebuggerButton` に渡すとき、アドオンのボタンに `data-tw-stage-button`、アイコンに `data-tw-stage-button-icon`、中身に `data-tw-stage-button-content` の印を付ける。スタイルシートとキーボードの扱いは、GUI のクラス名ではなくこの印を使う。
+
+これらは同じ作者が書いたもので、移すときに GPL-3.0 から MPL-2.0 にした。由来の監査は [turbowarp-plus-packages の移行計画](https://github.com/kubohiroya/turbowarp-plus-packages/blob/main/docs/editor-migration-plan.ja.md)の「由来の監査（7b）」にある。作品のメニューの Mark GitHub と Law のアイコンは GitHub Octicons（MIT）のもの。`NOTICE` を参照。
+
 ## 検証
 
 `npm test` で配分・縦横比・設定の読み書きを、`npm run test:browser` で独立した試験用ホストを検証する。試験用ホストを手動で開くには、このディレクトリで `npm install` と `python3 -m http.server` を実行し、`/example/` を表示する。
