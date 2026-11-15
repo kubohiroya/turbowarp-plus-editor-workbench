@@ -137,6 +137,7 @@ Web 版の Plus 標準配置で `twPlusDockview=1` を付けて起動すると�
 送受信の判定は `@kubohiroya/turbowarp-plus-editor-project-model` の `messageReference` だけが持ち、Editor の作品内検索も同じ関数を使う。
 このパッケージの `./project-messages` は、既存の import のためにそれを再 export している。
 
-ホストが `getFunctions` を渡すと、「メッセージ」の次に「関数」がある。`SpriteFunctionPane` が対象のブロック定義を
+ホストが `getFunctions` を渡すと、「音」と「変数など」の間に「関数」がある（ボタンの並びは
+`@kubohiroya/turbowarp-plus-editor-sprite-panes` のツールバーが決め、保存済みのレイアウトが持つセクションの番号は変わらない）。`SpriteFunctionPane` が対象のブロック定義を
 アコーディオンで一覧し、並べ方は名前順・Z順・N順から選び、LR・TD の呼び出し図にも切り替えられる（図の関数はダイアログで開く）。表示・並べ方・流れはビューごとに保つ。開いた項目はホストの
 `mountFunctionEditor` を呼び、その定義のコード編集画面はホストが持つ。このパッケージは Scratch Blocks のコードを持たないためである。
