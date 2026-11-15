@@ -316,6 +316,8 @@ export const breakpointMenuText = (locale: string | undefined, marked: boolean, 
  */
 export function attachBreakpointMenu (options: BreakpointMenuOptions) {
     const vm = options.vm as VirtualMachineLike;
+    // Without a runtime there is nothing to pause.
+    if (!vm?.runtime) return {dispose () {}};
     const breakpoints = getBreakpoints(vm);
     let disposed = false;
     let detach = () => {};
