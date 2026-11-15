@@ -22,7 +22,7 @@ import type {SpriteVariableEdit, SpriteVariableEditError} from '@kubohiroya/turb
 import {SpriteMessagePane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-message-pane';
 import type {MessageRenameError} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-message-pane';
 import {functionLabel, SpriteFunctionPane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
-import type {FunctionPaneData, FunctionPaneSettings, MountFunctionEditor} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
+import type {FunctionKind, FunctionPaneData, FunctionPaneSettings, MountFunctionEditor} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
 import type {MessageUse, ProjectMessage, TargetMessages} from '@kubohiroya/turbowarp-plus-editor-project-model/project-messages';
 import {createTargetTabMenuItem, spriteRenameLabel} from './target-tab-menu.ts';
 
@@ -1411,6 +1411,12 @@ type SpriteTabsProps<Snapshot> = Omit<TabOptions<Snapshot>, 'activateSection' | 
     getFunctions?(targetId: string): FunctionPaneData;
     /** Mount an editor of one definition script in an open item of the functions pane. */
     mountFunctionEditor?: MountFunctionEditor;
+    /**
+     * Make a new function in the target: a standard custom block or a TurboWarp-Plus named function.
+     * Resolves with the id of the new hat, or with nothing when cancelled. Without it, the functions
+     * section has no create button.
+     */
+    createFunction?(targetId: string, kind: FunctionKind): Promise<string | void>;
     getCodeSearchItems?(targetId: string): readonly SpriteSearchResult[];
     openCodeSearchResult?(targetId: string, id: string): void;
 };
@@ -1627,7 +1633,13 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                 kind, locale: props.locale, editable, data: props.getFunctions!(targetId),
                 defaultSettings: functionSettings.get(id),
                 onSettingsChange: (settings: FunctionPaneSettings) => functionSettings.set(id, settings),
-                mountEditor: props.mountFunctionEditor
+                mountEditor: props.mountFunctionEditor,
+                onCreate: props.createFunction && (async (functionKind: FunctionKind) => {
+                    const created = await props.createFunction!(targetId, functionKind);
+                    // Show the new function now rather than at the next project change.
+                    if (created) workspace?.refreshSurfaces();
+                    return created;
+                })
             }) : kind === 'variables' ? renderVariablePane(id, targetId, editable) :
                 props.getAssetPreview && React.createElement(AssetPreview, {
                     locale: props.locale, kind, selected, renderLayout, scrollTop, data: props.getAssetPreview(targetId, kind)

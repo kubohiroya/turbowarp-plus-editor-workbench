@@ -139,5 +139,5 @@ When the host passes `getFunctions`, a Functions section appears between Sounds 
 toolbar of `@kubohiroya/turbowarp-plus-editor-sprite-panes` sets the button order; the section numbers stored in
 saved layouts do not change). `SpriteFunctionPane` lists the
 target's custom block definitions as an accordion, ordered by name, in Z order or in N order, or as a call graph flowing LR or TD whose
-functions open in a dialog; each view keeps the mode, order and flow it chose. Each open item calls the host's `mountFunctionEditor`, which owns the code workspace of that
+functions open in a dialog; each view keeps the mode, order and flow it chose. With `createFunction`, a split button below the list or graph makes a standard custom block or a TurboWarp-Plus named function. Each open item calls the host's `mountFunctionEditor`, which owns the code workspace of that
 definition, because this package carries no Scratch Blocks code.
