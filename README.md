@@ -134,3 +134,10 @@ Variables, drawn by `SpriteMessagePane` from `@kubohiroya/turbowarp-plus-editor-
 `broadcast_msg` variables, so a rename applies project-wide. `messageReference` in `@kubohiroya/turbowarp-plus-editor-project-model` is the only place that decides what
 sends or receives a message, and the editor's project search calls the same function. This package's
 `./project-messages` re-exports it for existing imports.
+
+When the host passes `getFunctions`, a Functions section appears between Sounds and Variables (the
+toolbar of `@kubohiroya/turbowarp-plus-editor-sprite-panes` sets the button order; the section numbers stored in
+saved layouts do not change). `SpriteFunctionPane` lists the
+target's custom block definitions as an accordion, ordered by name, in Z order or in N order, or as a call graph flowing LR or TD whose
+functions open in a dialog; each view keeps the mode, order and flow it chose. Each open item calls the host's `mountFunctionEditor`, which owns the code workspace of that
+definition, because this package carries no Scratch Blocks code.

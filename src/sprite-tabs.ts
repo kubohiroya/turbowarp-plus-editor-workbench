@@ -21,6 +21,8 @@ import type {WorkspaceLayoutSession, WorkspaceLayoutStore, WorkspaceProjectIdent
 import type {SpriteVariableEdit, SpriteVariableEditError} from '@kubohiroya/turbowarp-plus-editor-project-model/sprite-variable-edit';
 import {SpriteMessagePane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-message-pane';
 import type {MessageRenameError} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-message-pane';
+import {functionLabel, SpriteFunctionPane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
+import type {FunctionPaneData, FunctionPaneSettings, MountFunctionEditor} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
 import type {MessageUse, ProjectMessage, TargetMessages} from '@kubohiroya/turbowarp-plus-editor-project-model/project-messages';
 import {createTargetTabMenuItem, spriteRenameLabel} from './target-tab-menu.ts';
 
@@ -88,6 +90,7 @@ type AssetKind = SpriteAssetKind;
 
 const variableSection = spriteEditorSections.indexOf('variables');
 const messageSection = spriteEditorSections.indexOf('messages');
+const functionSection = spriteEditorSections.indexOf('functions');
 // The first three sections are the GUI's own panels; the rest are rendered by this package.
 const lastNativeSection = 2;
 
@@ -162,6 +165,7 @@ interface TabOptions<Snapshot = unknown> {
     stagePane?: DockviewStagePane;
     variables?: boolean;
     messages?: boolean;
+    functions?: boolean;
     locale?: string;
     viewAdapter?: SpriteTabAdapter<Snapshot>;
     popouts?: {url: string; className?: string; openPalette?(view: SpriteTabView): void};
@@ -184,7 +188,7 @@ interface ToolbarSlot {
 interface AssetPreviewSlot {
     id: string;
     targetId: string;
-    kind: AssetKind | 'variables' | 'messages';
+    kind: AssetKind | 'variables' | 'messages' | 'functions';
     editable: boolean;
     selected?: object;
     renderLayout?: SpriteAssetLayout;
@@ -266,7 +270,8 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
     const viewAdapter = multiView ? options.viewAdapter : undefined;
     const stagePane = multiView ? options.stagePane : undefined;
     const ownSection = (section: number) => (section === variableSection && Boolean(options.variables)) ||
-        (section === messageSection && Boolean(options.messages));
+        (section === messageSection && Boolean(options.messages)) ||
+        (section === functionSection && Boolean(options.functions));
     const usesNativeSection = (section: number) => !ownSection(section);
     const sectionAvailable = (section: number) => section <= lastNativeSection || ownSection(section);
     const document = root.ownerDocument;
@@ -609,7 +614,8 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
             if (ownSection(view.section) && slot.assetPreview) {
                 slot.assetPreview.hidden = false;
                 assetPreviews.push({id, targetId: descriptor.targetId,
-                    kind: view.section === messageSection ? 'messages' : 'variables', editable: active === view,
+                    kind: view.section === messageSection ? 'messages' : view.section === functionSection ? 'functions' : 'variables',
+                    editable: active === view,
                     element: slot.assetPreview});
                 continue;
             }
@@ -1401,6 +1407,10 @@ type SpriteTabsProps<Snapshot> = Omit<TabOptions<Snapshot>, 'activateSection' | 
     openMessageTarget?(targetId: string): void;
     /** Rename a message everywhere in the project. The stage owns broadcast_msg variables. */
     renameMessage?(message: ProjectMessage, name: string): MessageRenameError | void;
+    /** The custom block definitions of this target. `readTargetFunctions` builds it from the runtime. */
+    getFunctions?(targetId: string): FunctionPaneData;
+    /** Mount an editor of one definition script in an open item of the functions pane. */
+    mountFunctionEditor?: MountFunctionEditor;
     getCodeSearchItems?(targetId: string): readonly SpriteSearchResult[];
     openCodeSearchResult?(targetId: string, id: string): void;
 };
@@ -1455,11 +1465,14 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
     });
     const [toolbarSlots, setToolbarSlots] = React.useState<readonly ToolbarSlot[]>([]);
     const [assetPreviewSlots, setAssetPreviewSlots] = React.useState<readonly AssetPreviewSlot[]>([]);
+    // The functions pane remounts when its view switches sections; keep the view, order and flow each view chose.
+    const [functionSettings] = React.useState(() => new Map<string, FunctionPaneSettings>());
     const controller = React.useRef<SpriteTabsController<Snapshot>>(null);
     const hasVariables = Boolean(props.getVariables);
     const hasMessages = Boolean(props.getMessages);
+    const hasFunctions = Boolean(props.getFunctions);
     const hasToolbar = Boolean(props.renderToolbar) || hasVariables;
-    const hasAssetPreview = Boolean(props.getAssetPreview) || hasVariables || hasMessages;
+    const hasAssetPreview = Boolean(props.getAssetPreview) || hasVariables || hasMessages || hasFunctions;
     React.useLayoutEffect(() => {
         sections.current.append(...props.slots);
         parking.current.appendChild(content);
@@ -1507,6 +1520,7 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
             stagePane: props.stagePane,
             variables: hasVariables,
             messages: hasMessages,
+            functions: hasFunctions,
             locale: props.locale,
             viewAdapter: props.viewAdapter,
             popouts: props.popouts && {...props.popouts, className: props.className},
@@ -1525,7 +1539,7 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
         };
     }, [content, props.enabled, props.vm, props.reopenLabel, props.multiView, props.locale,
         props.viewAdapter, props.stagePane, props.workspaceLayout, props.renameLabels, props.popouts, props.className,
-        hasVariables, hasMessages, hasToolbar, hasAssetPreview]);
+        hasVariables, hasMessages, hasFunctions, hasToolbar, hasAssetPreview]);
     React.useLayoutEffect(() => {
         controller.current?.syncActiveSection(props.activeSection);
     }, [props.activeSection]);
@@ -1555,7 +1569,8 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                     activeGroup: view.groupActive, propertiesInVariables: Boolean(props.getProperties),
                     // A section with no port behind it would open an empty panel.
                     availableSections: spriteEditorSections.filter(section =>
-                        section !== 'messages' || Boolean(props.getMessages)),
+                        (section !== 'messages' || Boolean(props.getMessages)) &&
+                        (section !== 'functions' || Boolean(props.getFunctions))),
                     actions: view.active && currentSection !== 'variables' ? props.activeTools : undefined,
                     onSectionChange: section => actions.setSection(spriteEditorSections.indexOf(section)),
                     search: {
@@ -1568,6 +1583,9 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                             } else if (section === 'messages') {
                                 items = (props.getMessages?.(view.targetId).messages ?? [])
                                     .map(message => ({id: message.key, label: message.name}));
+                            } else if (section === 'functions') {
+                                items = (props.getFunctions?.(view.targetId).functions ?? [])
+                                    .map(fn => ({id: fn.id, label: functionLabel(fn)}));
                             } else {
                                 items = props.getAssetPreview?.(view.targetId, section).items.map((item, index) =>
                                     ({id: String(index), label: item.name})) ?? [];
@@ -1586,6 +1604,10 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                                 const pane = assetPreviewSlots.find(slot => slot.id === view.id)?.element;
                                 [...(pane?.querySelectorAll<HTMLElement>('[data-message-key]') ?? [])]
                                     .find(node => node.dataset.messageKey === result.id)?.focus();
+                            } else if (section === 'functions') {
+                                const pane = assetPreviewSlots.find(slot => slot.id === view.id)?.element;
+                                [...(pane?.querySelectorAll<HTMLElement>('[data-function-key]') ?? [])]
+                                    .find(node => node.dataset.functionKey === result.id)?.focus();
                             } else workspace?.selectAsset(view.id, section, Number(result.id));
                         }
                     }
@@ -1601,6 +1623,11 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                     if (!result) workspace?.refreshSurfaces();
                     return result;
                 })
+            }) : kind === 'functions' ? React.createElement(SpriteFunctionPane, {
+                kind, locale: props.locale, editable, data: props.getFunctions!(targetId),
+                defaultSettings: functionSettings.get(id),
+                onSettingsChange: (settings: FunctionPaneSettings) => functionSettings.set(id, settings),
+                mountEditor: props.mountFunctionEditor
             }) : kind === 'variables' ? renderVariablePane(id, targetId, editable) :
                 props.getAssetPreview && React.createElement(AssetPreview, {
                     locale: props.locale, kind, selected, renderLayout, scrollTop, data: props.getAssetPreview(targetId, kind)

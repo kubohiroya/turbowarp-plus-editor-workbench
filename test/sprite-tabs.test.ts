@@ -269,6 +269,7 @@ test('the message section is reachable only when the host renders it', t => {
         const {id} = native.currentView();
         assert.equal(native.setViewSection(id, 3), false);
         assert.equal(native.setViewSection(id, 4), false);
+        assert.equal(native.setViewSection(id, 5), false);
         assert.equal(native.setViewSection(id, 2), true);
     } finally {
         native.dispose();
@@ -287,6 +288,17 @@ test('the message section is reachable only when the host renders it', t => {
         both.dispose();
     }
 
+    const all = mount({variables: true, messages: true, functions: true});
+    try {
+        const {id} = all.currentView();
+        assert.equal(all.setViewSection(id, 5), true);
+        assert.deepEqual(slots.map(slot => [slot.kind, slot.editable]), [['functions', true]]);
+        assert.equal(all.setViewSection(id, 6), false);
+        assert.equal(all.currentView().section, 5);
+    } finally {
+        all.dispose();
+    }
+
     const messagesOnly = mount({messages: true});
     try {
         const {id} = messagesOnly.currentView();
@@ -298,7 +310,7 @@ test('the message section is reachable only when the host renders it', t => {
     }
 });
 
-test('returning the active view to a native section hides the variables and messages pane', t => {
+test('returning the active view to a native section hides the variables, messages and functions pane', t => {
     const document = setupDom(t);
     const sprite = {id: 'sprite', isOriginal: true, isStage: false, getName: () => 'Sprite',
         getCurrentCostume: () => ({asset: {encodeDataURI: () => '/sprite.svg'}})};
@@ -306,13 +318,13 @@ test('returning the active view to a native section hides the variables and mess
     const root = document.querySelector('main');
     let slots: {kind: string}[] = [];
     const controller = mountSpriteTabs(root, document.createElement('div'), {
-        vm, multiView: true, variables: true, messages: true, getSection: () => 0, activateSection() {},
+        vm, multiView: true, variables: true, messages: true, functions: true, getSection: () => 0, activateSection() {},
         selectTarget() {}, resize() {}, reopenLabel: 'Reopen', onAssetPreviewSlots: next => { slots = [...next]; }
     });
     const pane = () => root.querySelector<HTMLElement>('.tw-plus-sprite-tab-asset-preview');
     try {
         const {id} = controller.currentView();
-        for (const [section, kind] of [[3, 'variables'], [4, 'messages']] as const) {
+        for (const [section, kind] of [[3, 'variables'], [4, 'messages'], [5, 'functions']] as const) {
             for (const native of [0, 1, 2]) {
                 assert.equal(controller.setViewSection(id, section), true);
                 assert.deepEqual(slots.map(slot => slot.kind), [kind]);
