@@ -55,7 +55,8 @@
 .tw-plus-sprite-layout-menu-divider {
     height: 1px;
     margin: 4px 0;
-    background: var(--ui-black-transparent, #c6cfda);
+    /* Drawn from the menu's text colour, so it reads as clearly in the dark theme as in the light one. */
+    background: color-mix(in srgb, currentColor 35%, transparent);
 }
 
 .tw-plus-sprite-layout-menu-popup button:disabled { opacity: 0.55; cursor: default; }
