@@ -1,0 +1,94 @@
+ul:has(> li .tw-project-file-menu__item) {
+    background-color: var(--ui-white);
+    color: var(--text-primary);
+}
+
+[data-tw-plus-unsaved-marker] {
+    color: var(--looks-secondary, #855cd6);
+    color: color-mix(in srgb, var(--looks-secondary, #855cd6) 78%, var(--text-primary, #292929));
+    font-weight: 700;
+}
+
+[data-tw-plus-unsaved-tab] {
+    flex: none;
+    margin-inline-start: 0.25rem;
+}
+
+[data-tw-plus-unsaved-tab]::before {
+    content: '*';
+}
+
+.tw-project-file-menu__save-menu {
+    margin-inline-start: 0.25rem;
+    flex: none;
+}
+
+.tw-project-file-menu__save-marker {
+    min-inline-size: 1.5rem;
+    min-block-size: 1.5rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+.tw-project-file-menu__save-marker:disabled {
+    cursor: default;
+}
+
+.tw-project-file-menu__save-actions,
+.tw-project-file-menu__save-hint {
+    position: absolute;
+    z-index: 120;
+    inset-block-start: calc(100% + 0.25rem);
+    inset-inline-start: 0;
+    box-sizing: border-box;
+    inline-size: max-content;
+    max-inline-size: calc(100vw - 5rem);
+    white-space: normal;
+    overflow-wrap: anywhere;
+    padding: 0.25rem;
+    border: 1px solid var(--ui-black-transparent);
+    border-radius: 0.25rem;
+    background: var(--ui-white);
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px var(--ui-black-transparent);
+}
+
+.tw-project-file-menu__save-hint {
+    display: none;
+    padding: 0.5rem 0.75rem;
+    pointer-events: none;
+}
+
+.tw-project-file-menu__save-marker:is(:hover, :focus-visible) + .tw-project-file-menu__save-hint {
+    display: block;
+}
+
+.tw-project-file-menu__save-actions button {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+}
+
+.tw-project-file-menu__save-actions button:hover {
+    background: var(--ui-black-transparent);
+}
+
+.tw-project-file-menu__shortcut {
+    margin-inline-start: 0.75rem;
+    color: var(--text-primary);
+    opacity: 0.8;
+    font: inherit;
+    font-size: 0.85em;
+    white-space: nowrap;
+}

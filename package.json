@@ -1,6 +1,6 @@
 {
   "name": "@kubohiroya/turbowarp-plus-editor-workbench",
-  "version": "0.15.0",
+  "version": "0.16.0",
   "description": "The TurboWarp Plus Editor workbench: layout, dockable sprite tabs, stage, debugger tab and file menu",
   "type": "module",
   "license": "MPL-2.0",
@@ -9,39 +9,97 @@
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
     },
-    "./standard-layout": {
-      "types": "./dist/standard-layout.d.ts",
-      "default": "./dist/standard-layout.js"
+    "./ai-agents": {
+      "types": "./dist/ai-agents.d.ts",
+      "default": "./dist/ai-agents.js"
     },
-    "./stage-surface": {
-      "types": "./dist/stage-surface.d.ts",
-      "default": "./dist/stage-surface.js"
+    "./backpack": {
+      "types": "./dist/backpack.d.ts",
+      "default": "./dist/backpack.js"
     },
-    "./editor.css": "./src/editor.css",
-    "./targets.css": "./src/targets.css",
-    "./project-messages": {
-      "types": "./dist/project-messages.d.ts",
-      "default": "./dist/project-messages.js"
+    "./browser-tab-title": {
+      "types": "./dist/browser-tab-title.d.ts",
+      "default": "./dist/browser-tab-title.js"
     },
-    "./sprite-tabs": {
-      "types": "./dist/sprite-tabs.d.ts",
-      "default": "./dist/sprite-tabs.js"
+    "./busy-cursor": {
+      "types": "./dist/busy-cursor.d.ts",
+      "default": "./dist/busy-cursor.js"
     },
-    "./sprite-layout-menu.css": "./src/sprite-layout-menu.css",
-    "./dockview-styles": "./dist/dockview-styles.js",
     "./debugger-panel": {
       "types": "./dist/debugger-panel.d.ts",
       "default": "./dist/debugger-panel.js"
     },
     "./debugger-panel.css": "./src/debugger-panel.css",
-    "./ai-agents": {
-      "types": "./dist/ai-agents.d.ts",
-      "default": "./dist/ai-agents.js"
+    "./dockview-styles": "./dist/dockview-styles.js",
+    "./edit-menu": {
+      "types": "./dist/edit-menu.d.ts",
+      "default": "./dist/edit-menu.js"
     },
+    "./edit-menu.css": "./src/edit-menu.css",
+    "./editor.css": "./src/editor.css",
     "./extension-file-menu": {
       "types": "./dist/extension-file-menu.d.ts",
       "default": "./dist/extension-file-menu.js"
-    }
+    },
+    "./info-menu.css": "./src/info-menu.css",
+    "./project-file-dialogs": {
+      "types": "./dist/project-file-dialogs.d.ts",
+      "default": "./dist/project-file-dialogs.js"
+    },
+    "./project-file-menu": {
+      "types": "./dist/project-file-menu.d.ts",
+      "default": "./dist/project-file-menu.js"
+    },
+    "./project-file-menu.css": "./src/project-file-menu.css",
+    "./project-info-menu": {
+      "types": "./dist/info-menu.d.ts",
+      "default": "./dist/info-menu.js"
+    },
+    "./project-load-progress": {
+      "types": "./dist/project-load-progress.d.ts",
+      "default": "./dist/project-load-progress.js"
+    },
+    "./project-load-progress-view": {
+      "types": "./dist/project-load-progress-view.d.ts",
+      "default": "./dist/project-load-progress-view.js"
+    },
+    "./project-load-progress.css": "./src/project-load-progress.css",
+    "./project-messages": {
+      "types": "./dist/project-messages.d.ts",
+      "default": "./dist/project-messages.js"
+    },
+    "./project-search": {
+      "types": "./dist/project-search-box.d.ts",
+      "default": "./dist/project-search-box.js"
+    },
+    "./project-search.css": "./src/project-search.css",
+    "./project-size-approval": {
+      "types": "./dist/project-size-approval.d.ts",
+      "default": "./dist/project-size-approval.js"
+    },
+    "./sprite-layout-menu.css": "./src/sprite-layout-menu.css",
+    "./sprite-tabs": {
+      "types": "./dist/sprite-tabs.d.ts",
+      "default": "./dist/sprite-tabs.js"
+    },
+    "./stage-controls": {
+      "types": "./dist/stage-controls.d.ts",
+      "default": "./dist/stage-controls.js"
+    },
+    "./stage-controls-view": {
+      "types": "./dist/stage-controls-view.d.ts",
+      "default": "./dist/stage-controls-view.js"
+    },
+    "./stage-controls.css": "./src/stage-controls.css",
+    "./stage-surface": {
+      "types": "./dist/stage-surface.d.ts",
+      "default": "./dist/stage-surface.js"
+    },
+    "./standard-layout": {
+      "types": "./dist/standard-layout.d.ts",
+      "default": "./dist/standard-layout.js"
+    },
+    "./targets.css": "./src/targets.css"
   },
   "files": [
     "dist",
@@ -49,7 +107,8 @@
     "tsconfig.json",
     "README.md",
     "README.ja.md",
-    "LICENSE"
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p example/tsconfig.json",
@@ -58,26 +117,36 @@
     "test:browser": "npm run build && node --test test/*.browser.ts"
   },
   "devDependencies": {
+    "@kubohiroya/turbowarp-plus-editor-git": "0.21.0",
+    "@kubohiroya/turbowarp-plus-editor-windows": "0.2.0",
     "@playwright/test": "1.64.1",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
-    "typescript": "^6.0.3",
-    "jsdom": "26.1.0",
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
-    "fake-indexeddb": "6.2.6"
+    "fake-indexeddb": "6.2.6",
+    "jsdom": "26.1.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "^6.0.3"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/kubohiroya/turbowarp-plus-editor-workbench.git"
   },
   "dependencies": {
-    "@kubohiroya/turbowarp-plus-editor-project-model": "0.1.2",
+    "@kubohiroya/turbowarp-plus-editor-project-model": "0.2.0",
     "@kubohiroya/turbowarp-plus-editor-sprite-panes": "0.5.0",
+    "@kubohiroya/turbowarp-script-transfer": "0.1.5",
     "dockview": "8.8.3"
   },
   "peerDependencies": {
+    "@kubohiroya/turbowarp-plus-editor-git": ">=0.21.0 <0.22.0",
+    "@kubohiroya/turbowarp-plus-editor-windows": ">=0.2.0 <0.3.0",
     "react": ">=16.14",
     "react-dom": ">=16.14"
+  },
+  "peerDependenciesMeta": {
+    "@kubohiroya/turbowarp-plus-editor-git": {
+      "optional": true
+    }
   }
 }
