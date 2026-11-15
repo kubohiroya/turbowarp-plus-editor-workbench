@@ -141,6 +141,6 @@ saved layouts do not change, and Calls takes the next one). `SpriteFunctionPane`
 the other hat scripts the host passes in `hats` above the definitions, ordered by name, in Z order or in N order, and the call
 graph flowing LR or TD in the second; each view keeps the order and flow it chose. A function picked in either opens through
 `openFunction`, and a hat script through `openScript`, such as in a tab beside the sprite; without `openFunction` a function opens
-in a dialog. With `createFunction`, a split button below the list or graph makes a standard custom block or a TurboWarp-Plus named
-function. The dialog calls the host's `mountFunctionEditor`, which owns the code workspace of that
+in a dialog. With `createFunction(targetId, kind, name)`, an “Add a new function” button below the list and in the bottom left
+corner of the graph asks for a name and makes a standard custom block or a TurboWarp-Plus named function. The dialog calls the host's `mountFunctionEditor`, which owns the code workspace of that
 definition, because this package carries no Scratch Blocks code.

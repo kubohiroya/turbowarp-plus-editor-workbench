@@ -424,6 +424,11 @@
     padding-left: 16pt;
 }
 
+/* In a section heading of the sprite editor the row holds only its tools, with no stage to keep clear of. */
+.standard-body :global(.tw-plus-sprite-toolbar-tools) .tab-row {
+    padding-right: 0;
+}
+
 .standard-body .stage-hidden {
     visibility: hidden;
     pointer-events: none;

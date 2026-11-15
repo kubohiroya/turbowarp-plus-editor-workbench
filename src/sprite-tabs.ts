@@ -1466,11 +1466,12 @@ type SpriteTabsProps<Snapshot> = Omit<TabOptions<Snapshot>, 'activateSection' | 
     /** The function or hat script shown beside the sprite, which the list of hats and functions highlights. */
     selectedScript?: {targetId: string; id: string};
     /**
-     * Make a new function in the target: a standard custom block or a TurboWarp-Plus named function.
-     * Resolves with the id of the new hat, or with nothing when cancelled. Without it, the functions
-     * section has no create button.
+     * Make a new function of this name in the target: a standard custom block, whose block text is the name,
+     * or a TurboWarp-Plus named function. Resolves with the id of the new hat, or with nothing when nothing
+     * was made; a rejection may carry a `code` the pane explains. Without it, the functions sections have
+     * no add button.
      */
-    createFunction?(targetId: string, kind: FunctionKind): Promise<string | void>;
+    createFunction?(targetId: string, kind: FunctionKind, name: string): Promise<string | void>;
     getCodeSearchItems?(targetId: string): readonly SpriteSearchResult[];
     openCodeSearchResult?(targetId: string, id: string): void;
 };
@@ -1696,8 +1697,8 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                 onOpenScript: props.openScript &&
                     ((hat: SpriteHatScript, options?: OpenScriptOptions) => props.openScript!(targetId, hat, options)),
                 selectedId: props.selectedScript?.targetId === targetId ? props.selectedScript.id : undefined,
-                onCreate: props.createFunction && (async (functionKind: FunctionKind) => {
-                    const created = await props.createFunction!(targetId, functionKind);
+                onCreate: props.createFunction && (async (functionKind: FunctionKind, name: string) => {
+                    const created = await props.createFunction!(targetId, functionKind, name);
                     // Show the new function now rather than at the next project change.
                     if (created) workspace?.refreshSurfaces();
                     return created;
