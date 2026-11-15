@@ -383,8 +383,10 @@ export function attachBreakpointMenu (options: BreakpointMenuOptions) {
         };
     };
 
-    Promise.resolve(options.getBlockly()).then(ScratchBlocks => {
+    Promise.resolve().then(() => options.getBlockly?.()).then(ScratchBlocks => {
         if (!disposed && ScratchBlocks?.ContextMenu) connect(ScratchBlocks);
+    }, () => {
+        // Without ScratchBlocks there is no code area to mark blocks in.
     });
 
     return {
