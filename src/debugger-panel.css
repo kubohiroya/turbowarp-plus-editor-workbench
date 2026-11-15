@@ -129,3 +129,9 @@ html body .tw-plus-debugger-docked .sa-debugger-tabs li:not(.sa-debugger-tab-sel
 html body .tw-plus-debugger-docked [class*="modal_header-item-close"] {
     display: none;
 }
+
+/* A block marked with a breakpoint (debugger-breakpoints.ts): a red outline that the block's selection glow does not hide. */
+html body .tw-plus-breakpoint > path.blocklyBlockBackground {
+    stroke: #e5484d;
+    stroke-width: 3px;
+}

@@ -137,6 +137,17 @@ The panes inside a sprite editing tab (assets and variables, messages, the prope
 
 `debugger-panel.css` restyles the add-on's own class names, so the host loads it as a global stylesheet. In the tab and the floating window alike it replaces the add-on's fixed teal with the GUI's theme variables.
 
+## Breakpoints without breakpoint blocks
+
+`attachBreakpointMenu({vm, getBlockly, getLocale})` adds "Add breakpoint" and "Remove breakpoint" to the context menu of a command block in the code area, and outlines the marked blocks of the sprite being edited in red (the rule is in `debugger-panel.css`). `getBreakpoints(vm)` returns the marks of one VM. A mark lives in the editing session and is never written to the project; a project load clears it.
+
+The project stops right before a marked block runs, through the debugger add-on's own pause, so the add-on's Threads tab, Step and Continue work as they do for its breakpoint block. Without the add-on the menu item is not offered.
+
+The VM is not changed. While at least one mark exists, `runtime.getOpcodeFunction`, `runtime._pushThread` and `runtime._restartThread` are wrapped, and they are restored when the last mark goes:
+
+- When a thread arrives at a marked block, the first function the block runs pauses instead, and the frame waits the way it waits for a reporter. Continuing runs the block from its start. A block that waits in place, or a loop that comes back to its head, stops only on arrival.
+- Compiled scripts run no per-block functions, so a script that starts in a sprite with a mark (clones included) is not compiled. Sprites without a mark compile as before. A script that was already running compiled keeps running until it starts again, and the menu item says so.
+
 ## Local verification with the Editor
 
 Run `npm test` to check tab state, file menu actions, and the existing layout. Set `TW_PLUS_LAYOUT_EDITOR_URL` to an Editor URL built with the pinned Scratch GUI and run `npm run test:browser` to verify Dockview through the existing tab strip and editor panel integration. Set `TW_PLUS_LAYOUT_FILE_MENU_URL` for the same command to check a GUI build with the optional file menu integration.
