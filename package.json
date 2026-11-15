@@ -73,7 +73,7 @@
   },
   "dependencies": {
     "@kubohiroya/turbowarp-plus-editor-project-model": "0.1.0",
-    "@kubohiroya/turbowarp-plus-editor-sprite-panes": "0.1.1",
+    "@kubohiroya/turbowarp-plus-editor-sprite-panes": "0.2.0",
     "dockview": "8.8.3"
   },
   "peerDependencies": {
