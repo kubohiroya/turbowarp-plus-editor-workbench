@@ -22,7 +22,7 @@ import type {SpriteVariableEdit, SpriteVariableEditError} from '@kubohiroya/turb
 import {SpriteMessagePane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-message-pane';
 import type {MessageRenameError} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-message-pane';
 import {functionLabel, SpriteFunctionPane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
-import type {FunctionKind, FunctionPaneData, FunctionPaneSettings, MountFunctionEditor} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
+import type {FunctionKind, FunctionPaneData, FunctionPaneSettings, MountFunctionEditor, OpenScriptOptions, SpriteFunction, SpriteHatScript} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
 import type {MessageUse, ProjectMessage, TargetMessages} from '@kubohiroya/turbowarp-plus-editor-project-model/project-messages';
 import {createTargetTabMenuItem, spriteRenameLabel} from './target-tab-menu.ts';
 
@@ -91,6 +91,7 @@ type AssetKind = SpriteAssetKind;
 const variableSection = spriteEditorSections.indexOf('variables');
 const messageSection = spriteEditorSections.indexOf('messages');
 const functionSection = spriteEditorSections.indexOf('functions');
+const callSection = spriteEditorSections.indexOf('calls');
 // The first three sections are the GUI's own panels; the rest are rendered by this package.
 const lastNativeSection = 2;
 
@@ -188,7 +189,7 @@ interface ToolbarSlot {
 interface AssetPreviewSlot {
     id: string;
     targetId: string;
-    kind: AssetKind | 'variables' | 'messages' | 'functions';
+    kind: AssetKind | 'variables' | 'messages' | 'functions' | 'calls';
     editable: boolean;
     selected?: object;
     renderLayout?: SpriteAssetLayout;
@@ -271,7 +272,7 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
     const stagePane = multiView ? options.stagePane : undefined;
     const ownSection = (section: number) => (section === variableSection && Boolean(options.variables)) ||
         (section === messageSection && Boolean(options.messages)) ||
-        (section === functionSection && Boolean(options.functions));
+        ((section === functionSection || section === callSection) && Boolean(options.functions));
     const usesNativeSection = (section: number) => !ownSection(section);
     const sectionAvailable = (section: number) => section <= lastNativeSection || ownSection(section);
     const document = root.ownerDocument;
@@ -614,7 +615,8 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
             if (ownSection(view.section) && slot.assetPreview) {
                 slot.assetPreview.hidden = false;
                 assetPreviews.push({id, targetId: descriptor.targetId,
-                    kind: view.section === messageSection ? 'messages' : view.section === functionSection ? 'functions' : 'variables',
+                    kind: view.section === messageSection ? 'messages' : view.section === functionSection ? 'functions' :
+                        view.section === callSection ? 'calls' : 'variables',
                     editable: active === view,
                     element: slot.assetPreview});
                 continue;
@@ -1407,10 +1409,25 @@ type SpriteTabsProps<Snapshot> = Omit<TabOptions<Snapshot>, 'activateSection' | 
     openMessageTarget?(targetId: string): void;
     /** Rename a message everywhere in the project. The stage owns broadcast_msg variables. */
     renameMessage?(message: ProjectMessage, name: string): MessageRenameError | void;
-    /** The custom block definitions of this target. `readTargetFunctions` builds it from the runtime. */
+    /**
+     * The custom block definitions of this target, with its other hat scripts in `hats` for the list.
+     * `readTargetFunctions` reads the definitions from the runtime.
+     */
     getFunctions?(targetId: string): FunctionPaneData;
     /** Mount an editor of one definition script in an open item of the functions pane. */
     mountFunctionEditor?: MountFunctionEditor;
+    /**
+     * Open one function picked in the list or the call graph of the functions section, such as in a tab
+     * split beside the sprite. Without it the function opens in a dialog.
+     */
+    openFunction?(targetId: string, fn: SpriteFunction, options?: OpenScriptOptions): void;
+    /**
+     * Open a hat script picked in the list of hats and functions, as `openFunction` opens a function.
+     * `options.block` asks to show one block, such as a call picked in the list of a function's uses.
+     */
+    openScript?(targetId: string, hat: SpriteHatScript, options?: OpenScriptOptions): void;
+    /** The function or hat script shown beside the sprite, which the list of hats and functions highlights. */
+    selectedScript?: {targetId: string; id: string};
     /**
      * Make a new function in the target: a standard custom block or a TurboWarp-Plus named function.
      * Resolves with the id of the new hat, or with nothing when cancelled. Without it, the functions
@@ -1576,7 +1593,7 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                     // A section with no port behind it would open an empty panel.
                     availableSections: spriteEditorSections.filter(section =>
                         (section !== 'messages' || Boolean(props.getMessages)) &&
-                        (section !== 'functions' || Boolean(props.getFunctions))),
+                        (section !== 'functions' && section !== 'calls' || Boolean(props.getFunctions))),
                     actions: view.active && currentSection !== 'variables' ? props.activeTools : undefined,
                     onSectionChange: section => actions.setSection(spriteEditorSections.indexOf(section)),
                     search: {
@@ -1589,9 +1606,10 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                             } else if (section === 'messages') {
                                 items = (props.getMessages?.(view.targetId).messages ?? [])
                                     .map(message => ({id: message.key, label: message.name}));
-                            } else if (section === 'functions') {
-                                items = (props.getFunctions?.(view.targetId).functions ?? [])
-                                    .map(fn => ({id: fn.id, label: functionLabel(fn)}));
+                            } else if (section === 'functions' || section === 'calls') {
+                                const data = props.getFunctions?.(view.targetId);
+                                items = [...(section === 'functions' ? data?.hats ?? [] : []).map(hat => ({id: hat.id, label: hat.label})),
+                                    ...(data?.functions ?? []).map(fn => ({id: fn.id, label: functionLabel(fn)}))];
                             } else {
                                 items = props.getAssetPreview?.(view.targetId, section).items.map((item, index) =>
                                     ({id: String(index), label: item.name})) ?? [];
@@ -1610,10 +1628,10 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                                 const pane = assetPreviewSlots.find(slot => slot.id === view.id)?.element;
                                 [...(pane?.querySelectorAll<HTMLElement>('[data-message-key]') ?? [])]
                                     .find(node => node.dataset.messageKey === result.id)?.focus();
-                            } else if (section === 'functions') {
+                            } else if (section === 'functions' || section === 'calls') {
                                 const pane = assetPreviewSlots.find(slot => slot.id === view.id)?.element;
-                                [...(pane?.querySelectorAll<HTMLElement>('[data-function-key]') ?? [])]
-                                    .find(node => node.dataset.functionKey === result.id)?.focus();
+                                [...(pane?.querySelectorAll<HTMLElement>('[data-function-key], [data-hat-key]') ?? [])]
+                                    .find(node => (node.dataset.functionKey ?? node.dataset.hatKey) === result.id)?.focus();
                             } else workspace?.selectAsset(view.id, section, Number(result.id));
                         }
                     }
@@ -1629,11 +1647,18 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                     if (!result) workspace?.refreshSurfaces();
                     return result;
                 })
-            }) : kind === 'functions' ? React.createElement(SpriteFunctionPane, {
-                kind, locale: props.locale, editable, data: props.getFunctions!(targetId),
+            }) : kind === 'functions' || kind === 'calls' ? React.createElement(SpriteFunctionPane, {
+                // The list and the call graph are sections of their own.
+                kind: 'functions', view: kind === 'calls' ? 'graph' : 'list',
+                locale: props.locale, editable, data: props.getFunctions!(targetId),
                 defaultSettings: functionSettings.get(id),
                 onSettingsChange: (settings: FunctionPaneSettings) => functionSettings.set(id, settings),
                 mountEditor: props.mountFunctionEditor,
+                onOpenFunction: props.openFunction &&
+                    ((fn: SpriteFunction, options?: OpenScriptOptions) => props.openFunction!(targetId, fn, options)),
+                onOpenScript: props.openScript &&
+                    ((hat: SpriteHatScript, options?: OpenScriptOptions) => props.openScript!(targetId, hat, options)),
+                selectedId: props.selectedScript?.targetId === targetId ? props.selectedScript.id : undefined,
                 onCreate: props.createFunction && (async (functionKind: FunctionKind) => {
                     const created = await props.createFunction!(targetId, functionKind);
                     // Show the new function now rather than at the next project change.

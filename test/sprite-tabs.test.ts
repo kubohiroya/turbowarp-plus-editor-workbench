@@ -293,8 +293,11 @@ test('the message section is reachable only when the host renders it', t => {
         const {id} = all.currentView();
         assert.equal(all.setViewSection(id, 5), true);
         assert.deepEqual(slots.map(slot => [slot.kind, slot.editable]), [['functions', true]]);
-        assert.equal(all.setViewSection(id, 6), false);
-        assert.equal(all.currentView().section, 5);
+        // The call graph is a section of its own, numbered after the others so saved layouts keep theirs.
+        assert.equal(all.setViewSection(id, 6), true);
+        assert.deepEqual(slots.map(slot => [slot.kind, slot.editable]), [['calls', true]]);
+        assert.equal(all.setViewSection(id, 7), false);
+        assert.equal(all.currentView().section, 6);
     } finally {
         all.dispose();
     }

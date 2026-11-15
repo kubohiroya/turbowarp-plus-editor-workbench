@@ -129,15 +129,18 @@ Sprite editing tabs are enabled by default in the Plus standard layout. Set `twP
 
 In the Plus web editor, add `twPlusDockview=1` to enable split sprite panes. Each pane remembers its section, costume and sound selections, and asset-list scroll position. Variable values are shared across panes and can be changed in the active pane. Remove the startup parameter and reload to return to the regular sprite tabs.
 
-The sprite and stage editor tabs carry a Messages section after Code, Costumes or Backdrops, Sounds and
-Variables, drawn by `SpriteMessagePane` from `@kubohiroya/turbowarp-plus-editor-sprite-panes`. The stage owns
+The sprite and stage editor tabs carry Free layout (the code area), then Costumes or Backdrops and Sounds, then
+Variables and Messages. Messages is drawn by `SpriteMessagePane` from `@kubohiroya/turbowarp-plus-editor-sprite-panes`. The stage owns
 `broadcast_msg` variables, so a rename applies project-wide. `messageReference` in `@kubohiroya/turbowarp-plus-editor-project-model` is the only place that decides what
 sends or receives a message, and the editor's project search calls the same function. This package's
 `./project-messages` re-exports it for existing imports.
 
-When the host passes `getFunctions`, a Functions section appears between Sounds and Variables (the
+When the host passes `getFunctions`, two sections follow Free layout: Hats and functions, and Calls (the
 toolbar of `@kubohiroya/turbowarp-plus-editor-sprite-panes` sets the button order; the section numbers stored in
-saved layouts do not change). `SpriteFunctionPane` lists the
-target's custom block definitions as an accordion, ordered by name, in Z order or in N order, or as a call graph flowing LR or TD whose
-functions open in a dialog; each view keeps the mode, order and flow it chose. With `createFunction`, a split button below the list or graph makes a standard custom block or a TurboWarp-Plus named function. Each open item calls the host's `mountFunctionEditor`, which owns the code workspace of that
+saved layouts do not change, and Calls takes the next one). `SpriteFunctionPane` shows the list in the first, with
+the other hat scripts the host passes in `hats` above the definitions, ordered by name, in Z order or in N order, and the call
+graph flowing LR or TD in the second; each view keeps the order and flow it chose. A function picked in either opens through
+`openFunction`, and a hat script through `openScript`, such as in a tab beside the sprite; without `openFunction` a function opens
+in a dialog. With `createFunction`, a split button below the list or graph makes a standard custom block or a TurboWarp-Plus named
+function. The dialog calls the host's `mountFunctionEditor`, which owns the code workspace of that
 definition, because this package carries no Scratch Blocks code.

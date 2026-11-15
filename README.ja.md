@@ -131,13 +131,13 @@ Editor がファイルメニューの接続口を提供している場合は、�
 
 Web 版の Plus 標準配置で `twPlusDockview=1` を付けて起動すると、スプライト編集ペインを左右・上下に分割できます。同じスプライトを複数のペインで開いた場合、表示セクション、コスチュームと音の選択、素材一覧のスクロール位置をペインごとに保持します。変数の値はプロジェクト内で共有され、編集中のペインで変更できます。URL から `twPlusDockview=1` を外して再読み込みすると、通常のスプライトタブに戻ります。
 
-スプライトと背景の編集タブには「コード」「コスチューム / 背景」「音」「変数など」に続いて「メッセージ」がある。
-表示は `@kubohiroya/turbowarp-plus-editor-sprite-panes` の `SpriteMessagePane` が担う。
+スプライトと背景の編集タブには「自由配置」（コード領域）、「コスチューム / 背景」「音」、「変数」「メッセージ」がある。
+「メッセージ」の表示は `@kubohiroya/turbowarp-plus-editor-sprite-panes` の `SpriteMessagePane` が担う。
 `broadcast_msg` はステージ所有なので、メッセージ名の変更は作品全体に及ぶ。
 送受信の判定は `@kubohiroya/turbowarp-plus-editor-project-model` の `messageReference` だけが持ち、Editor の作品内検索も同じ関数を使う。
 このパッケージの `./project-messages` は、既存の import のためにそれを再 export している。
 
-ホストが `getFunctions` を渡すと、「音」と「変数など」の間に「関数」がある（ボタンの並びは
-`@kubohiroya/turbowarp-plus-editor-sprite-panes` のツールバーが決め、保存済みのレイアウトが持つセクションの番号は変わらない）。`SpriteFunctionPane` が対象のブロック定義を
-アコーディオンで一覧し、並べ方は名前順・Z順・N順から選び、LR・TD の呼び出し図にも切り替えられる（図の関数はダイアログで開く）。表示・並べ方・流れはビューごとに保つ。`createFunction` を渡すと、一覧や図の下の分割ボタンで、標準のブロック定義か TurboWarp-Plus の名前付き関数を作れる。開いた項目はホストの
+ホストが `getFunctions` を渡すと、「自由配置」の次に「ハット・関数一覧」と「呼び出し関係」がある（ボタンの並びは
+`@kubohiroya/turbowarp-plus-editor-sprite-panes` のツールバーが決め、保存済みのレイアウトが持つセクションの番号は変わらない。「呼び出し関係」は次の番号を使う）。`SpriteFunctionPane` が、前者ではホストが `hats` で渡すハットのスクリプトとブロック定義を
+一覧し（並べ方は名前順・Z順・N順）、後者では LR・TD の呼び出し図を表示する。並べ方・流れはビューごとに保つ。どちらで選んだ関数もホストの `openFunction` で、ハットのスクリプトは `openScript` で開く（スプライトの横のタブなど）。`openFunction` が無ければ関数はダイアログで開く。`createFunction` を渡すと、一覧や図の下の分割ボタンで、標準のブロック定義か TurboWarp-Plus の名前付き関数を作れる。ダイアログはホストの
 `mountFunctionEditor` を呼び、その定義のコード編集画面はホストが持つ。このパッケージは Scratch Blocks のコードを持たないためである。
