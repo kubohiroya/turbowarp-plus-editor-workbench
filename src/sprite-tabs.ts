@@ -329,6 +329,12 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
     // Whether tabs stand in a column at the left of each split. It is the user's preference for every project.
     let verticalTabs = false;
     let tabsChosen = false;
+    // Whether the section buttons at the left of each sprite tab are hidden. It is also one preference for every project.
+    let sectionsHidden = false;
+    let sectionsChosen = false;
+    // Whether the costume thumbnail at the bottom right of each code area is hidden, for every project.
+    let thumbnailHidden = false;
+    let thumbnailChosen = false;
 
     const dockview = createDockview(root, {
         theme: themeLight,
@@ -394,9 +400,11 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
             if (multiView) {
                 element.classList.add('tw-plus-sprite-tab-slot--split');
                 body.className = 'tw-plus-sprite-tab-body';
+                body.toggleAttribute('data-thumbnail-hidden', thumbnailHidden);
                 if (toolbar) {
                     body.setAttribute('role', 'tabpanel');
                     toolbar.className = 'tw-plus-sprite-tab-toolbar';
+                    toolbar.toggleAttribute('data-sections-hidden', sectionsHidden);
                     element.append(toolbar);
                 }
                 if (assetPreview) {
@@ -486,6 +494,9 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
             canSplit: () => views.has(group.activePanel?.id),
             verticalTabs: () => verticalTabs,
             setVerticalTabs,
+            ...(options.onToolbarSlots && {sectionsHidden: () => sectionsHidden, setSectionsHidden}),
+            thumbnailHidden: () => thumbnailHidden,
+            setThumbnailHidden,
             ...(popouts && {
                 canOpenPanel,
                 openPanel() {
@@ -530,6 +541,26 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
             layoutStore?.writeTabsPosition(position).catch(() => undefined);
         }
         refreshSurfaces();
+    }
+
+    function setSectionsHidden(hidden: boolean, chosen = true) {
+        sectionsHidden = hidden;
+        for (const {toolbar} of slots.values()) toolbar?.toggleAttribute('data-sections-hidden', hidden);
+        if (chosen) {
+            sectionsChosen = true;
+            layoutStore?.writeSectionsHidden?.(hidden).catch(() => undefined);
+        }
+        // The code area is wider or narrower now, though the panel itself kept its size.
+        if (active) options.resize();
+    }
+
+    function setThumbnailHidden(hidden: boolean, chosen = true) {
+        thumbnailHidden = hidden;
+        for (const {body} of slots.values()) body.toggleAttribute('data-thumbnail-hidden', hidden);
+        if (chosen) {
+            thumbnailChosen = true;
+            layoutStore?.writeThumbnailHidden?.(hidden).catch(() => undefined);
+        }
     }
 
     const canRename = (target: Target) =>
@@ -1326,6 +1357,12 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
         readingTabs = false;
         updateLayoutState();
     });
+    layoutStore?.readSectionsHidden?.().then(hidden => {
+        if (!disposed && !sectionsChosen && hidden) setSectionsHidden(true, false);
+    }, () => undefined);
+    layoutStore?.readThumbnailHidden?.().then(hidden => {
+        if (!disposed && !thumbnailChosen && hidden) setThumbnailHidden(true, false);
+    }, () => undefined);
     if (persistence) window.addEventListener('pagehide', flushLayout);
     updateLayoutState();
     root.addEventListener('click', guardDocumentClose, true);

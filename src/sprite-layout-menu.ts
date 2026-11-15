@@ -11,15 +11,24 @@ interface SpriteLayoutCommands {
     /** Whether the tabs stand in a column at the left of each split panel instead of a row above it. */
     verticalTabs?(): boolean;
     setVerticalTabs?(vertical: boolean): void;
+    /** Whether the column of section buttons at the left of each sprite tab is hidden. */
+    sectionsHidden?(): boolean;
+    setSectionsHidden?(hidden: boolean): void;
+    /** Whether the costume thumbnail at the bottom right of each code area is hidden. */
+    thumbnailHidden?(): boolean;
+    setThumbnailHidden?(hidden: boolean): void;
 }
 
 export const panelLayoutIconPath = 'M2.5 3.5h11v9h-11zM2.5 6.5h11m-7 0v6';
+const checkIconPath = 'm3.5 8.5 3 3 6-7';
 
 const labels = {
     ja: ['編集パネルのレイアウト', 'パネルを横に分割', 'パネルを縦に分割', 'この分割パネルを閉じる',
-        'パネルを別画面で開く', 'ブロックパレットを別画面で開く', 'タブを垂直に並べて表示', 'タブを水平に並べて表示'],
+        'パネルを別画面で開く', 'ブロックパレットを別画面で開く', 'タブを垂直に並べて表示', 'タブを水平に並べて表示',
+        'パネル切り替えボタンを表示', 'サムネイルを表示'],
     en: ['Editor panel layout', 'Split right', 'Split below', 'Close this split',
-        'Open panel in another window', 'Open block palette in another window', 'Show tabs vertically', 'Show tabs horizontally']
+        'Open panel in another window', 'Open block palette in another window', 'Show tabs vertically', 'Show tabs horizontally',
+        'Show panel switch buttons', 'Show thumbnail']
 };
 
 function createIcon(document: Document, path: string) {
@@ -39,7 +48,8 @@ function createIcon(document: Document, path: string) {
 }
 
 export function createSpriteLayoutMenu(document: Document, locale: string, commands: SpriteLayoutCommands) {
-    const [title, right, below, closeLabel, panelLabel, paletteLabel, verticalLabel, horizontalLabel] = /^ja(?:-|$)/i.test(locale) ? labels.ja : labels.en;
+    const [title, right, below, closeLabel, panelLabel, paletteLabel, verticalLabel, horizontalLabel,
+        sectionsLabel, thumbnailLabel] = /^ja(?:-|$)/i.test(locale) ? labels.ja : labels.en;
     const element = document.createElement('div');
     element.className = 'tw-plus-sprite-layout-menu';
     const trigger = document.createElement('button');
@@ -61,37 +71,63 @@ export function createSpriteLayoutMenu(document: Document, locale: string, comma
         {label: below, run: commands.splitBelow, enabled: commands.canSplit, path: 'M2.5 3.5h11v9h-11zM2.5 8h11'},
         {label: closeLabel, run: commands.close, enabled: commands.canClose, path: 'm4.5 4.5 7 7m0-7-7 7'},
         {label: panelLabel, run: commands.openPanel, enabled: commands.canOpenPanel, path: 'M7 3H3v10h10V9m-5-1 5-5m-4 0h4v4'},
-        {label: paletteLabel, run: commands.openPalette, enabled: commands.canOpenPalette,
+        {label: paletteLabel, group: 'palette', run: commands.openPalette, enabled: commands.canOpenPalette,
             path: 'M7 4H3v3h2v2H3v3h7v-2h2V9m-3-2 4-4m-3 0h3v3'},
         ...(commands.verticalTabs && commands.setVerticalTabs ? [{
-            label: verticalLabel, run: () => commands.setVerticalTabs!(!commands.verticalTabs!()),
+            label: verticalLabel, group: 'tabs', run: () => commands.setVerticalTabs!(!commands.verticalTabs!()),
             path: 'M2.5 3.5h11v9h-11zM6 3.5v9M2.5 6h3.5m-3.5 2.5h3.5',
             // The item names the arrangement it switches to.
             current: () => commands.verticalTabs!() ?
                 {label: horizontalLabel, path: 'M2.5 3.5h11v9h-11zM2.5 6.5h11M6 3.5v3m3.5-3v3'} : undefined
+        }] : []),
+        // These two say what is shown, with a check mark while it is.
+        ...(commands.sectionsHidden && commands.setSectionsHidden ? [{
+            label: sectionsLabel, group: 'shown', run: () => commands.setSectionsHidden!(!commands.sectionsHidden!()),
+            path: '', checked: () => !commands.sectionsHidden!()
+        }] : []),
+        ...(commands.thumbnailHidden && commands.setThumbnailHidden ? [{
+            label: thumbnailLabel, group: 'shown', run: () => commands.setThumbnailHidden!(!commands.thumbnailHidden!()),
+            path: '', checked: () => !commands.thumbnailHidden!()
         }] : [])
     ];
-    const entries = items.flatMap(({label, run, enabled, path, current}: typeof items[number] & {
+    const entries = items.flatMap(({label, group, run, enabled, path, current, checked}: typeof items[number] & {
+        group?: string;
         current?(): {label: string; path: string} | undefined;
+        checked?(): boolean;
     }) => {
         if (!run) return [];
         const item = document.createElement('button');
         item.type = 'button';
         const render = () => {
+            if (checked) {
+                const on = checked();
+                item.setAttribute('aria-checked', String(on));
+                item.replaceChildren(createIcon(document, on ? checkIconPath : ''), label);
+                return;
+            }
             const shown = current?.() ?? {label, path};
             item.replaceChildren(createIcon(document, shown.path), shown.label);
         };
         render();
         item.tabIndex = -1;
-        item.setAttribute('role', 'menuitem');
+        item.setAttribute('role', checked ? 'menuitemcheckbox' : 'menuitem');
         item.addEventListener('click', () => {
             close(true);
             run();
         });
-        return [{item, enabled, render: current && render}];
+        return [{item, group, enabled, render: (current || checked) && render}];
     });
     const buttons = entries.map(({item}) => item);
-    popup.append(...buttons);
+    // A divider stands between groups of items, so it never leads the menu or doubles up when a group is missing.
+    entries.forEach(({item, group}, index) => {
+        if (index > 0 && group !== entries[index - 1].group) {
+            const divider = document.createElement('div');
+            divider.className = 'tw-plus-sprite-layout-menu-divider';
+            divider.setAttribute('role', 'separator');
+            popup.append(divider);
+        }
+        popup.append(item);
+    });
     let openedIn: Document | undefined;
     let topLayer = false;
 
