@@ -391,6 +391,8 @@ test('documents of one area open in their own split, gathered under tab groups',
 /** Keeps layouts in memory, standing in for IndexedDB. */
 function memoryLayoutStore(layouts: Record<string, string> = {}, exact = true) {
     let tabs: 'top' | 'left' | undefined;
+    let sectionsHidden: boolean | undefined;
+    let thumbnailHidden: boolean | undefined;
     const opened: string[] = [];
     const writes: string[] = [];
     const store = {
@@ -401,9 +403,14 @@ function memoryLayoutStore(layouts: Record<string, string> = {}, exact = true) {
                 async write(raw: string) { writes.push(raw); }};
         },
         async readTabsPosition() { return tabs; },
-        async writeTabsPosition(position: 'top' | 'left') { tabs = position; }
+        async writeTabsPosition(position: 'top' | 'left') { tabs = position; },
+        async readSectionsHidden() { return sectionsHidden; },
+        async writeSectionsHidden(hidden: boolean) { sectionsHidden = hidden; },
+        async readThumbnailHidden() { return thumbnailHidden; },
+        async writeThumbnailHidden(hidden: boolean) { thumbnailHidden = hidden; }
     };
-    return {store, opened, writes, tabs: () => tabs};
+    return {store, opened, writes, tabs: () => tabs, sectionsHidden: () => sectionsHidden,
+        thumbnailHidden: () => thumbnailHidden};
 }
 
 function spriteTarget(id: string, name: string) {
@@ -583,6 +590,123 @@ test('the layout menu stands the tabs of every split in a column and remembers t
         await controller.layoutSettled();
         assert.ok(positions().every(position => position === 'left'), 'a new workspace keeps the column');
         assert.deepEqual(layouts.writes, [], 'the tab position is not written over a layout');
+    } finally {
+        controller.dispose();
+    }
+});
+
+test('the layout menu hides the section buttons of every sprite tab and remembers the choice', async t => {
+    const document = setupDom(t);
+    const sprite = spriteTarget('sprite', 'Sprite');
+    const vm = Object.assign(new EventEmitter(), {runtime: {targets: [sprite]}, editingTarget: sprite});
+    const root = document.querySelector('main');
+    const layouts = memoryLayoutStore();
+    const mount = () => mountSpriteTabs(root, document.createElement('div'), {
+        vm, multiView: true, locale: 'ja', getSection: () => 0, activateSection() {}, selectTarget() {}, resize() {},
+        onToolbarSlots() {}, reopenLabel: 'Reopen', workspaceLayout: {store: layouts.store}
+    });
+    const item = () => [...document.querySelectorAll<HTMLButtonElement>('.tw-plus-sprite-layout-menu-popup button')]
+        .find(button => button.textContent === 'パネル切り替えボタンを表示');
+    const openMenu = () => root.querySelector<HTMLButtonElement>('.tw-plus-sprite-layout-menu-trigger').click();
+    const hidden = () => [...root.querySelectorAll('.tw-plus-sprite-tab-toolbar')]
+        .map(toolbar => toolbar.hasAttribute('data-sections-hidden'));
+    let controller = mount();
+    try {
+        controller.split('right');
+        assert.deepEqual(hidden(), [false, false]);
+        openMenu();
+        assert.equal(item().getAttribute('role'), 'menuitemcheckbox');
+        assert.equal(item().getAttribute('aria-checked'), 'true', 'the buttons are shown at first');
+        assert.deepEqual([...document.querySelector('.tw-plus-sprite-layout-menu-popup').children].slice(-5)
+            .map(child => child.getAttribute('role') === 'separator' ? '-' : child.textContent),
+        ['-', 'タブを垂直に並べて表示', '-', 'パネル切り替えボタンを表示', 'サムネイルを表示']);
+        item().click();
+        assert.equal(layouts.sectionsHidden(), true);
+        assert.deepEqual(hidden(), [true, true]);
+        openMenu();
+        assert.equal(item().getAttribute('aria-checked'), 'false', 'the same item is left unchecked');
+        item().click();
+        assert.deepEqual(hidden(), [false, false]);
+        assert.equal(layouts.sectionsHidden(), false);
+        openMenu();
+        item().click();
+    } finally {
+        controller.dispose();
+    }
+    root.replaceChildren();
+    controller = mount();
+    try {
+        await controller.layoutSettled();
+        assert.ok(hidden().length > 0 && hidden().every(Boolean), 'a new workspace keeps the buttons hidden');
+    } finally {
+        controller.dispose();
+    }
+});
+
+test('the layout menu leaves out the section buttons item when the tabs have no toolbar', async t => {
+    const document = setupDom(t);
+    const sprite = spriteTarget('sprite', 'Sprite');
+    const vm = Object.assign(new EventEmitter(), {runtime: {targets: [sprite]}, editingTarget: sprite});
+    const root = document.querySelector('main');
+    const controller = mountSpriteTabs(root, document.createElement('div'), {
+        vm, multiView: true, locale: 'en', getSection: () => 0, activateSection() {}, selectTarget() {}, resize() {},
+        reopenLabel: 'Reopen'
+    });
+    try {
+        root.querySelector<HTMLButtonElement>('.tw-plus-sprite-layout-menu-trigger').click();
+        const labels = [...document.querySelectorAll('.tw-plus-sprite-layout-menu-popup button')].map(button => button.textContent);
+        assert.ok(labels.includes('Show tabs vertically'));
+        assert.ok(!labels.includes('Show panel switch buttons'));
+        const order = [...document.querySelector('.tw-plus-sprite-layout-menu-popup').children]
+            .map(child => child.getAttribute('role') === 'separator' ? '-' : child.textContent);
+        assert.deepEqual(order, ['Split right', 'Split below', 'Close this split', '-', 'Show tabs vertically', '-', 'Show thumbnail'],
+            'groups are divided, and a missing group leaves no extra divider');
+    } finally {
+        controller.dispose();
+    }
+});
+
+test('the layout menu hides the costume thumbnail of every sprite tab and remembers the choice', async t => {
+    const document = setupDom(t);
+    const sprite = spriteTarget('sprite', 'Sprite');
+    const vm = Object.assign(new EventEmitter(), {runtime: {targets: [sprite]}, editingTarget: sprite});
+    const root = document.querySelector('main');
+    const layouts = memoryLayoutStore();
+    const mount = () => mountSpriteTabs(root, document.createElement('div'), {
+        vm, multiView: true, locale: 'en', getSection: () => 0, activateSection() {}, selectTarget() {}, resize() {},
+        reopenLabel: 'Reopen', workspaceLayout: {store: layouts.store}
+    });
+    const item = () => [...document.querySelectorAll<HTMLButtonElement>('.tw-plus-sprite-layout-menu-popup button')]
+        .find(button => button.textContent === 'Show thumbnail');
+    const openMenu = () => root.querySelector<HTMLButtonElement>('.tw-plus-sprite-layout-menu-trigger').click();
+    const hidden = () => [...root.querySelectorAll('.tw-plus-sprite-tab-body')]
+        .map(body => body.hasAttribute('data-thumbnail-hidden'));
+    let controller = mount();
+    try {
+        controller.split('right');
+        assert.deepEqual(hidden(), [false, false]);
+        openMenu();
+        assert.equal(item().getAttribute('aria-checked'), 'true');
+        assert.ok(item().querySelector('path').getAttribute('d'), 'a check mark is drawn');
+        item().click();
+        assert.equal(layouts.thumbnailHidden(), true);
+        assert.deepEqual(hidden(), [true, true]);
+        openMenu();
+        assert.equal(item().getAttribute('aria-checked'), 'false');
+        assert.equal(item().querySelector('path').getAttribute('d'), '', 'no check mark is drawn');
+        item().click();
+        assert.deepEqual(hidden(), [false, false]);
+        assert.equal(layouts.thumbnailHidden(), false);
+        openMenu();
+        item().click();
+    } finally {
+        controller.dispose();
+    }
+    root.replaceChildren();
+    controller = mount();
+    try {
+        await controller.layoutSettled();
+        assert.ok(hidden().length > 0 && hidden().every(Boolean), 'a new workspace keeps the thumbnail hidden');
     } finally {
         controller.dispose();
     }

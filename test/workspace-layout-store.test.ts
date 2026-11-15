@@ -112,6 +112,23 @@ test('the tab position is one preference for every project', async () => {
     assert.equal(await store.readTabsPosition(), 'left');
 });
 
+test('hiding the section buttons is one preference for every project', async () => {
+    const {store} = setup();
+    assert.equal(await store.readSectionsHidden!(), undefined);
+    await store.writeSectionsHidden!(true);
+    assert.equal(await store.readSectionsHidden!(), true);
+    await store.writeSectionsHidden!(false);
+    assert.equal(await store.readSectionsHidden!(), false);
+});
+
+test('hiding the costume thumbnail is one preference for every project', async () => {
+    const {store} = setup();
+    assert.equal(await store.readThumbnailHidden!(), undefined);
+    await store.writeThumbnailHidden!(true);
+    assert.equal(await store.readThumbnailHidden!(), true);
+    assert.equal(await store.readSectionsHidden!(), undefined, 'it is kept apart from the section buttons');
+});
+
 test('the single layout of earlier versions is cleared, not moved', () => {
     const {removed} = setup();
     assert.deepEqual(removed, ['twPlusDockviewLayout', 'twPlusDockviewLayout.tabs']);

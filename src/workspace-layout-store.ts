@@ -29,6 +29,12 @@ export interface WorkspaceLayoutStore {
     open(identity: WorkspaceProjectIdentity, signature: string): Promise<WorkspaceLayoutSession>;
     readTabsPosition(): Promise<TabsPosition | undefined>;
     writeTabsPosition(position: TabsPosition): Promise<void>;
+    /** Whether the section buttons of the sprite tabs are hidden, one preference for every project. */
+    readSectionsHidden?(): Promise<boolean | undefined>;
+    writeSectionsHidden?(hidden: boolean): Promise<void>;
+    /** Whether the costume thumbnail of the code areas is hidden, one preference for every project. */
+    readThumbnailHidden?(): Promise<boolean | undefined>;
+    writeThumbnailHidden?(hidden: boolean): Promise<void>;
 }
 
 export interface WorkspaceLayoutStoreOptions {
@@ -50,6 +56,8 @@ export const workspaceLayoutMaxBytes = 256 * 1024;
 const layoutsStore = 'layouts';
 const preferencesStore = 'preferences';
 const tabsPositionKey = 'tabsPosition';
+const sectionsHiddenKey = 'sectionsHidden';
+const thumbnailHiddenKey = 'thumbnailHidden';
 const legacyKeys = ['twPlusDockviewLayout', 'twPlusDockviewLayout.tabs'];
 
 interface LayoutRecord {
@@ -209,13 +217,28 @@ export function createWorkspaceLayoutStore({indexedDB: factory = globalThis.inde
             return value === 'left' || value === 'top' ? value : undefined;
         },
         writeTabsPosition(position) {
-            return enqueue(async () => {
-                const opened = await connect();
-                const transaction = opened.transaction(preferencesStore, 'readwrite');
-                const finished = completion(transaction);
-                transaction.objectStore(preferencesStore).put(position, tabsPositionKey);
-                await finished;
-            });
-        }
+            return writePreference(tabsPositionKey, position);
+        },
+        readSectionsHidden: () => readFlag(sectionsHiddenKey),
+        writeSectionsHidden: hidden => writePreference(sectionsHiddenKey, hidden),
+        readThumbnailHidden: () => readFlag(thumbnailHiddenKey),
+        writeThumbnailHidden: hidden => writePreference(thumbnailHiddenKey, hidden)
     };
+
+    async function readFlag(key: string) {
+        const opened = await connect();
+        const transaction = opened.transaction(preferencesStore, 'readonly');
+        const value = await result(transaction.objectStore(preferencesStore).get(key));
+        return typeof value === 'boolean' ? value : undefined;
+    }
+
+    function writePreference(key: string, value: unknown) {
+        return enqueue(async () => {
+            const opened = await connect();
+            const transaction = opened.transaction(preferencesStore, 'readwrite');
+            const finished = completion(transaction);
+            transaction.objectStore(preferencesStore).put(value, key);
+            await finished;
+        });
+    }
 }
