@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {JSDOM} from 'jsdom';
-import {attachBreakpointMenu, breakpointClass, getBreakpoints} from '../dist/debugger-breakpoints.js';
+import {attachBreakpointMenu, breakpointClass, breakpointDotClass, getBreakpoints} from '../dist/debugger-breakpoints.js';
 
 const settle = () => new Promise(resolve => setTimeout(resolve, 0));
 const PROMISE_WAIT = 1;
@@ -219,6 +219,7 @@ test('a command block gets a menu item, and a marked block is outlined', async (
     assert.equal(getBreakpoints(vm).has(target.blocks, 'b'), true);
     await new Promise(resolve => setTimeout(resolve, 30));
     assert.equal(element('b').classList.contains(breakpointClass), true);
+    assert.equal(element('b').querySelectorAll('.' + breakpointDotClass).length, 1);
 
     ScratchBlocks.ContextMenu.show({}, [], false);
     assert.equal(shown[1].at(-1).text, 'ブレークポイントを外す');

@@ -139,7 +139,7 @@ The panes inside a sprite editing tab (assets and variables, messages, the prope
 
 ## Breakpoints without breakpoint blocks
 
-`attachBreakpointMenu({vm, getBlockly, getLocale})` adds "Add breakpoint" and "Remove breakpoint" to the context menu of a command block in the code area, and outlines the marked blocks of the sprite being edited in red (the rule is in `debugger-panel.css`). `getBreakpoints(vm)` returns the marks of one VM. A mark lives in the editing session and is never written to the project; a project load clears it.
+`attachBreakpointMenu({vm, getBlockly, getLocale})` adds "Add breakpoint" and "Remove breakpoint" to the context menu of a command block in the code area, and marks the blocks of the sprite being edited with a red outline and a red dot on their left (the rules are in `debugger-panel.css`). `getBreakpoints(vm)` returns the marks of one VM. A mark lives in the editing session and is never written to the project; a project load clears it.
 
 The project stops right before a marked block runs, through the debugger add-on's own pause, so the add-on's Threads tab, Step and Continue work as they do for its breakpoint block. Without the add-on the menu item is not offered.
 

@@ -26,6 +26,8 @@ const pauseProcedure = 'sa-pause';
 const hitKey = Symbol('tw-plus-breakpoint-hit');
 
 export const breakpointClass = 'tw-plus-breakpoint';
+export const breakpointDotClass = 'tw-plus-breakpoint-dot';
+const svgNamespace = 'http://www.w3.org/2000/svg';
 
 type BlockFunction = (args: unknown, util: BlockUtilityLike) => unknown;
 
@@ -355,10 +357,21 @@ export function attachBreakpointMenu (options: BreakpointMenuOptions) {
             const root = main?.getParentSvg?.();
             if (!main || !root) return;
             for (const element of root.querySelectorAll(`.${breakpointClass}`)) element.classList.remove(breakpointClass);
+            for (const dot of root.querySelectorAll(`.${breakpointDotClass}`)) dot.remove();
             const blocks = editingBlocks();
             if (!blocks) return;
             for (const id of breakpoints.ids(blocks)) {
-                main.getBlockById(id)?.getSvgRoot?.()?.classList.add(breakpointClass);
+                const element = main.getBlockById(id)?.getSvgRoot?.();
+                if (!element) continue;
+                element.classList.add(breakpointClass);
+                // A dot left of the block, like the gutter mark of a code editor. The outline alone is
+                // hard to see on the orange and yellow categories.
+                const dot = element.ownerDocument.createElementNS(svgNamespace, 'circle');
+                dot.setAttribute('class', breakpointDotClass);
+                dot.setAttribute('cx', '-9');
+                dot.setAttribute('cy', '12');
+                dot.setAttribute('r', '6');
+                element.append(dot);
             }
         };
         const schedule = () => {

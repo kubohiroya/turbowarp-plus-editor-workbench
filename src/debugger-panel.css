@@ -130,8 +130,15 @@ html body .tw-plus-debugger-docked [class*="modal_header-item-close"] {
     display: none;
 }
 
-/* A block marked with a breakpoint (debugger-breakpoints.ts): a red outline that the block's selection glow does not hide. */
+/* A block marked with a breakpoint (debugger-breakpoints.ts): a red outline, and a red dot on its left. */
 html body .tw-plus-breakpoint > path.blocklyBlockBackground {
     stroke: #e5484d;
     stroke-width: 3px;
+}
+
+html body .tw-plus-breakpoint-dot {
+    fill: #e5484d;
+    stroke: #fff;
+    stroke-width: 2px;
+    pointer-events: none;
 }
