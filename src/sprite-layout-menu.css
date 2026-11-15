@@ -52,6 +52,12 @@
 
 .tw-plus-sprite-layout-menu-popup svg { width: 16px; height: 16px; flex: none; }
 
+.tw-plus-sprite-layout-menu-divider {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--ui-black-transparent, #c6cfda);
+}
+
 .tw-plus-sprite-layout-menu-popup button:disabled { opacity: 0.55; cursor: default; }
 .tw-plus-sprite-layout-menu-popup button:enabled:is(:hover, :focus-visible) {
     background: var(--looks-light-transparent, #e6dff3);
@@ -126,4 +132,15 @@
     visibility: visible;
     opacity: 1;
     pointer-events: auto;
+}
+
+/* The layout menu can hide the section buttons at the left of every sprite tab. */
+.tw-plus-sprite-tab-toolbar[data-sections-hidden] .tw-plus-sprite-toolbar-sections {
+    display: none;
+}
+
+/* It can also hide the costume thumbnail at the bottom right of each code area: the GUI's own
+   watermark in the active tab and the copy the editor shows in the other tabs. */
+.tw-plus-sprite-tab-body[data-thumbnail-hidden] :is([data-dockview-costume-thumbnail], [class*="gui_watermark_"]) {
+    display: none;
 }
