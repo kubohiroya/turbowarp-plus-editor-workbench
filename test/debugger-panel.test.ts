@@ -108,6 +108,42 @@ test('the debugger opens as a workspace tab and closes with it from either side'
     workspace.disconnect();
 });
 
+test('a pause brings the docked debugger tab forward', async () => {
+    const {window} = new JSDOM('<!doctype html><html><body></body></html>');
+    const {document} = window;
+    const vm = {};
+    const workspace = connectWorkspace(vm, document);
+    const debug = {...createDebugger(document), getLocale: () => 'ja'};
+    const unpause = document.createElement('div');
+    unpause.className = 'sa-debugger-unpause-container';
+    unpause.style.display = 'none';
+    debug.element.append(unpause);
+    const attached = attachDebuggerPanel(debug, {document, vm});
+    click(window, debug.button);
+    await settle();
+    assert.ok(workspace.panel());
+    const opened = workspace.activations();
+
+    // The add-on pauses: its Continue button appears while the window itself stays open.
+    unpause.style.display = '';
+    await settle();
+    assert.equal(workspace.activations(), opened + 1, 'the pause brings the tab forward');
+
+    // Staying paused, or continuing, does not move the tab again.
+    debug.element.style.display = 'flex';
+    await settle();
+    unpause.style.display = 'none';
+    await settle();
+    assert.equal(workspace.activations(), opened + 1);
+
+    // The next pause brings it forward again.
+    unpause.style.display = '';
+    await settle();
+    assert.equal(workspace.activations(), opened + 2);
+    attached.dispose();
+    workspace.disconnect();
+});
+
 test('without a workspace that takes panels the debugger stays the floating window', async () => {
     const {window} = new JSDOM('<!doctype html><html lang="en"><body></body></html>');
     const {document} = window;
