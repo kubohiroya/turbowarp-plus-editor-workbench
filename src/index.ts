@@ -1,5 +1,6 @@
 export {attachExternalMonitorDrag} from './monitor-drag.ts';
 export {attachStageInput} from './stage-input.ts';
+export {imeScratchKey, installImeKeyInput, keyFromCode} from './ime-key.ts';
 export {panelLayoutIconPath} from './sprite-layout-menu.ts';
 
 type Axis = 'columns' | 'rows';

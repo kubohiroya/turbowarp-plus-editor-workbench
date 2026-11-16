@@ -46,6 +46,10 @@
       "default": "./dist/extension-file-menu.js"
     },
     "./info-menu.css": "./src/info-menu.css",
+    "./ime-key": {
+      "types": "./dist/ime-key.d.ts",
+      "default": "./dist/ime-key.js"
+    },
     "./project-file-dialogs": {
       "types": "./dist/project-file-dialogs.d.ts",
       "default": "./dist/project-file-dialogs.js"
