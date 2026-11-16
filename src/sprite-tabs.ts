@@ -15,7 +15,7 @@ import type {DocumentPanelRequest} from './document-workspace.ts';
 import {projectFolderIconPath} from './drawer-views.ts';
 import {dockPopoutGroups, positionOnScreen, readWorkspaceLayout, workspaceWithoutTransientPanels}
     from './workspace-layout.ts';
-import type {PanelReference, SavedPopout, WorkspaceLayout} from './workspace-layout.ts';
+import type {PanelReference, SavedPopout, SpritePaneState, WorkspaceLayout} from './workspace-layout.ts';
 import {createWorkspaceLayoutStore} from './workspace-layout-store.ts';
 import type {WorkspaceLayoutSession, WorkspaceLayoutStore, WorkspaceProjectIdentity} from './workspace-layout-store.ts';
 import type {ProjectScreenState, SavedScreenState} from './project-screen-state.ts';
@@ -46,6 +46,7 @@ interface Target {
     isStage: boolean;
     getName(): string;
     getCostumes?(): {assetId?: string}[];
+    getSounds?(): object[];
     getCurrentCostume?(): {asset?: CostumeAsset} | undefined;
 }
 
@@ -74,6 +75,13 @@ export interface SpriteTabAdapter<Snapshot = unknown> {
     renderInactive(container: HTMLElement, view: SpriteTabView, snapshot: Snapshot | undefined): void | (() => void);
     restore(view: SpriteTabView, snapshot: Snapshot | undefined): void;
     dispose?(view: SpriteTabView, snapshot: Snapshot): void;
+    /**
+     * Describe a snapshot of the code area as a small JSON object for the saved workspace, such as its scroll
+     * position and zoom. Without a snapshot, describe the mounted surface as it is now, without changing it.
+     */
+    serialize?(view: SpriteTabView, snapshot: Snapshot | undefined): Record<string, unknown> | undefined;
+    /** Turn a value `serialize` wrote back into a snapshot. The value comes from a file, so check its shape. */
+    deserialize?(view: SpriteTabView, value: Record<string, unknown>): Snapshot | undefined;
 }
 
 /** Optional bridge used by a native asset editor to restore and report its selection. */
@@ -998,8 +1006,52 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
         scheduleSave();
     }
 
-    /** The current workspace as it is saved, or nothing while it cannot be described yet. */
-    function captureLayout(): WorkspaceLayout | undefined {
+    /** The selected costume and sound of a tab, and its code area, as the workspace saves them. */
+    function capturePane(view: View<Snapshot>, live: boolean): SpritePaneState | undefined {
+        const pane: SpritePaneState = {};
+        const lists = {costumes: view.target.getCostumes?.(), sounds: view.target.getSounds?.()};
+        for (const [kind, field] of [['costumes', 'costume'], ['sounds', 'sound']] as const) {
+            const index = lists[kind]?.indexOf(view.assets.selected.get(kind) as never) ?? -1;
+            if (index >= 0) pane[field] = index;
+        }
+        if (viewAdapter?.serialize) {
+            const stored = view.snapshots?.get(0);
+            // The tab on screen keeps its code area in the shared editor, which only a save reads.
+            const showing = view === active && view.section === 0 && Boolean(slots.get(view.id)?.body.contains(content));
+            try {
+                const code = showing ? (live ? viewAdapter.serialize(describe(view), undefined) : undefined) :
+                    stored && viewAdapter.serialize(stored.view, stored.snapshot);
+                if (code) pane.code = code;
+            } catch { /* The code area is left as the tab opens by default. */ }
+        }
+        return Object.keys(pane).length ? pane : undefined;
+    }
+
+    /** The asset selections and code snapshot a restored tab opens with. */
+    function restorePane(id: string, target: Target, pane: SpritePaneState | undefined) {
+        const selected = new Map<AssetKind, object>();
+        const costume = pane?.costume === undefined ? undefined : target.getCostumes?.()[pane.costume];
+        const sound = pane?.sound === undefined ? undefined : target.getSounds?.()[pane.sound];
+        if (costume) selected.set('costumes', costume);
+        if (sound) selected.set('sounds', sound);
+        const assets = createAssetSelections(target, locale, {selected, layouts: new Map(), scroll: new Map()});
+        let snapshots: View<Snapshot>['snapshots'];
+        if (pane?.code && viewAdapter?.deserialize && pane.code !== null && typeof pane.code === 'object') {
+            const view: SpriteTabView = {id, targetId: target.id, isStage: target.isStage, section: 0, groupId: '',
+                active: false, groupActive: false};
+            try {
+                const snapshot = viewAdapter.deserialize(view, pane.code as Record<string, unknown>);
+                if (snapshot !== undefined) snapshots = new Map([[0, {snapshot, view}]]);
+            } catch { /* The code area opens as it does by default. */ }
+        }
+        return {assets, snapshots};
+    }
+
+    /**
+     * The current workspace as it is saved, or nothing while it cannot be described yet. `live` also reads the code
+     * area on screen, which only a save of the project file does.
+     */
+    function captureLayout(live = false): WorkspaceLayout | undefined {
         const targets = originalTargets();
         if (!targets.length) return;
         const serialized = dockview.toJSON();
@@ -1008,8 +1060,9 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
         if (!docked) return;
         const panels: Record<string, PanelReference> = Object.create(null);
         for (const [id, view] of views) {
+            const pane = capturePane(view, live);
             panels[id] = {kind: 'sprite', name: targetName(view.target), stage: view.target.isStage, section: view.section,
-                number: view.number};
+                number: view.number, ...(pane && {pane})};
         }
         if (dockview.getPanel(stagePanelId)) panels[stagePanelId] = {kind: 'stage'};
         const transient = new Set<string>();
@@ -1110,7 +1163,8 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
     /** The tab arrangement and drawer state used to detect a change from the initial layout. */
     function layoutShape(layout: WorkspaceLayout) {
         type Node = WorkspaceLayout['grid']['root'];
-        const reference = (id: string) => layout.panels[id] ?? null;
+        // What a tab shows inside its panes is not a change of the arrangement.
+        const reference = (id: string) => layout.panels[id] ? {...layout.panels[id], pane: undefined} : null;
         const shape = (node: Node): unknown => Array.isArray(node.data) ? node.data.map(shape) :
             node.data.views.map(reference);
         return JSON.stringify([layout.grid.orientation, shape(layout.grid.root),
@@ -1154,7 +1208,7 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
     function captureFileWorkspace(): WorkspaceLayout | undefined {
         // Until the opened project's layout is restored, the tabs on screen are not that project's.
         if (pendingRestore || !layoutSession) return fileLayout ? JSON.parse(fileLayout.layout) : undefined;
-        return captureLayout();
+        return captureLayout(true);
     }
 
     /** Keep the layout the project opened with, so leaving it unchanged adds no record. */
@@ -1202,7 +1256,7 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
                     continue;
                 }
                 resolvedSprites.set(id, {id, target, section: reference.section, number: reference.number,
-                    assets: createAssetSelections(target, locale)});
+                    ...restorePane(id, target, reference.pane)});
                 panels[id] = {id, contentComponent: 'sprite', params: {icon: getIcon(target)}};
             } else if (reference.kind === 'stage') {
                 if (id !== stagePanelId) return keepInitialLayout();

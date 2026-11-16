@@ -566,6 +566,48 @@ for (const [title, localSavedAt, expected] of [
     });
 }
 
+test('a tab reopens with the costume, sound and code area it showed when the project file was saved', async t => {
+    const document = setupDom(t);
+    const costumes = [{assetId: 'a'}, {assetId: 'b'}];
+    const sounds = [{}, {}];
+    const hero = {...spriteTarget('hero', 'Hero'), getCostumes: () => costumes, getSounds: () => sounds};
+    const vm = Object.assign(new EventEmitter(), {runtime: {targets: [hero, spriteTarget('enemy', 'Enemy')]},
+        editingTarget: hero});
+    const root = document.querySelector('main');
+    const content = document.createElement('div');
+    const layout = JSON.parse(splitLayout('Hero', 'Enemy'));
+    layout.panels['view-0'].pane = {costume: 1, sound: 0, code: {scroll: 'saved'}, unknown: true};
+    const screenState = fileScreenState({savedAt: 1, slices: {workspace: layout}});
+    let assets: Parameters<Parameters<typeof mountSpriteTabs>[2]['selectTarget']>[1];
+    const restored: unknown[] = [];
+    const {store} = memoryLayoutStore();
+    const controller = mountSpriteTabs(root, content, {
+        vm, multiView: true, getSection: () => 0, activateSection() {}, resize() {}, reopenLabel: 'Reopen',
+        selectTarget(id, selections) { if (id === 'hero') assets = selections; },
+        viewAdapter: {
+            capture: () => 'captured',
+            renderInactive() {},
+            restore(view, snapshot) { if (view.targetId === 'hero') restored.push(snapshot); },
+            serialize: (view, snapshot) => ({scroll: snapshot ?? 'on screen'}),
+            deserialize: (view, value) => typeof value.scroll === 'string' ? value.scroll : undefined
+        },
+        workspaceLayout: {store, identify: () => ({kind: 'anonymous', name: 'Game.sb3'}), screenState}
+    });
+    try {
+        await controller.layoutSettled();
+        assert.equal(assets!.costumes.restore(hero, costumes), 1);
+        assert.equal(assets!.sounds.restore(hero, sounds), 0);
+        assert.equal(restored.at(-1), 'saved', 'the code area is put back where it was');
+
+        assets!.sounds.remember(hero, sounds[1]);
+        const saved = screenState.slices.get('workspace')!.capture() as {panels: Record<string, {pane?: object}>};
+        assert.deepEqual(saved.panels['view-0'].pane, {costume: 1, sound: 1, code: {scroll: 'on screen'}},
+            'a save reads the selections and the code area on screen');
+    } finally {
+        controller.dispose();
+    }
+});
+
 test('a project file without a browser record opens with the layout saved in the file', async t => {
     const document = setupDom(t);
     const hero = spriteTarget('hero', 'Hero');
