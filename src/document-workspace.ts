@@ -16,6 +16,8 @@ export interface DocumentPanelRequest {
     filename: string;
     /** What the tab shows. Without it the tab names the file and where it comes from. */
     title?: string;
+    /** An image URL the tab shows before its title, as a sprite tab shows the sprite's costume. */
+    icon?: string;
     transient?: boolean;
     /** Keeps this utility tab first while the host enables the project folder drawer. */
     pinWithProjectFolder?: boolean;

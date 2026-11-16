@@ -31,7 +31,7 @@ const createDebugger = (document: Document) => {
 
 // What the sprite tabs connect: one panel per reference, and a repeated open only activates it.
 const connectWorkspace = (vm: object, document: Document) => {
-    const panels = new Map<string, {slot: HTMLElement; title: string; session: {requestClose(): void; dispose(): void}}>();
+    const panels = new Map<string, {slot: HTMLElement; title: string; icon?: string; session: {requestClose(): void; dispose(): void}}>();
     let activations = 0;
     const key = (reference: {providerId: string; documentId: string}) => reference.providerId + '/' + reference.documentId;
     const disconnect = getDocumentWorkspace(vm).connect(request => {
@@ -49,7 +49,7 @@ const connectWorkspace = (vm: object, document: Document) => {
             panel.slot.remove();
             panel.session.dispose();
         };
-        const panel = {slot, title: request.title, session: undefined};
+        const panel = {slot, title: request.title, icon: request.icon, session: undefined};
         panels.set(id, panel);
         panel.session = request.mount(slot, close);
     });
@@ -75,6 +75,8 @@ test('the debugger opens as a workspace tab and closes with it from either side'
     assert.equal(debug.element.parentElement, panel.slot, 'opening moves the window into the tab');
     assert.ok(debug.element.classList.contains(dockedClass));
     assert.equal(panel.title, 'デバッガー');
+    // The tab carries the ladybug that marks debugging in the editor.
+    assert.ok(decodeURIComponent(panel.icon ?? '').includes('\u{1F41E}'));
 
     // Opening it again brings the existing tab forward instead of adding another.
     click(window, debug.button);

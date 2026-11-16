@@ -34,6 +34,11 @@ export const dockedClass = 'tw-plus-debugger-docked';
 export const debuggerReference = Object.freeze({providerId: 'turbowarp-plus', documentId: 'debugger'});
 const buttonSelector = '.sa-debugger-container';
 
+/** The ladybug that marks debugging in the editor, as an image for the tab. */
+export const debuggerTabIcon = 'data:image/svg+xml,' + encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><text x="8" y="13" font-size="13" ' +
+    'text-anchor="middle">\u{1F41E}</text></svg>');
+
 export const debuggerTitle = (locale: string) => (/^ja(?:-|$)/i.test(locale) ? 'デバッガー' : 'Debugger');
 
 export function attachDebuggerPanel (debuggerInterface: DebuggerInterface, options: DebuggerPanelOptions) {
@@ -53,6 +58,7 @@ export function attachDebuggerPanel (debuggerInterface: DebuggerInterface, optio
             reference: debuggerReference,
             filename: title,
             title,
+            icon: debuggerTabIcon,
             transient: true,
             mount (slot, closePanel) {
                 close = closePanel;
