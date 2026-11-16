@@ -72,6 +72,10 @@
       "types": "./dist/project-messages.d.ts",
       "default": "./dist/project-messages.js"
     },
+    "./project-screen-state": {
+      "types": "./dist/project-screen-state.d.ts",
+      "default": "./dist/project-screen-state.js"
+    },
     "./project-search": {
       "types": "./dist/project-search-box.d.ts",
       "default": "./dist/project-search-box.js"

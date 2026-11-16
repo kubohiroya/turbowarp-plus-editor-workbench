@@ -21,6 +21,11 @@ export interface WorkspaceLayoutSession {
     readonly exact: boolean;
     /** Whether the project has a saved layout, or a change was written in this session. */
     readonly saved: boolean;
+    /**
+     * When the saved layout was last changed, in milliseconds since the epoch. Missing for records written before
+     * it was kept, which count as older than any layout saved in a project file.
+     */
+    readonly savedAt?: number;
     /** Save the layout. The project's own record is updated, so it never adds a record per change. */
     write(layout: string, signature: string): Promise<void>;
 }
@@ -69,6 +74,8 @@ interface LayoutRecord {
     signature: string;
     layout: string;
     lastUsedAt: number;
+    /** When the layout changed. Opening a project only updates `lastUsedAt`. */
+    savedAt?: number;
 }
 
 const result = <T>(request: IDBRequest<T>) => new Promise<T>((resolve, reject) => {
@@ -194,18 +201,21 @@ export function createWorkspaceLayoutStore({indexedDB: factory = globalThis.inde
             const found = await find(opened, identity, signature);
             let id = found?.id;
             let written = false;
+            let savedAt = found?.savedAt;
             if (id !== undefined) await enqueue(() => touch(opened, id!, now()));
             const fields = identityFields(identity);
             return {
                 layout: found?.layout,
                 exact: Boolean(found) && identity.kind !== 'anonymous',
                 get saved() { return id !== undefined || written; },
+                get savedAt() { return savedAt; },
                 write(layout, nextSignature) {
                     if (bytes(layout) > maxBytes) return Promise.resolve();
                     written = true;
+                    const time = savedAt = now();
                     return enqueue(async () => {
                         id = await save(opened, {...fields, ...(id !== undefined && {id}), signature: nextSignature, layout,
-                            lastUsedAt: now()}, limit);
+                            lastUsedAt: time, savedAt: time}, limit);
                     });
                 }
             };

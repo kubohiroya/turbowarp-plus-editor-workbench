@@ -138,3 +138,14 @@ test('without IndexedDB, opening a project fails so the editor keeps its default
     const store = createWorkspaceLayoutStore({indexedDB: undefined, legacyStorage: null});
     await assert.rejects(store.open({kind: 'anonymous', name: ''}, ''));
 });
+
+test('a session tells when its layout last changed, not when the project was last opened', async () => {
+    const {store} = setup();
+    const first = await store.open(file('Project.sb3'), 'sprites');
+    assert.equal(first.savedAt, undefined);
+    await first.write('layout', 'sprites');
+    const changedAt = first.savedAt;
+    assert.equal(typeof changedAt, 'number');
+    const reopened = await store.open(file('Project.sb3'), 'sprites');
+    assert.equal(reopened.savedAt, changedAt, 'opening the project again does not count as a change');
+});

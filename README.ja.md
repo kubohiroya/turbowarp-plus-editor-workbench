@@ -95,6 +95,22 @@ workspaceLayout: {
 - すべてのレイアウトを消すには、ブラウザーの開発者ツールで `twPlusWorkspaceLayout` データベースを削除する（Chrome では Application の IndexedDB）。コンソールで `indexedDB.deleteDatabase('twPlusWorkspaceLayout')` を実行してもよい。
 - 以前の版は `localStorage`（`twPlusDockviewLayout` と `twPlusDockviewLayout.tabs`）に 1 件だけ保存していた。これらのキーは移さずに消す。
 
+## SB3 に保存する画面状態
+
+`/project-screen-state` の `installProjectScreenState(vm, {Zip})` は、作品の画面を SB3 の中に保存する。どのブラウザーで開いても、保存したときの画面で作品が開く。ホストは同梱している JSZip のコンストラクター（`@turbowarp/jszip`）を渡し、拡張ローダーの橋より後に組み込む。
+
+```js
+const screenState = installProjectScreenState(vm, {Zip: JSZip, save: flags.saveWorkspace});
+<StandardLayout {...props} screenState={screenState} />
+useSpriteTabs({...props, workspaceLayout: {...workspaceLayout, screenState}});
+```
+
+- 保存すると、`project.json` の隣に ZIP エントリ `tw-plus/workspace.json`（`{"version": 1, "savedAt": <ms>, "slices": {...}}`）を加える。Scratch と TurboWarp はこのエントリを無視するので、ファイルの互換性は変わらない。別のエディターで保存し直すと、エントリが消えるだけである。`project.json` は変えない。
+- エディターの各部分は、自分のキーで `register(key, {capture, apply})` によりスライスを登録する。`capture` は保存中に同期で呼ばれる。`apply` は、そのスライスを含む作品を VM が読み込み終えたあとに作品ごとに1回呼ばれる。読み込み後に登録したスライスには、登録したときに呼ばれる。キーは `^[a-z][a-zA-Z0-9-]{0,63}$` に合うものとする。
+- このパッケージは `drawer`（左側ドロワーで選んだ表示）と `workspace`（[Dockview のレイアウトの保存](#dockview-のレイアウトの保存) の作業領域）を登録する。ファイルの作業領域は、このブラウザーがその作品について保存したレイアウトより新しいとき、またはブラウザーに記録がないときに使う。ファイルの保存後にレイアウトを変え、保存せずに開き直した場合は、ブラウザーの記録が使われる。
+- `save: false` では、保存時にエントリを書かず、読み込んだファイルから引き継いだエントリも取り除く。読み込みは有効のままなので、以前に保存したファイルは保存時の画面で開く。
+- 512 KiB を超えるエントリ、別の版のもの、形の合わないものは無視し、作品は通常の画面で開く。
+
 ## メニュー・作品のダイアログ・ステージの操作・バックパックの窓
 
 turbowarp-plus-editor の `packages/editor-ui` と `packages/editor-backpack` から移したもの。
