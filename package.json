@@ -30,6 +30,10 @@
       "default": "./dist/debugger-panel.js"
     },
     "./debugger-panel.css": "./src/debugger-panel.css",
+    "./debugger-breakpoints": {
+      "types": "./dist/debugger-breakpoints.d.ts",
+      "default": "./dist/debugger-breakpoints.js"
+    },
     "./dockview-styles": "./dist/dockview-styles.js",
     "./edit-menu": {
       "types": "./dist/edit-menu.d.ts",
