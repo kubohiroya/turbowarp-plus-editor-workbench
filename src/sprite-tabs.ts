@@ -18,6 +18,7 @@ import {dockPopoutGroups, positionOnScreen, readWorkspaceLayout, workspaceWithou
 import type {PanelReference, SavedPopout, WorkspaceLayout} from './workspace-layout.ts';
 import {createWorkspaceLayoutStore} from './workspace-layout-store.ts';
 import type {WorkspaceLayoutSession, WorkspaceLayoutStore, WorkspaceProjectIdentity} from './workspace-layout-store.ts';
+import type {ProjectScreenState, SavedScreenState} from './project-screen-state.ts';
 import type {SpriteVariableEdit, SpriteVariableEditError} from '@kubohiroya/turbowarp-plus-editor-project-model/sprite-variable-edit';
 import {SpriteMessagePane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-message-pane';
 import type {MessageRenameError} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-message-pane';
@@ -162,6 +163,11 @@ interface TabOptions<Snapshot = unknown> {
         identify?(): WorkspaceProjectIdentity | undefined;
         isProjectLoading?(): boolean;
         subscribeProject?(listener: () => void): (() => void) | undefined;
+        /**
+         * The screen state kept in the project file. Saving writes the workspace into it, and opening uses the one
+         * in the file when it is newer than the layout this browser kept for the project.
+         */
+        screenState?: ProjectScreenState;
     };
     stagePane?: DockviewStagePane;
     variables?: boolean;
@@ -302,6 +308,8 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
     const layoutStore = persistence ? persistence.store ?? createWorkspaceLayoutStore() : undefined;
     /** Where the layout of the loaded project is saved, once that project is identified. */
     let layoutSession: WorkspaceLayoutSession | undefined;
+    /** The workspace kept in the loaded project file, as the text the store keeps, and when the file was saved. */
+    let fileLayout: {layout: string; savedAt: number} | undefined;
     /** Counts project loads, so a lookup that ends after another project opened is dropped. */
     let projectGeneration = 0;
     let openingGeneration: number | undefined;
@@ -1121,14 +1129,32 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
     function openLayoutSession(signature: string) {
         if (!layoutStore || openingGeneration === projectGeneration) return;
         const generation = openingGeneration = projectGeneration;
-        layoutStore.open(identifyProject(), signature).then(session => {
+        const fileState = persistence && persistence.screenState ?
+            persistence.screenState.whenLoaded().catch(() => undefined) : Promise.resolve(undefined);
+        Promise.all([layoutStore.open(identifyProject(), signature), fileState]).then(([session, state]) => {
             if (disposed || generation !== projectGeneration) return;
             layoutSession = session;
+            fileLayout = fileWorkspace(state);
             scheduleRestore();
         }, () => {
             // Without IndexedDB, the project opens with the default layout and nothing is saved.
             if (!disposed && generation === projectGeneration) finishRestore();
         });
+    }
+
+    /** The workspace slice of a project file's screen state, if it has one in a supported shape. */
+    function fileWorkspace(state: SavedScreenState | undefined) {
+        const value = state?.slices.workspace;
+        if (value === null || typeof value !== 'object') return;
+        const layout = JSON.stringify(value);
+        return readWorkspaceLayout(layout) ? {layout, savedAt: state!.savedAt} : undefined;
+    }
+
+    /** The workspace a save writes into the project file. */
+    function captureFileWorkspace(): WorkspaceLayout | undefined {
+        // Until the opened project's layout is restored, the tabs on screen are not that project's.
+        if (pendingRestore || !layoutSession) return fileLayout ? JSON.parse(fileLayout.layout) : undefined;
+        return captureLayout();
     }
 
     /** Keep the layout the project opened with, so leaving it unchanged adds no record. */
@@ -1153,9 +1179,13 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
             return;
         }
         reopenable.clear();
-        // A project found by its file, folder or desktop key keeps its tabs even after its sprites were renamed.
-        const exact = layoutSession.exact;
-        const raw = layoutSession.layout;
+        // The layout saved in the project file wins when the file is newer than the layout kept in this browser.
+        // It belongs to this very project, so like a project found by its file, folder or desktop key, its tabs are
+        // kept even after its sprites were renamed.
+        const fromFile = Boolean(fileLayout && (layoutSession.layout === undefined ||
+            fileLayout.savedAt > (layoutSession.savedAt ?? 0)));
+        const exact = fromFile || layoutSession.exact;
+        const raw = fromFile ? fileLayout!.layout : layoutSession.layout;
         const stored = raw ? readWorkspaceLayout(raw, exact ? undefined : signature) : undefined;
         if (!stored) return keepInitialLayout();
         const resolvedSprites = new Map<string, View<Snapshot>>();
@@ -1246,6 +1276,7 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
         if (loading && !projectLoading) {
             projectGeneration++;
             layoutSession = undefined;
+            fileLayout = undefined;
             initialShape = undefined;
             pendingRestore = true;
             drawerEditedDuringRestore = false;
@@ -1367,6 +1398,9 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
         if (!disposed && !thumbnailChosen && hidden) setThumbnailHidden(true, false);
     }, () => undefined);
     if (persistence) window.addEventListener('pagehide', flushLayout);
+    const unregisterScreenState = persistence ? persistence.screenState?.register('workspace', {
+        capture: captureFileWorkspace
+    }) : undefined;
     updateLayoutState();
     root.addEventListener('click', guardDocumentClose, true);
     root.addEventListener('keydown', guardDocumentClose, true);
@@ -1393,6 +1427,7 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
             window.cancelAnimationFrame(restoreFrame);
             window.clearTimeout(restoreTimeout);
             if (persistence) window.removeEventListener('pagehide', flushLayout);
+            unregisterScreenState?.();
             if (unsubscribeDocuments) unsubscribeDocuments();
             unsubscribeFixedProjectTab?.();
             if (unsubscribeProject) unsubscribeProject();

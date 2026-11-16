@@ -512,6 +512,80 @@ test('each project that loads reopens the layout it was left with', async t => {
     }
 });
 
+function fileScreenState(state: {savedAt: number; slices: Record<string, unknown>} | undefined) {
+    const slices = new Map<string, {capture(): unknown}>();
+    return {
+        slices,
+        register(key: string, slice: {capture(): unknown}) {
+            slices.set(key, slice);
+            return () => slices.delete(key);
+        },
+        whenLoaded: async () => state && {version: 1 as const, ...state},
+        capture: () => undefined,
+        dispose() {}
+    };
+}
+
+const tabGroups = (root: Element) => [...root.querySelectorAll('.dv-groupview')].map(group =>
+    [...group.querySelectorAll('.dv-tab')].map(tab => tab.textContent));
+
+for (const [title, localSavedAt, expected] of [
+    ['the layout saved in the project file wins over an older one kept in this browser', 10, [['Hero'], ['Enemy']]],
+    ['a layout kept in this browser after the file was saved wins over the file', 30, [['Enemy'], ['Hero']]]
+] as const) {
+    test(title, async t => {
+        const document = setupDom(t);
+        const targets = [spriteTarget('hero', 'Hero'), spriteTarget('enemy', 'Enemy')];
+        // Each saved layout was left editing its first tab.
+        const vm = Object.assign(new EventEmitter(), {runtime: {targets},
+            editingTarget: targets.find(target => target.getName() === expected[0][0])});
+        const root = document.querySelector('main');
+        const store = {
+            async open() {
+                return {layout: splitLayout('Enemy', 'Hero'), exact: true, saved: true, savedAt: localSavedAt,
+                    async write() {}};
+            },
+            async readTabsPosition() { return undefined; },
+            async writeTabsPosition() {}
+        };
+        const screenState = fileScreenState({savedAt: 20, slices: {workspace: JSON.parse(splitLayout('Hero', 'Enemy'))}});
+        const controller = mountSpriteTabs(root, document.createElement('div'), {
+            vm, multiView: true, getSection: () => 0, activateSection() {}, selectTarget() {}, resize() {}, reopenLabel: 'Reopen',
+            workspaceLayout: {store, identify: () => ({kind: 'anonymous', name: 'Game.sb3'}), screenState}
+        });
+        try {
+            await controller.layoutSettled();
+            assert.deepEqual(tabGroups(root), expected);
+            const saved = screenState.slices.get('workspace')!.capture() as {panels: Record<string, {name: string}>};
+            assert.deepEqual(Object.values(saved.panels).map(panel => panel.name).sort(), ['Enemy', 'Hero'],
+                'saving the project writes the workspace on screen');
+        } finally {
+            controller.dispose();
+        }
+        assert.equal(screenState.slices.size, 0, 'the workspace slice is removed with the tabs');
+    });
+}
+
+test('a project file without a browser record opens with the layout saved in the file', async t => {
+    const document = setupDom(t);
+    const hero = spriteTarget('hero', 'Hero');
+    const vm = Object.assign(new EventEmitter(), {runtime: {targets: [hero, spriteTarget('enemy', 'Enemy')]},
+        editingTarget: hero});
+    const root = document.querySelector('main');
+    const {store} = memoryLayoutStore();
+    const screenState = fileScreenState({savedAt: 1, slices: {workspace: JSON.parse(splitLayout('Hero', 'Enemy'))}});
+    const controller = mountSpriteTabs(root, document.createElement('div'), {
+        vm, multiView: true, getSection: () => 0, activateSection() {}, selectTarget() {}, resize() {}, reopenLabel: 'Reopen',
+        workspaceLayout: {store, identify: () => ({kind: 'anonymous', name: 'Other.sb3'}), screenState}
+    });
+    try {
+        await controller.layoutSettled();
+        assert.deepEqual(tabGroups(root), [['Hero'], ['Enemy']]);
+    } finally {
+        controller.dispose();
+    }
+});
+
 test('a host can wait until the restored layout and every change are saved', async t => {
     const document = setupDom(t);
     const first = spriteTarget('first', 'First');

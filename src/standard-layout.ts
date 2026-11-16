@@ -1,7 +1,9 @@
 import {createLayout, createSplitter, splitAxis} from './index.ts';
 import {createTargetList} from './targets.ts';
 import type {DrawerView, DrawerViews} from './drawer-views.ts';
-import {availableDrawerViews, createDrawerViewBar, drawerLabel, drawerPinIcon, hasDrawerBar, readDrawerView, writeDrawerView} from './drawer-views.ts';
+import {availableDrawerViews, createDrawerViewBar, drawerLabel, drawerPinIcon, drawerViewIds, hasDrawerBar, readDrawerView, writeDrawerView} from './drawer-views.ts';
+import type {DrawerViewId} from './drawer-views.ts';
+import type {ProjectScreenState} from './project-screen-state.ts';
 import {attachStageDrawerDrag} from './stage-drawer-drag.ts';
 import type {StageDrawerLayout, StageDrawerPosition} from './workspace-layout.ts';
 
@@ -25,7 +27,7 @@ type DrawerPanel = (props: {
 }) => import('react').ReactNode;
 
 export function createStandardLayout(React, {styles, targetStyles, context, LayoutMenu, DrawerPanel = undefined as DrawerPanel | undefined}) {
-    const {createElement: element, useContext, useLayoutEffect, useRef, useState} = React;
+    const {createElement: element, useContext, useEffect, useLayoutEffect, useRef, useState} = React;
     const SplitLayout = createLayout(React);
     const Splitter = createSplitter(React);
     const targets = createTargetList(React, targetStyles);
@@ -37,7 +39,8 @@ export function createStandardLayout(React, {styles, targetStyles, context, Layo
         enabled, splitter, windowLayout, stageActionEnabled, stageDrawer = false,
         onPaletteModeChange, windowTools, Container, render, drawerViews = undefined as DrawerViews | undefined,
         stageDrawerLayout = undefined as StageDrawerLayout | undefined,
-        updateStageDrawer = undefined as ((patch: Partial<StageDrawerLayout>) => void) | undefined, ...props
+        updateStageDrawer = undefined as ((patch: Partial<StageDrawerLayout>) => void) | undefined,
+        screenState = undefined as ProjectScreenState | undefined, ...props
     }) {
         const [showUndock, setShowUndock] = useState(false);
         const [targetsPinned, setTargetsPinned] = useState(true);
@@ -57,6 +60,20 @@ export function createStandardLayout(React, {styles, targetStyles, context, Layo
             setPreferredDrawerView(view);
             writeDrawerView(props.storage, props.storageKey, view);
         }, [props.storage, props.storageKey]);
+        // The project file keeps the selected view, and a project opens with the view it was saved with.
+        const drawerViewRef = useRef(preferredDrawerView);
+        drawerViewRef.current = preferredDrawerView;
+        const selectDrawerViewRef = useRef(selectDrawerView);
+        selectDrawerViewRef.current = selectDrawerView;
+        useEffect(() => screenState?.register('drawer', {
+            capture: () => ({version: 1, view: drawerViewRef.current}),
+            apply(value) {
+                const view = (value as {version?: unknown; view?: unknown} | null)?.view;
+                if ((value as {version?: unknown})?.version === 1 && drawerViewIds.includes(view as DrawerViewId)) {
+                    selectDrawerViewRef.current(view as DrawerViewId);
+                }
+            }
+        }), [screenState]);
         const body = useRef(null);
         const plusLayout = enabled && !props.fullscreen;
         const reportDrawerSelection = drawerViews?.onSelectionChange;

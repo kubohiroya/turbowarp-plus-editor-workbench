@@ -97,6 +97,22 @@ workspaceLayout: {
 - To forget every layout, delete the `twPlusWorkspaceLayout` database from the browser's developer tools (in Chrome: Application, then IndexedDB), or run `indexedDB.deleteDatabase('twPlusWorkspaceLayout')` in the console.
 - Earlier versions kept a single layout in `localStorage` (`twPlusDockviewLayout` and `twPlusDockviewLayout.tabs`). Those keys are removed without being moved.
 
+## Screen state in the SB3
+
+`installProjectScreenState(vm, {Zip})` from `/project-screen-state` keeps the screen of a project inside its SB3, so the project opens the way it was when it was saved, in any browser. The host passes the JSZip constructor it already bundles (`@turbowarp/jszip`), and installs it after the extension loader's bridge.
+
+```js
+const screenState = installProjectScreenState(vm, {Zip: JSZip, save: flags.saveWorkspace});
+<StandardLayout {...props} screenState={screenState} />
+useSpriteTabs({...props, workspaceLayout: {...workspaceLayout, screenState}});
+```
+
+- Saving adds the ZIP entry `tw-plus/workspace.json` next to `project.json`: `{"version": 1, "savedAt": <ms>, "slices": {...}}`. Scratch and TurboWarp ignore the entry, so the file stays compatible. Saving it in another editor only drops the entry. `project.json` is not changed.
+- Each part of the editor registers a slice under its own key with `register(key, {capture, apply})`. `capture` is called synchronously while saving; `apply` is called once for each loaded project that carries the slice, after the VM finished loading it, or when the slice is registered later. Keys match `^[a-z][a-zA-Z0-9-]{0,63}$`.
+- This package registers `drawer` (the selected left drawer view) and `workspace` (the Dockview workspace described under [Saved Dockview layout](#saved-dockview-layout)). The workspace from the file is used when it is newer than the layout this browser kept for the project, or when the browser has none. A layout changed after the file was saved, and reloaded without saving, therefore still wins.
+- With `save: false`, saving writes no entry and removes one carried over from the loaded file. Reading stays on, so files saved earlier still open as they were.
+- Entries larger than 512 KiB, of another version or of another shape are ignored, and the project opens with its usual screen.
+
 ## Menus, project dialogs, stage controls and the backpack window
 
 These moved here from `packages/editor-ui` and `packages/editor-backpack` in turbowarp-plus-editor.
