@@ -85,3 +85,19 @@ test('a reopened window is moved onto the current screen', () => {
     assert.deepEqual(positionOnScreen({left: 100, top: 100, width: 5000, height: 50}, screen),
         {left: 0, top: 100, width: 1440, height: 150});
 });
+
+test('a sprite tab keeps only the pane state of the right shape', () => {
+    const layout = (pane: unknown) => JSON.stringify({version: 1, project: 'p', activeGroup: 'g', editingView: 'v',
+        panels: {v: {kind: 'sprite', name: 'Hero', stage: false, section: 1, pane}},
+        grid: {width: 100, height: 100, orientation: Orientation.HORIZONTAL, root: {type: 'branch', size: 100,
+            data: [{type: 'leaf', size: 100, data: {id: 'g', views: ['v'], activeView: 'v'}}]}}});
+    const pane = (value: unknown) => {
+        const read = readWorkspaceLayout(layout(value));
+        assert.ok(read, 'a pane state never rejects the layout');
+        return read.panels.v.kind === 'sprite' ? read.panels.v.pane : undefined;
+    };
+    assert.deepEqual(pane({costume: 2, sound: 0, code: {x: 1}}), {costume: 2, sound: 0, code: {x: 1}});
+    assert.deepEqual(pane({costume: -1, sound: 1.5, code: 'scroll', extra: true}), undefined);
+    assert.deepEqual(pane({costume: 3, code: [1]}), {costume: 3});
+    assert.equal(pane(undefined), undefined);
+});

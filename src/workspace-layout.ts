@@ -4,8 +4,17 @@ import type {DocumentPanelRequest} from './document-workspace.ts';
 
 type Grid = SerializedDockview['grid'];
 type Node = Grid['root'];
+/** What a sprite tab showed inside its panes. Every field is optional, and a missing one keeps the default. */
+export interface SpritePaneState {
+    /** The index of the costume or sound the tab had selected in that list. */
+    costume?: number;
+    sound?: number;
+    /** The code area as the host's tab adapter serialized it, such as its scroll position and zoom. */
+    code?: unknown;
+}
+
 export type PanelReference =
-    | {kind: 'sprite'; name: string; stage: boolean; section: number; number?: number}
+    | {kind: 'sprite'; name: string; stage: boolean; section: number; number?: number; pane?: SpritePaneState}
     | {kind: 'stage'}
     | ({kind: 'document'} & DocumentPanelRequest['reference']);
 
@@ -189,8 +198,9 @@ export function readWorkspaceLayout(raw: string, project?: string): WorkspaceLay
             typeof panel.section === 'number' && Number.isInteger(panel.section) && panel.section >= 0 && panel.section <= 4) {
             const number = panel.number;
             if (number !== undefined && (typeof number !== 'number' || !Number.isSafeInteger(number) || number < 2)) return;
+            const pane = readPaneState(panel.pane);
             panels[id] = {kind: 'sprite', name: panel.name, stage: panel.stage, section: panel.section,
-                ...(typeof number === 'number' && {number})};
+                ...(typeof number === 'number' && {number}), ...(pane && {pane})};
         } else if (panel.kind === 'stage' && !hasStage) {
             hasStage = true;
             panels[id] = {kind: 'stage'};
@@ -210,6 +220,19 @@ export function readWorkspaceLayout(raw: string, project?: string): WorkspaceLay
         editingView: typeof editingView === 'string' ? editingView : undefined, panels,
         ...(stageDrawer && {stageDrawer}),
         ...(popouts.length && {popouts})};
+}
+
+const assetIndex = (value: unknown): value is number =>
+    typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 && value <= 100000;
+
+/** Keep only the fields of a pane state that have the right shape. The code state is checked by the host. */
+function readPaneState(input: unknown): SpritePaneState | undefined {
+    if (!record(input)) return;
+    const pane: SpritePaneState = {};
+    if (assetIndex(input.costume)) pane.costume = input.costume;
+    if (assetIndex(input.sound)) pane.sound = input.sound;
+    if (record(input.code)) pane.code = input.code;
+    return Object.keys(pane).length ? pane : undefined;
 }
 
 function readStageDrawer(input: unknown): StageDrawerLayout | undefined {
