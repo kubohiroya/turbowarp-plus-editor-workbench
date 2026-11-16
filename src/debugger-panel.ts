@@ -33,6 +33,8 @@ interface DebuggerPanelOptions {
 export const dockedClass = 'tw-plus-debugger-docked';
 export const debuggerReference = Object.freeze({providerId: 'turbowarp-plus', documentId: 'debugger'});
 const buttonSelector = '.sa-debugger-container';
+// The add-on shows its Continue button only while the project is paused.
+const unpauseSelector = '.sa-debugger-unpause-container';
 
 /** The ladybug that marks debugging in the editor, as an image for the tab. */
 export const debuggerTabIcon = 'data:image/svg+xml,' + encodeURIComponent(
@@ -102,6 +104,21 @@ export function attachDebuggerPanel (debuggerInterface: DebuggerInterface, optio
     });
     observer.observe(element, {attributes: true, attributeFilter: ['style']});
 
+    // A pause (a breakpoint, the breakpoint block, or Step) makes the add-on show the debugger, but
+    // when the tab is already open behind another one nothing changes on screen. Bring it forward
+    // when the Continue button appears, so the person sees why the project stopped.
+    const isPausedShown = () => {
+        const unpause = element.querySelector<HTMLElement>(unpauseSelector);
+        return Boolean(unpause) && unpause.style.display !== 'none';
+    };
+    let pausedShown = isPausedShown();
+    const pauseObserver = new document.defaultView.MutationObserver(() => {
+        const shown = isPausedShown();
+        if (shown && !pausedShown && close) dock();
+        pausedShown = shown;
+    });
+    pauseObserver.observe(element, {attributes: true, attributeFilter: ['style'], subtree: true, childList: true});
+
     // Opening an already open debugger leaves its style as it is, so the tab is brought forward here.
     const handleButton = (event: Event) => {
         if (close && (event.target as Element | null)?.closest?.(buttonSelector)) dock();
@@ -122,6 +139,7 @@ export function attachDebuggerPanel (debuggerInterface: DebuggerInterface, optio
     return {
         dispose () {
             observer.disconnect();
+            pauseObserver.disconnect();
             document.removeEventListener('click', handleButton);
             element.removeEventListener('pointerdown', handlePointerDown, {capture: true});
             close?.();
