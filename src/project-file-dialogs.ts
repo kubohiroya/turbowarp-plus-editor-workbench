@@ -14,6 +14,12 @@ export type SaveAsRequest =
 export interface SaveAsFormOptions {
     openCommit?: Action;
     folder?: {
+        /**
+         * `browser` keeps the new folder in the browser, as the project folder package does where there is no folder
+         * picker. The form then offers the folder format without the picker, keeps the name for the new folder, and
+         * leaves out the overwrite warning, since such a folder is always new. Defaults to `device`.
+         */
+        location?: 'device' | 'browser';
         overwriteWarning?: string;
         github?: {
             // The host can reuse a current session or open sign-in. The form retains its draft either way.
@@ -270,7 +276,8 @@ export function renderSaveAsForm(document: Document, locale: string, storage: Pr
     appendOption(format, label('SB3（現在の格納方式）', 'SB3 (current storage settings)'), 'current');
     appendOption(format, label('SB3（設定対象の台本・素材を同梱）', 'SB3 (embed configured scripts and assets)'), 'embedded');
     const picker = (document.defaultView as (Window & {showDirectoryPicker?: unknown}) | null)?.showDirectoryPicker;
-    const folderAvailable = folder && typeof picker === 'function';
+    const inBrowser = folder?.location === 'browser';
+    const folderAvailable = folder && (inBrowser || typeof picker === 'function');
     if (folderAvailable) appendOption(format, label('プロジェクトフォルダ', 'Project folder'), 'folder');
     appendField(fields, label('保存形式', 'Save format'), format);
 
@@ -386,7 +393,8 @@ export function renderSaveAsForm(document: Document, locale: string, storage: Pr
     const refresh = () => {
         const reviewing = confirmedDraft !== null || task !== null;
         const creation = selectedGitHub();
-        const localFolder = savingFolder() && !creation;
+        // A folder on the device takes its name from the picked folder; a folder in the browser keeps this name.
+        const localFolder = savingFolder() && !creation && !inBrowser;
         overwriteWarning.hidden = !localFolder;
         fields.hidden = reviewing;
         review.hidden = !reviewing;
@@ -408,6 +416,7 @@ export function renderSaveAsForm(document: Document, locale: string, storage: Pr
         pending.hidden = reviewing || !pending.childElementCount;
         submit.textContent = task ? actionText(task.phase) : reviewing ? label('リポジトリを作成', 'Create Repository') : creation ?
             (creation.connected ? label('作成内容を確認', 'Review Repository') : label('GitHub へ接続…', 'Connect to GitHub…')) :
+            savingFolder() && inBrowser ? label('ブラウザー内に保存…', 'Save in This Browser…') :
             (savingFolder() || storage.pick ? label('保存先を選ぶ…', 'Choose Where to Save…') : label('保存', 'Save'));
     };
     const loadPending = async () => {
