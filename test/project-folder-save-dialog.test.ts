@@ -66,6 +66,31 @@ test('folder format requires both the host and picker, and the current SB3 form 
     assert.deepEqual(withoutHost.requests, [{name: 'Renamed', format: 'embedded'}]);
 });
 
+test('a folder kept in the browser needs no picker, keeps the name, and has no overwrite warning', async t => {
+    const dialog = fixture(t, {folder: {location: 'browser', overwriteWarning: 'Contents will be overwritten.'}}, false);
+    assert.deepEqual([...dialog.field<HTMLSelectElement>('format').options].map(option => option.value),
+        ['current', 'embedded', 'folder']);
+    dialog.chooseFormat('folder');
+    const title = dialog.field<HTMLInputElement>('title');
+    assert.equal(title.closest('label, div').hidden, false);
+    assert.equal(title.disabled, false);
+    const warning = [...dialog.form.querySelectorAll('p')].find(element => element.textContent === 'Contents will be overwritten.');
+    assert.equal(warning.hidden, true);
+    assert.equal(dialog.submit.textContent, 'Save in This Browser…');
+    title.value = 'Cat Adventure';
+    await dialog.next();
+    assert.deepEqual(dialog.requests, [{name: 'Cat Adventure', format: 'folder'}]);
+});
+
+test('a folder on the device still hides the name and shows the overwrite warning', async t => {
+    const dialog = fixture(t, {folder: {overwriteWarning: 'Contents will be overwritten.'}});
+    dialog.chooseFormat('folder');
+    assert.equal(dialog.field<HTMLInputElement>('title').disabled, true);
+    const warning = [...dialog.form.querySelectorAll('p')].find(element => element.textContent === 'Contents will be overwritten.');
+    assert.equal(warning.hidden, false);
+    assert.equal(dialog.submit.textContent, 'Choose Where to Save…');
+});
+
 test('saving a local folder has no authentication step', async t => {
     let auth = 0;
     const dialog = fixture(t, {folder: {github: {async connectForCreation() {auth++; return account;}}}});
