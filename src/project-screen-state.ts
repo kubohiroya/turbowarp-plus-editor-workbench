@@ -65,6 +65,16 @@ export interface ProjectScreenState {
     whenLoaded(): Promise<SavedScreenState | undefined>;
     /** The state a save would write now. */
     capture(): SavedScreenState | undefined;
+    /**
+     * The text a save writes, as in the ZIP entry, for a project saved somewhere else such as a project folder.
+     * Nothing while saving is turned off, nothing is registered or the state is too large.
+     */
+    serialize(): string | undefined;
+    /**
+     * Use the state in `text` for the next project load instead of reading the input, for a project that is not
+     * loaded from an SB3, such as a project folder. Text that is not a screen state opens the default screen.
+     */
+    prepareLoad(text: string | undefined): void;
     /** Put the VM methods back. Hooks installed later on the same methods must be removed first. */
     dispose(): void;
 }
@@ -129,6 +139,8 @@ export function installProjectScreenState(vm: ScreenStateVM, {Zip, save = true, 
     let current: SavedScreenState | undefined;
     /** Slices already given the current project's state, so registering again does not apply it twice. */
     let applied = new Set<ScreenStateSlice>();
+    /** The state the next load uses instead of its input, set by `prepareLoad`. */
+    let prepared: {state: SavedScreenState | undefined} | undefined;
 
     const apply = (slice: ScreenStateSlice, key: string) => {
         if (!current || applied.has(slice) || !Object.hasOwn(current.slices, key)) return;
@@ -162,7 +174,8 @@ export function installProjectScreenState(vm: ScreenStateVM, {Zip, save = true, 
         current = undefined;
         applied = new Set();
         // Read in parallel with the VM, which keeps its own copy of the bytes.
-        const reading = readScreenState(input, Zip);
+        const reading = prepared ? Promise.resolve(prepared.state) : readScreenState(input, Zip);
+        prepared = undefined;
         const result = original.loadProject.call(this, input, ...args);
         const done = result.then(() => reading, () => undefined).then(state => {
             if (mine !== generation) return;
@@ -202,6 +215,10 @@ export function installProjectScreenState(vm: ScreenStateVM, {Zip, save = true, 
         },
         whenLoaded: () => loaded,
         capture,
+        serialize: serialized,
+        prepareLoad(text) {
+            prepared = {state: text === undefined ? undefined : parseScreenState(text)};
+        },
         dispose() {
             vm.loadProject = original.loadProject;
             vm._saveProjectZip = original._saveProjectZip;
