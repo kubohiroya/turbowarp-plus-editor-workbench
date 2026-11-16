@@ -2,6 +2,7 @@ import React from 'react';
 import {createPortal} from 'react-dom';
 import {createDockview, DefaultTab, themeLight} from 'dockview';
 import type {DockviewGroupPanel, GroupPanelPartInitParameters, IDockviewPanel, SerializedDockview} from 'dockview';
+import {connectOpenerDocument} from '@kubohiroya/turbowarp-plus-editor-windows/opener-document';
 import {createSpriteLayoutMenu} from './sprite-layout-menu.ts';
 import {NativeAssetPanel, SpriteAssetPane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-asset-pane';
 import type {NativeAssetPanelRenderer, NativeAssetSelector, SpriteAssetKind, SpriteAssetLayout, SpriteAssetPreviewItem,
@@ -341,6 +342,8 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
     const openingGroups = new Set<string>();
     /** Panels that were in a separate window when the layout was saved, until the user reopens them. */
     const reopenable = new Map<string, SavedPopout>();
+    // Each open panel window, connected to this document while it is open.
+    const openerConnections = new Map<Window, () => void>();
     const originalTargets = () => vm.runtime.targets.filter(target => target.isOriginal);
     // Whether tabs stand in a column at the left of each split. It is the user's preference for every project.
     let verticalTabs = false;
@@ -531,7 +534,13 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
                                 doc.documentElement.lang = document.documentElement.lang;
                                 doc.documentElement.style.cssText = document.documentElement.style.cssText;
                                 doc.body.className = `${document.body.className} ${popouts.className ?? ''}`;
+                                // Dockview copied the styles present now; views opened later bring their own.
+                                openerConnections.set(child, connectOpenerDocument(doc, {opener: document, mirrorNewStyles: true}));
                             }, {once: true});
+                        },
+                        onWillClose({window: child}) {
+                            openerConnections.get(child)?.();
+                            openerConnections.delete(child);
                         }
                     })
                         .then(opened => { if (opened) reopenable.delete(panel.id); })
@@ -1504,6 +1513,8 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
             for (const view of views.values()) disposeView(view);
             content.remove();
             dockview.dispose();
+            for (const disconnect of openerConnections.values()) disconnect();
+            openerConnections.clear();
         }
     };
 }
