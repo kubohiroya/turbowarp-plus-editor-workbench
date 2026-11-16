@@ -153,3 +153,37 @@ test('disposing puts the VM methods back', () => {
     installProjectScreenState(vm, {Zip}).dispose();
     assert.deepEqual([vm.loadProject, vm._saveProjectZip, vm.saveProjectSb3DontZip], methods);
 });
+
+test('a project folder supplies the state of the next load and writes the same text a save puts in the SB3', async () => {
+    const vm = fakeVM();
+    const screen = installProjectScreenState(vm, {Zip, now: () => 9});
+    const applied: unknown[] = [];
+    screen.register('drawer', {capture: () => 'project', apply: value => applied.push(value)});
+    assert.equal(screen.serialize(), state(9, {drawer: 'project'}));
+
+    screen.prepareLoad(state(4, {drawer: 'git-history'}));
+    // The folder's project.json text, whose own bytes carry no screen state.
+    let loading = vm.loadProject('{"targets": []}');
+    vm.finishLoad();
+    await loading;
+    assert.deepEqual(await screen.whenLoaded(), {version: 1, savedAt: 4, slices: {drawer: 'git-history'}});
+    assert.deepEqual(applied, ['git-history']);
+
+    // The prepared state is used once; the load after it reads its own input.
+    loading = vm.loadProject(sb3({[screenStateEntry]: state(5, {drawer: 'sprites'})}));
+    vm.finishLoad();
+    await loading;
+    assert.equal((await screen.whenLoaded())?.savedAt, 5);
+
+    screen.prepareLoad('not a screen state');
+    loading = vm.loadProject(sb3({[screenStateEntry]: state(6, {drawer: 'sprites'})}));
+    vm.finishLoad();
+    await loading;
+    assert.equal(await screen.whenLoaded(), undefined, 'a broken folder file opens the default screen');
+});
+
+test('nothing is serialized while saving is turned off', () => {
+    const screen = installProjectScreenState(fakeVM(), {Zip, save: false});
+    screen.register('drawer', {capture: () => 'project'});
+    assert.equal(screen.serialize(), undefined);
+});
