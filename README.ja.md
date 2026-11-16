@@ -144,6 +144,8 @@ Editor のルートから、`site/source.json` の GUI を `npm run build:pages`
 
 `attachStageInput` は、ホストから渡された別ウィンドウの document とキャンバスを使って、入力の購読と解放を管理する。ポインター処理とドラッグ状態の解除はホストのコールバックを使用する。
 
+日本語・中国語・韓国語の IME がオンのとき、ブラウザーは IME が受け取ったキーを `Process`（または IME が打つかな）と報告し、VM はこれを無視する。`attachStageInput` は `event.code` から元のキーを復元する。本体の document では、`@kubohiroya/turbowarp-plus-editor-workbench/ime-key` の `installImeKeyInput(document)` が capture 段階で `key` と `keyCode` を直し、ステージが読む前に同じ復元を行う。テキスト欄に向かうイベントは IME の報告のまま残す。
+
 スプライト編集タブの中のペイン（素材と変数、メッセージ、設定フォーム、セクション切り替えのツールバー）は `@kubohiroya/turbowarp-plus-editor-sprite-panes` に移った。このパッケージはそれらをタブや分割に並べる。以前の配布アーカイブのソース `b0390c3` から移設したウィンドウ部品は、`@kubohiroya/turbowarp-plus-editor-windows` に移った。Scratch GUI の本家実装はこのパッケージに取り込んでいないため、GPL のコードを含まず、GPL のモジュールも import しない。ライセンスは MPL-2.0 とする。MPL-2.0 は GPL を二次ライセンスとして認めるので、GPL-3.0 の Editor に組み込んで配信できる。ソースに「Incompatible With Secondary Licenses」の表示は付けない。付けると Editor に組み込めなくなる。
 
 ## デバッガーのタブ

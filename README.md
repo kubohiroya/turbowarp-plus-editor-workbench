@@ -147,6 +147,8 @@ From the Editor root, build the GUI pinned in `site/source.json` with `npm run b
 
 `attachStageInput` manages input subscriptions and cleanup using the separate window's document and canvas provided by the host. Pointer handling and drag cleanup use the host's callbacks.
 
+With a Japanese, Chinese or Korean IME on, the browser reports the key the IME took as `Process` (or as the kana the IME would type), which the VM ignores. `attachStageInput` recovers the key from `event.code`, and `installImeKeyInput(document)` from `/turbowarp-plus-editor-workbench/ime-key` does the same for the main document by correcting `key` and `keyCode` in the capture phase, before the stage reads them. Events aimed at text fields keep what the IME reported.
+
 The panes inside a sprite editing tab (assets and variables, messages, the properties form and the section toolbar) now live in `@kubohiroya/turbowarp-plus-editor-sprite-panes`; this package arranges them into tabs and splits. The window components, which came from the source of the previous release archive at `b0390c3`, now live in `@kubohiroya/turbowarp-plus-editor-windows`. The extraction kept the upstream Scratch GUI implementation in its original repository, so this package carries no GPL code and imports no GPL module. It is licensed MPL-2.0, which the GPL-3.0 Editor can still bundle because MPL-2.0 treats the GPL as a Secondary License. The source files carry no “Incompatible With Secondary Licenses” notice, and must not: that notice would make the package unusable in the Editor.
 
 ## Debugger tab

@@ -1,3 +1,5 @@
+import {imeScratchKey} from './ime-key.ts';
+
 type Key = {key: string | number; keyCode: number};
 
 interface StageInput {
@@ -21,7 +23,8 @@ export function attachStageInput({document, canvas, onMove, onUp, releasePointer
     function keyDown(event: KeyboardEvent) {
         if (event.target !== document && event.target !== document.body && event.target !== canvas) return;
         if (event.ctrlKey || event.metaKey || event.altKey) return;
-        const {code, key, keyCode} = event;
+        const {code} = event;
+        const {key, keyCode} = imeScratchKey(event) ?? event;
         const id = code || keyCode;
         if (!keys.has(id)) {
             const data = {key: key && key !== 'Dead' ? key : keyCode, keyCode};
