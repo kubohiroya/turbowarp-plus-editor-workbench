@@ -215,6 +215,7 @@ test('a command block gets a menu item, and a marked block is outlined', async (
 
     ScratchBlocks.ContextMenu.show({}, [], false);
     assert.equal(shown[0].at(-1).text, 'ブレークポイントを設定');
+    assert.equal((shown[0].at(-1) as {twPlusMenuIcon?: string}).twPlusMenuIcon, 'debug');
     shown[0].at(-1).callback();
     assert.equal(getBreakpoints(vm).has(target.blocks, 'b'), true);
     await new Promise(resolve => setTimeout(resolve, 30));

@@ -96,8 +96,9 @@
 
 /*
  * The debugger sits on the menu bar on its own, between the stage launcher and the extension tray,
- * as a round 2rem button like a browser toolbar's "…" menu. The add-on's shell-prompt image is
- * hidden and "…" drawn in its place; `::after` stays free for the add-on's unread dot.
+ * as a round 2rem button showing 🐞, as the recorder beside it shows 🎥. The ladybug marks every
+ * debugging entry point in the editor. The add-on's shell-prompt image is hidden and the ladybug
+ * drawn in its place; `::after` stays free for the add-on's unread dot.
  */
 .tw-stage-controls__debugger-button {
     flex: none;
@@ -140,8 +141,9 @@
 }
 
 .tw-stage-controls__debugger-button [data-tw-stage-button-content]::before {
-    content: "…";
-    font: bold 1.25rem/1 sans-serif;
+    content: "🐞";
+    font-size: 1rem;
+    line-height: 1;
 }
 
 /*

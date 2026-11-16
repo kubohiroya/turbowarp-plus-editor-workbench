@@ -274,6 +274,8 @@ interface MenuItem {
     enabled: boolean;
     callback(): void;
     separator?: boolean;
+    /** The editor's menu icon for the item, by name. */
+    twPlusMenuIcon?: string;
 }
 
 interface BlockSvgLike {
@@ -343,6 +345,8 @@ export function attachBreakpointMenu (options: BreakpointMenuOptions) {
                     text: breakpointMenuText(options.getLocale?.(), on, !on && breakpoints.runsCompiled(blocks)),
                     enabled: true,
                     separator: true,
+                    // The editor draws its ladybug before the text, as for its other block menu items.
+                    twPlusMenuIcon: 'debug',
                     callback: () => breakpoints.toggle(blocks, block.id)
                 }];
             }

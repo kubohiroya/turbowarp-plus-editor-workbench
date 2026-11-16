@@ -836,7 +836,9 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
             const panel = dockview.getPanel(id);
             if (!panel) continue;
             const fixed = fixedProjectTab(id);
-            if (panel.api.getParameters().fixedProjectTab !== fixed) panel.api.updateParameters({fixedProjectTab: fixed});
+            if (panel.api.getParameters().fixedProjectTab !== fixed) {
+                panel.api.updateParameters({fixedProjectTab: fixed, ...(request.icon && {icon: request.icon})});
+            }
             const group = fixed && leftmostGroup();
             if (group && group.panels[0]?.id !== id) panel.api.moveTo({group, index: 0, skipSetActive: !panel.api.isActive});
         }
@@ -869,7 +871,8 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
         documents.set(id, {request});
         try {
             dockview.addPanel({id, title, component: documentComponent, renderer: 'always',
-                inactive: request.inactive, params: {fixedProjectTab: Boolean(fixed)}, ...(position && {position})});
+                inactive: request.inactive, params: {fixedProjectTab: Boolean(fixed), ...(request.icon && {icon: request.icon})},
+                ...(position && {position})});
         } catch (error) {
             documents.get(id)?.session?.dispose();
             documents.delete(id);
