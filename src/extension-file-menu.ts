@@ -38,6 +38,8 @@ const glyphs = {
     open: 'M5 3h9l5 5v13H5z M14 3v5h5 M12 18v-7 M9 14l3-3 3 3',
     'project-folder-open': 'M3 6h7l2 2h9l-2 11H3z M3 11h16',
     'project-folder-open-browser': 'M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M3 9h18 M6 6.5h.01 M8.5 6.5h.01 M11 6.5h.01',
+    // A remote Git repository: a cloud with an arrow down, fetched onto the device.
+    'git-open-remote': 'M7 18H6.5a4.5 4.5 0 0 1-.5-8.97A6 6 0 0 1 17.5 9a4.5 4.5 0 0 1 0 9H17 M12 12v9 M8.5 17.5 12 21l3.5-3.5',
     'save-as': 'M4 3h13l3 3v15H4z M8 3v6h8V3 M9 17h6 M12 14v6',
     download: 'M12 3v12 M7 10l5 5 5-5 M4 17v4h16v-4',
     package: 'm12 3 8 4v10l-8 4-8-4V7z M4 7l8 4 8-4 M12 11v10 M8 5l8 4',
