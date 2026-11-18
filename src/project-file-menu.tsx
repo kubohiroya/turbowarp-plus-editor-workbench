@@ -1,6 +1,8 @@
 import React from 'react';
 import {isMacPlatform} from '@kubohiroya/turbowarp-plus-editor-project-model/project-search-connections';
-import type {Action, FolderActions, ProjectFileStorage} from './project-file-dialogs.js';
+import {openNewProjectDialog} from './project-file-dialogs.js';
+import type {Action, FolderActions, NewProjectChoices, NewProjectRequest, NewProjectResult,
+    ProjectFileStorage} from './project-file-dialogs.js';
 
 type Entry = [command: string, label: string, action: Action | undefined, showShortcut?: boolean, unavailable?: string];
 interface SaveWorkspace {
@@ -10,13 +12,17 @@ interface SaveWorkspace {
     subscribeSave(listener: () => void): () => void;
 }
 
-type SaveEntries = {storage: ProjectFileStorage; folder?: FolderActions; saveAs?: Action; saveCommit?: Action};
+type SaveEntries = {storage: ProjectFileStorage; folder?: FolderActions; saveNew?: Action; saveAs?: Action;
+    saveCommit?: Action};
 
-function saveEntries(locale: string, {storage, folder, saveAs, saveCommit}: SaveEntries): Entry[] {
+function saveEntries(locale: string, {storage, folder, saveNew, saveAs, saveCommit}: SaveEntries): Entry[] {
     const ja = locale.startsWith('ja');
     return [
-        ['save', ja ? 'プロジェクトを保存' : 'Save Project', storage.canSave ? storage.overwrite || folder?.save : undefined],
-        ['save-as', ja ? '名前を変えて保存…' : 'Save As…', storage.canSave ? saveAs : undefined],
+        // Overwrites the file or saves into the folder; with no target yet, saveNew picks one that becomes the target.
+        ['save', ja ? 'プロジェクトを保存' : 'Save Project',
+            storage.canSave ? storage.overwrite || folder?.save || saveNew : undefined],
+        // Saves a copy and leaves the project where it is; the command id stays `save-as` for icons and hosts.
+        ['save-as', ja ? 'プロジェクトのコピーを保存…' : 'Save a Copy of the Project…', storage.canSave ? saveAs : undefined],
         ...(saveCommit ? [['save-commit', ja ? '保存してコミット…' : 'Save and Commit…', saveCommit] as Entry] : [])
     ];
 }
@@ -70,13 +76,27 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
     close: Action;
     workspace?: SaveWorkspace;
     entries: {
+        /** Creates the default project in memory. Without `createIn`, Create New Project calls it directly. */
         create: Action;
+        /**
+         * With it, Create New Project… opens the dialog that chooses where to create the project, and calls this
+         * for a folder or a GitHub repository (see `renderNewProjectForm`). The in-memory choice still calls `create`.
+         */
+        createIn?: (request: NewProjectRequest, signal: AbortSignal) => Promise<NewProjectResult>;
+        /** What the Create New Project… dialog offers besides the in-memory project. */
+        newProject?: NewProjectChoices;
         newWindow?: Action;
         open: Action;
         externalYaml?: React.ReactNode;
         folder?: FolderActions;
         openRemote?: Action;
         storage: ProjectFileStorage;
+        /**
+         * Save Project for a project with no save target (no file handle, no folder): opens the save form titled
+         * `projectFileDialogTitle('save', locale)`, whose file or folder becomes the project's target.
+         */
+        saveNew?: Action;
+        /** Save a Copy of the Project…: writes a copy and never changes the project's target. */
         saveAs?: Action;
         saveCommit?: Action;
         exportProject?: Action;
@@ -108,8 +128,13 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
         </MenuItem>;
     };
     const e = entries;
+    const createIn = e.createIn;
+    const createNew: Entry = createIn ? ['new', ja ? '新しいプロジェクトを作成…' : 'Create New Project…', () => {
+        if (typeof document === 'undefined') return;
+        void openNewProjectDialog(document, locale, {...e.newProject, create: e.create, createIn});
+    }] : ['new', ja ? '新しいプロジェクトを作成' : 'Create New Project', e.create];
     return <>
-        {item(['new', ja ? '新しいプロジェクトを作成' : 'Create New Project', e.create])}
+        {item(createNew)}
         {e.newWindow && item(['window', ja ? '新しいウィンドウ' : 'New Window', e.newWindow])}
         <MenuSection>
             {item(['open', ja ? 'SB3ファイルを開く…' : 'Open SB3 File…', e.open])}

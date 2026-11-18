@@ -123,7 +123,7 @@ These moved here from `packages/editor-ui` and `packages/editor-backpack` in tur
 | --- | --- |
 | `./project-info-menu` | The project and settings menu, with the project title field and the GUI's display settings the host passes in |
 | `./edit-menu` | The Edit menu's workspace commands, restore and the replace shortcut |
-| `./project-file-menu`, `./project-file-dialogs` | The File menu, Save As (current, embedded or folder, and a new GitHub repository), the export view and the extension storage form |
+| `./project-file-menu`, `./project-file-dialogs` | The File menu, Create New Project… (in memory, a folder, or a new GitHub repository), Save a Copy of the Project (current, embedded or folder, and a new GitHub repository), save names, the export view and the extension storage form |
 | `./project-search` | The project-wide search and replace box (the search itself is in `@kubohiroya/turbowarp-plus-editor-project-model`) |
 | `./project-load-progress`, `./project-load-progress-view`, `./project-size-approval` | Loading progress, and asking before opening a project over the standard size limit |
 | `./stage-controls`, `./stage-controls-view` | The stage controls that extensions register, and their view on the menu bar with the debugger and recorder buttons |
@@ -136,6 +136,56 @@ Load those stylesheets as global stylesheets, together with the `styles.css` of 
 The debugger button comes from a GUI add-on. When handing it to `setDebuggerButton`, the host marks the add-on's button with `data-tw-stage-button`, its icon with `data-tw-stage-button-icon` and its content with `data-tw-stage-button-content`; the stylesheet and the keyboard handling use those marks instead of the GUI's class names.
 
 These came from the same author and changed from GPL-3.0 to MPL-2.0 in the move. The provenance audit is in the "由来の監査（7b）" section of the [migration plan in turbowarp-plus-packages](https://github.com/kubohiroya/turbowarp-plus-packages/blob/main/docs/editor-migration-plan.ja.md). The Mark GitHub and Law icons in the project menu are from GitHub Octicons (MIT); see `NOTICE`.
+
+### File menu: Create New Project… and Save a Copy of the Project…
+
+The File menu starts with **Create New Project…** and its save section has **Save a Copy of the Project…** (the command id stays `save-as`, so its icon and the hosts keep working; the unsaved-changes popup uses the same label). Without `entries.createIn` the first item keeps the label **Create New Project** and calls `entries.create` directly.
+
+**Create New Project…** When the host passes `entries.createIn`, the item opens `openNewProjectDialog(document, locale, options)`, a modal dialog with `renderNewProjectForm(document, locale, options, close)` (a host can show the form in its own dialog and title it with `projectFileDialogTitle('new', locale)`). The dialog chooses where to create the project:
+
+| Choice | Offered when | Request |
+| --- | --- | --- |
+| In memory (SB3), the default | always | calls `entries.create`, as before (`{destination: 'memory'}` to `createIn` when there is no `create`) |
+| Project folder in this browser | `newProject.browserFolders` | `{destination: 'browser', title, saveName}` |
+| Project folder on this device | `newProject.deviceFolders` is `true`; with `false` it is shown disabled with the reason used for Open Folder… | `{destination: 'device', title, saveName}` |
+| Git remote repository (GitHub) | `newProject.github` (`connectForCreation`, `licenses`) and a place for the working copy | `{destination: 'github', title, saveName, draft, workingCopy: 'browser' \| 'device'}` |
+
+```ts
+entries.createIn = (request: NewProjectRequest, signal: AbortSignal) => Promise<'created' | 'cancelled'>;
+entries.newProject = {defaultTitle: 'Scratch Project', browserFolders: true, deviceFolders: canPickFolders,
+    github: {connectForCreation, licenses}};
+```
+
+- A folder or a repository takes the project title (prefilled with `newProject.defaultTitle`) and a save name. A title that is a valid save name is used as is; otherwise the dialog explains the rule inline and asks for a save name, starting from `suggestSaveName(title)`.
+- For GitHub the form reuses the repository fields of Save a Copy (owner, repository name, description, topics, license, visibility), connects, shows the review step, and asks where to keep the working copy (the device folder follows the same rule as above). The repository name starts from the save name, and `saveName` in the request is the repository name (`draft.name`).
+- `createIn` resolves `created` once the project is open, which closes the dialog, or `cancelled` (for example when the person cancels the folder picker), which keeps it open. A rejection shows the Error's message in the dialog. `signal` aborts when the dialog is dismissed.
+
+**Save names.** The name a project is saved under where its title cannot be used, as a folder or a GitHub repository name, follows the GitHub repository name rule: letters, digits, `-`, `_` and `.`, up to 100 characters, not `.` or `..`, and not ending in `.git`.
+
+- `isValidSaveName(name)` checks the rule (case-insensitively for `.git`).
+- `suggestSaveName(title)` returns an ASCII slug of the title (accents removed, lower case, other characters as `-`), or `''` when nothing usable remains, as for a title only in Japanese.
+- `askSaveName({document, locale, title, current})` asks for a save name in a modal dialog with the rule, validates as the person types, and resolves the name on OK or `null` on Cancel.
+
+**Save Project with no save target.** Save Project (`save`, Ctrl/⌘+S) is enabled whenever the project can be saved. It overwrites the project's file (`storage.overwrite`) or saves into its folder (`folder.save`); a project with neither, such as a new project in memory, runs the new `entries.saveNew`. The host opens the same `renderSaveAsForm` there (name, SB3 or project folder, Git and GitHub), titled `projectFileDialogTitle('save', locale)` ("Save Project"), and the result **becomes the save target**: for an SB3, `saveProjectAs(..., {mode: 'save', unchanged})` calls `storage.finish(handle, title, unchanged)`, where the host sets the file handle and title and marks the project saved as before; for a folder or a new GitHub repository the host opens and attaches it, as the old Save As did. Pass the same action as the third argument of `projectSaveShortcut(storage, folder, saveNew)`; passing Save a Copy there would leave such a project copying forever.
+
+**Save a Copy of the Project… (breaking for hosts).** Saving a copy writes a copy and leaves the project where it is: its title, file handle, folder and unsaved changes stay. `saveProjectAs` in its default `mode: 'copy'` never calls `storage.finish`; after writing it runs `committed()` and then the new optional `storage.copied(handle, title)`, where the host only ends its save indicator. Title the dialog with `projectFileDialogTitle('save-as', locale)` ("Save a Copy of the Project").
+
+Which path attaches:
+
+| Path | Becomes the save target | Hooks |
+| --- | --- | --- |
+| Save Project, with a target | stays the same target | `storage.overwrite` / `folder.save` |
+| Save Project, no target (`entries.saveNew`) | yes: the new file, folder or repository | `saveProjectAs({mode: 'save'})` → `storage.finish`; the host attaches a folder or repository |
+| Save a Copy of the Project… (`entries.saveAs`) | never | `saveProjectAs()` (copy) → `storage.copied`; the host does not attach a folder or repository |
+
+A host that wired the old Save As must, for the copy path, stop:
+
+1. calling `detachFolder()` in `committed()` (the project keeps its project folder);
+2. setting the file handle and the project title after the copy (`onSetFileHandle(handle)` and `onSetProjectTitle(title)` in its `storage.finish`, which the copy no longer calls); implement `storage.copied` instead, which may show the save-success alert;
+3. marking the project as saved (`finishedSaving()`/`onProjectUnchanged()`), and committing the project properties' deferred save receipt (`commitMetadata()`) or the embedded-payload commit (`embed()`) as if the project itself had been saved;
+4. opening or attaching the new folder after a folder copy (`createFolder`), or after a new GitHub repository is set up from the copy dialog, unless the person chooses to open it.
+
+and wire `entries.saveNew` (and the third argument of `projectSaveShortcut`) to the old Save As behaviour with `mode: 'save'`, keeping all of the above there.
 
 ## Verification
 
