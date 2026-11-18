@@ -1,6 +1,9 @@
 import {dialogAction, dialogActions} from '@kubohiroya/turbowarp-plus-editor-windows';
 import type {CreationInteraction, GitHubCreationAccount, GitHubRepositoryDraft, RepositoryCreationControls,
     RepositoryCreationProgress, RepositoryReceipt} from '@kubohiroya/turbowarp-plus-editor-git/project-repository-creation';
+import {checkSaveNameInput, isValidSaveName, saveNameTexts, suggestSaveName} from './save-name.js';
+
+export {askSaveName, isValidSaveName, suggestSaveName} from './save-name.js';
 
 export type Action = () => void;
 // `openBrowser` opens a folder kept in the browser (OPFS), where the host offers one.
@@ -40,8 +43,29 @@ export interface ProjectFileStorage {
     pick?: (filename: string) => Promise<FileSystemFileHandle>;
     write(handle: FileSystemFileHandle, serialize: Serialize, current: () => boolean): Promise<void>;
     download(filename: string, serialize: Serialize, current: () => boolean): Promise<void>;
-    finish(handle: FileSystemFileHandle | null, title: string, unchanged: boolean): void;
+    /**
+     * Called after a copy was written by {@link saveProjectAs}, with the file it was written to (`null` for a
+     * download) and the title stored in the copy. The host ends its save indicator here. It must not make the copy
+     * the current file, change the project title, or mark the project as saved: the project keeps its own file,
+     * folder and unsaved changes.
+     */
+    copied?(handle: FileSystemFileHandle | null, title: string): void;
+    /**
+     * @deprecated No longer called. Saving a copy used to retarget the project to the new file with
+     * `finish(handle, title, unchanged)`; a copy now leaves the project where it is (see {@link copied}).
+     */
+    finish?(handle: FileSystemFileHandle | null, title: string, unchanged: boolean): void;
     fail(error: unknown): void;
+}
+
+/**
+ * The titles of the dialogs this package fills, by the File menu command that opens them: `save-as` is
+ * "Save a Copy of the Project" and `new` is "Create New Project".
+ */
+export function projectFileDialogTitle(command: 'save-as' | 'new', locale: string) {
+    const ja = locale.startsWith('ja');
+    return command === 'new' ? (ja ? '新しいプロジェクトを作成' : 'Create New Project') :
+        (ja ? 'プロジェクトのコピーを保存' : 'Save a Copy of the Project');
 }
 
 /**
@@ -70,11 +94,17 @@ export function projectSaveShortcut(storage: ProjectFileStorage, folder?: Folder
     if (storage.canSave) (storage.overwrite || folder?.save || saveAs)?.();
 }
 
+/**
+ * Saves a copy of the project as an SB3: picks the file (or downloads it), collects edits held by other windows,
+ * serializes the copy under its own title and writes it. The project stays as it was: its file, folder, title and
+ * unsaved state do not change. After the copy is written `committed` runs, then `storage.copied`.
+ */
 export async function saveProjectAs(storage: ProjectFileStorage, name: string, {
-    current, unchanged, serialize, committed, collect
+    current, serialize, committed, collect
 }: {
     current(): boolean;
-    unchanged(): boolean;
+    /** @deprecated Ignored; a copy does not change whether the project has unsaved changes. */
+    unchanged?(): boolean;
     serialize<T>(title: string, run: () => T): T;
     committed(): void;
     // Collects edits still held by other windows. A failure leaves them there for a retry.
@@ -96,7 +126,7 @@ export async function saveProjectAs(storage: ProjectFileStorage, name: string, {
         else await storage.download(filename, output, current);
         if (!current()) return false;
         committed();
-        storage.finish(handle, title, unchanged());
+        storage.copied?.(handle, title);
         return true;
     } catch (error) {
         storage.fail(error);
@@ -104,8 +134,7 @@ export async function saveProjectAs(storage: ProjectFileStorage, name: string, {
     }
 }
 
-const validRepositoryName = (name: string) => /^[A-Za-z0-9_.-]{1,100}$/.test(name) &&
-    name !== '.' && name !== '..' && !/\.git$/i.test(name);
+const validRepositoryName = isValidSaveName;
 
 function parseGitHubRepositoryUrl(url: string) {
     const match = /^https:\/\/github\.com\/([A-Za-z0-9][A-Za-z0-9-]{0,38})\/([A-Za-z0-9_.-]{1,104})\/?$/i.exec(url.trim());
@@ -150,6 +179,9 @@ function createGitHubFields(document: Document, label: (ja: string, en: string) 
     const name = document.createElement('input');
     name.name = 'github-name';
     name.maxLength = 100;
+    // A name the person typed is kept; until then the name follows the suggestion from the form.
+    let nameEdited = false;
+    name.addEventListener('input', () => {nameEdited = true;});
     appendField(panel, label('リポジトリ名', 'Repository name'), name);
     const url = document.createElement('input');
     url.name = 'github-url';
@@ -199,6 +231,9 @@ function createGitHubFields(document: Document, label: (ja: string, en: string) 
     return {
         panel,
         get connected() {return account !== null;},
+        suggestName(value: string) {
+            if (!nameEdited) name.value = value;
+        },
         async connect(open: () => boolean, interaction: CreationInteraction) {
             const result = await provider.connectForCreation(interaction);
             if (!open() || !result) return false;
@@ -216,6 +251,7 @@ function createGitHubFields(document: Document, label: (ja: string, en: string) 
                 'Enter a URL in the form https://github.com/owner/repository.'));
             requestedOwner = parsed.owner;
             name.value = parsed.name;
+            nameEdited = true;
             url.value = '';
             if (account) fillOwners(account);
         },
@@ -663,4 +699,355 @@ export function renderExtensionsForm(document: Document, locale: string, close: 
         }
     };
     return form;
+}
+
+/** Where Create New Project… puts the new project. */
+export type NewProjectDestination = 'memory' | 'browser' | 'device' | 'github';
+
+/**
+ * What the new project dialog asks the host to create. `title` is the project title; `saveName` is the name of the
+ * folder (and, for GitHub, of the repository: it equals `draft.name`), always a valid save name
+ * ({@link isValidSaveName}). For GitHub, `workingCopy` says where the working copy is kept.
+ */
+export type NewProjectRequest =
+    | {destination: 'memory'}
+    | {destination: 'browser' | 'device'; title: string; saveName: string}
+    | {destination: 'github'; title: string; saveName: string; draft: GitHubRepositoryDraft; workingCopy: 'browser' | 'device'};
+
+/** `created` closes the dialog; `cancelled` (the person cancelled a picker, say) keeps it open with its entries. */
+export type NewProjectResult = 'created' | 'cancelled';
+
+export interface NewProjectGitHub {
+    // The host can reuse a current session or open sign-in. The form retains its entries either way.
+    connectForCreation(interaction: CreationInteraction): Promise<GitHubCreationAccount | null>;
+    licenses?: readonly {id: string; label: string}[];
+}
+
+/** What the host offers in the new project dialog. Only the in-memory project is always offered. */
+export interface NewProjectChoices {
+    /** The localized title of a new project, the initial value of the title field. */
+    defaultTitle?: string;
+    /** Offers a project folder kept in the browser (OPFS). */
+    browserFolders?: boolean;
+    /**
+     * Offers a project folder on the device: `true` offers it, `false` shows it disabled with the reason (Safari,
+     * Firefox), and leaving it out hides it.
+     */
+    deviceFolders?: boolean;
+    /** Offers a new GitHub repository, with its working copy in the browser or on the device. */
+    github?: NewProjectGitHub;
+}
+
+export interface NewProjectFormOptions extends NewProjectChoices {
+    /**
+     * Creates the default project in memory, as Create New Project always did. Without it, the in-memory choice
+     * calls `createIn({destination: 'memory'})`.
+     */
+    create?: Action;
+    /**
+     * Creates the project. Resolves `created` once the new project is open, or `cancelled` to keep the dialog open;
+     * rejects with an Error whose message the dialog shows. `signal` aborts when the dialog is dismissed.
+     */
+    createIn(request: NewProjectRequest, signal: AbortSignal): Promise<NewProjectResult>;
+}
+
+const deviceFolderReason = (label: (ja: string, en: string) => string) =>
+    label('このブラウザーでは端末のフォルダを開けません。Chrome か Edge を使うか、ブラウザーに保存したフォルダを開いてください。',
+        'This browser cannot open folders on your device. Use Chrome or Edge, or open a folder saved in this browser.');
+
+let newProjectForms = 0;
+
+/**
+ * The Create New Project… form. The in-memory project is selected first, so Create alone does what Create New
+ * Project always did. A folder or a GitHub repository also takes a title, and a save name when the title cannot be
+ * used as one. `close` receives `created`, or `cancelled` when the person dismissed the form.
+ */
+export function renderNewProjectForm(document: Document, locale: string, options: NewProjectFormOptions,
+    close: (result: NewProjectResult) => void) {
+    const label = (ja: string, en: string) => locale.startsWith('ja') ? ja : en;
+    const id = `tw-new-project-${++newProjectForms}`;
+    const {browserFolders, deviceFolders, github: githubProvider} = options;
+    const workingCopies = [...(deviceFolders !== undefined ? ['device'] : []), ...(browserFolders ? ['browser'] : [])];
+    const form = document.createElement('form');
+    form.setAttribute('data-new-project-form', '');
+    const fields = document.createElement('div');
+
+    const destinations = document.createElement('fieldset');
+    const destinationLegend = document.createElement('legend');
+    destinationLegend.textContent = label('作成先', 'Create in');
+    destinations.append(destinationLegend);
+    const radio = (parent: HTMLElement, group: string, value: string, title: string, reason?: string) => {
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = group;
+        input.value = value;
+        const row = document.createElement('label');
+        row.append(input, title);
+        parent.append(row);
+        if (reason) {
+            input.disabled = true;
+            row.title = reason;
+            const note = document.createElement('p');
+            note.id = `${id}-${group}-${value}-reason`;
+            note.textContent = reason;
+            input.setAttribute('aria-describedby', note.id);
+            parent.append(note);
+        }
+        return input;
+    };
+    const unavailable = deviceFolders === false ? deviceFolderReason(label) : undefined;
+    radio(destinations, 'destination', 'memory', label('メモリ上の SB3', 'In memory (SB3)')).checked = true;
+    if (browserFolders) radio(destinations, 'destination', 'browser',
+        label('ブラウザー内のプロジェクトフォルダ', 'Project folder in this browser'));
+    if (deviceFolders !== undefined) radio(destinations, 'destination', 'device',
+        label('手元のプロジェクトフォルダ', 'Project folder on this device'), unavailable);
+    if (githubProvider && workingCopies.length) radio(destinations, 'destination', 'github',
+        label('Git のリモートリポジトリ', 'Git remote repository (GitHub)'));
+    fields.append(destinations);
+
+    const title = document.createElement('input');
+    title.name = 'title';
+    title.maxLength = 100;
+    title.value = options.defaultTitle ?? label('新しいプロジェクト', 'Untitled Project');
+    const titleField = appendField(fields, label('作品名', 'Project title'), title);
+
+    const texts = saveNameTexts(locale);
+    const saveNameBlock = document.createElement('div');
+    const saveNameExplanation = document.createElement('p');
+    saveNameExplanation.textContent = texts.explanation;
+    const saveName = document.createElement('input');
+    saveName.name = 'save-name';
+    saveName.maxLength = 100;
+    saveName.autocomplete = 'off';
+    saveName.spellcheck = false;
+    const allowed = document.createElement('p');
+    allowed.id = `${id}-save-name-allowed`;
+    allowed.textContent = texts.allowed;
+    saveName.setAttribute('aria-describedby', allowed.id);
+    const saveNameError = document.createElement('p');
+    saveNameError.setAttribute('role', 'alert');
+    saveNameBlock.append(saveNameExplanation);
+    const saveNameField = appendField(saveNameBlock, texts.title, saveName);
+    saveNameBlock.append(allowed, saveNameError);
+    fields.append(saveNameBlock);
+    let saveNameEdited = false;
+
+    const status = document.createElement('p');
+    status.setAttribute('role', 'alert');
+    const report = (message: string) => {status.textContent = message;};
+    const progress = document.createElement('p');
+    progress.setAttribute('role', 'status');
+
+    const github = githubProvider && workingCopies.length ?
+        createGitHubFields(document, label, githubProvider, report) : null;
+    const workingCopy = document.createElement('fieldset');
+    if (github) {
+        const legend = document.createElement('legend');
+        legend.textContent = label('作業用の写しの置き場所', 'Keep the working copy');
+        workingCopy.append(legend);
+        if (deviceFolders !== undefined) radio(workingCopy, 'working-copy', 'device',
+            label('手元のプロジェクトフォルダ', 'Project folder on this device'), unavailable);
+        if (browserFolders) radio(workingCopy, 'working-copy', 'browser',
+            label('ブラウザー内のプロジェクトフォルダ', 'Project folder in this browser'));
+        const preferred = [...workingCopy.querySelectorAll<HTMLInputElement>('input')].find(input => !input.disabled);
+        if (preferred) preferred.checked = true;
+        github.panel.append(workingCopy);
+        fields.append(github.panel);
+    }
+
+    const review = document.createElement('div');
+    const device = document.createElement('div');
+    const controller = new AbortController();
+    let dismissed = false;
+    const open = () => !dismissed && form.isConnected;
+    const interaction: CreationInteraction = {
+        signal: controller.signal,
+        deviceCode({userCode, verificationUri}) {
+            if (!open()) return;
+            const link = document.createElement('a');
+            link.href = verificationUri;
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.textContent = label('GitHub で認証する', 'Authorize on GitHub');
+            const code = document.createElement('strong');
+            code.textContent = userCode;
+            device.replaceChildren(link, ' ', code);
+        }
+    };
+    const back = document.createElement('button');
+    back.type = 'button';
+    back.textContent = label('戻る', 'Back');
+    const cancel = document.createElement('button');
+    cancel.type = 'button';
+    cancel.textContent = label('キャンセル', 'Cancel');
+    cancel.setAttribute('data-new-project-cancel', '');
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    form.append(fields, review, device, progress, status,
+        dialogActions(document, back, dialogAction(cancel, 'cancel'), dialogAction(submit, 'confirm')));
+
+    let busy = false;
+    let reviewed: GitHubRepositoryDraft | null = null;
+    const finish = (result: NewProjectResult) => {
+        if (dismissed) return;
+        dismissed = true;
+        controller.abort();
+        close(result);
+    };
+    cancel.onclick = () => finish('cancelled');
+    const destination = () => (form.querySelector<HTMLInputElement>('input[name="destination"]:checked')?.value ??
+        'memory') as NewProjectDestination;
+    const selectedWorkingCopy = () => workingCopy.querySelector<HTMLInputElement>('input:checked')?.value as
+        'browser' | 'device' | undefined;
+    const titleValue = () => title.value.trim();
+    const titleUsable = () => isValidSaveName(titleValue());
+    const effectiveSaveName = () => titleUsable() ? titleValue() : saveName.value.trim();
+    const refresh = () => {
+        const selected = destination();
+        const reviewing = reviewed !== null;
+        fields.hidden = reviewing;
+        review.hidden = !reviewing;
+        back.hidden = !reviewing;
+        back.disabled = busy;
+        destinations.disabled = busy || reviewing;
+        titleField.hidden = selected === 'memory';
+        title.disabled = busy || reviewing || selected === 'memory';
+        // Only a folder takes the save name here; for GitHub the repository name is the save name.
+        saveNameBlock.hidden = selected === 'memory' || titleUsable();
+        saveNameField.hidden = selected === 'github';
+        saveName.disabled = busy || reviewing || saveNameBlock.hidden || selected === 'github';
+        if (github) {
+            github.panel.hidden = selected !== 'github';
+            github.panel.disabled = busy || reviewing || github.panel.hidden;
+        }
+        submit.disabled = busy;
+        submit.textContent = selected === 'github' ? (reviewing ? label('リポジトリを作成', 'Create Repository') :
+            github.connected ? label('作成内容を確認', 'Review Repository') : label('GitHub へ接続…', 'Connect to GitHub…')) :
+            selected === 'device' ? label('フォルダを選んで作成…', 'Choose a Folder and Create…') : label('作成', 'Create');
+    };
+    const followTitle = () => {
+        if (!titleUsable() && !saveNameEdited) saveName.value = suggestSaveName(titleValue());
+        if (!saveNameBlock.hidden && saveName.value) checkSaveNameInput(saveName, saveNameError, locale);
+        else {saveName.removeAttribute('aria-invalid'); saveNameError.textContent = '';}
+        github?.suggestName(effectiveSaveName());
+    };
+    title.addEventListener('input', () => {report(''); refresh(); followTitle();});
+    saveName.addEventListener('input', () => {
+        saveNameEdited = true;
+        checkSaveNameInput(saveName, saveNameError, locale);
+        github?.suggestName(effectiveSaveName());
+    });
+    destinations.addEventListener('change', () => {report(''); refresh(); followTitle();});
+    back.onclick = () => {
+        reviewed = null;
+        report('');
+        refresh();
+        submit.focus();
+    };
+    refresh();
+    followTitle();
+    if (github && document.defaultView?.MutationObserver) {
+        const observer = new document.defaultView.MutationObserver(() => {
+            if (!open()) {observer.disconnect(); controller.abort();}
+        });
+        observer.observe(document.body, {childList: true, subtree: true});
+    }
+
+    const run = async (request: NewProjectRequest) => {
+        progress.textContent = label('作成しています…', 'Creating…');
+        try {
+            const result = await options.createIn(request, controller.signal);
+            if (open() && result === 'created') finish('created');
+        } finally {
+            if (open()) progress.textContent = '';
+        }
+    };
+    form.onsubmit = async event => {
+        event.preventDefault();
+        if (!open() || busy) return;
+        const selected = destination();
+        report('');
+        if (selected === 'memory' && options.create) {
+            options.create();
+            finish('created');
+            return;
+        }
+        busy = true;
+        refresh();
+        let focus: HTMLElement | null = null;
+        try {
+            if (selected === 'memory') {await run({destination: 'memory'}); return;}
+            const projectTitle = titleValue();
+            if (!projectTitle) {
+                report(label('作品名を入力してください。', 'Enter a project title.'));
+                focus = title;
+                return;
+            }
+            if (selected !== 'github') {
+                const name = effectiveSaveName();
+                if (!isValidSaveName(name)) {
+                    checkSaveNameInput(saveName, saveNameError, locale);
+                    report(texts.invalid);
+                    focus = saveName;
+                    return;
+                }
+                await run({destination: selected, title: projectTitle, saveName: name});
+                return;
+            }
+            if (!reviewed) {
+                github.applyUrl();
+                if (!github.connected) {
+                    report(label('GitHub に接続しています…', 'Connecting to GitHub…'));
+                    if (await github.connect(open, interaction)) focus = submit;
+                    if (open()) report('');
+                    return;
+                }
+                const place = selectedWorkingCopy();
+                if (!place) throw new Error(label('作業用の写しの置き場所を選んでください。', 'Choose where to keep the working copy.'));
+                reviewed = github.draft(projectTitle);
+                focus = github.review(reviewed, review);
+                return;
+            }
+            await run({destination: 'github', title: projectTitle, saveName: reviewed.name, draft: reviewed,
+                workingCopy: selectedWorkingCopy()});
+        } catch (error) {
+            if (open()) report(error instanceof Error ? error.message : String(error));
+        } finally {
+            device.replaceChildren();
+            busy = false;
+            if (open()) {refresh(); focus?.focus();}
+        }
+    };
+    return form;
+}
+
+/**
+ * Shows {@link renderNewProjectForm} in a modal dialog and resolves `created` or `cancelled` when it closes.
+ * Escape cancels it. Without a document body it resolves `cancelled`.
+ */
+export function openNewProjectDialog(document: Document, locale: string, options: NewProjectFormOptions):
+    Promise<NewProjectResult> {
+    if (!document?.body) return Promise.resolve('cancelled');
+    return new Promise(resolve => {
+        const dialog = document.createElement('dialog');
+        dialog.className = 'tw-project-file-dialog';
+        dialog.setAttribute('data-new-project-dialog', '');
+        const heading = document.createElement('h2');
+        heading.textContent = projectFileDialogTitle('new', locale);
+        dialog.setAttribute('aria-label', heading.textContent);
+        const form = renderNewProjectForm(document, locale, options, result => {
+            if (dialog.open && typeof dialog.close === 'function') dialog.close();
+            dialog.remove();
+            resolve(result);
+        });
+        dialog.addEventListener('cancel', event => {
+            event.preventDefault();
+            form.querySelector<HTMLButtonElement>('[data-new-project-cancel]')?.click();
+        });
+        dialog.append(heading, form);
+        document.body.append(dialog);
+        if (typeof dialog.showModal === 'function') dialog.showModal();
+        else dialog.setAttribute('open', '');
+        form.querySelector<HTMLInputElement>('input[name="destination"]:checked')?.focus();
+    });
 }

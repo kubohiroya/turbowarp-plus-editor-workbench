@@ -9,6 +9,7 @@ function storage(log: string[]): ProjectFileStorage {
         async download(_name, serialize) {log.push(`write:${serialize(() => 'data')}`);},
         async write() {throw new Error('unused');},
         finish() {log.push('finish');},
+        copied(handle, title) {log.push(`copied:${handle}:${title}`);},
         fail(error) {log.push(`fail:${(error as Error).message}`);}
     };
 }
@@ -31,7 +32,30 @@ test('save as collects edits held by other windows before serializing and can be
     busy = false;
     log.length = 0;
     assert.equal(await saveProjectAs(storage(log), 'Project', options), true);
-    assert.deepEqual(log, ['collect', 'write:data', 'committed', 'finish']);
+    assert.deepEqual(log, ['collect', 'write:data', 'committed', 'copied:null:Project']);
+});
+
+test('saving a copy to a picked file leaves the project on its own file, title and folder', async () => {
+    const log: string[] = [];
+    const handle = {name: 'Copy of Cat.sb3'} as FileSystemFileHandle;
+    const gui: ProjectFileStorage = {...storage(log), pick: async filename => {log.push(`pick:${filename}`); return handle;},
+        async write(target, serialize) {log.push(`write:${target.name}:${serialize(() => 'data')}`);}};
+    const titles: string[] = [];
+    const saved = await saveProjectAs(gui, 'Cat', {
+        current: () => true,
+        serialize: <T>(title: string, run: () => T) => {titles.push(title); return run();},
+        committed: () => log.push('committed')
+    });
+    assert.equal(saved, true);
+    assert.deepEqual(titles, ['Copy of Cat']);
+    // Neither finish (which set the file handle and the title) nor anything that detaches the folder runs.
+    assert.deepEqual(log, ['pick:Cat.sb3', 'write:Copy of Cat.sb3:data', 'committed', 'copied:[object Object]:Copy of Cat']);
+    assert.ok(!log.includes('finish'));
+    // A host without copied still saves the copy.
+    const {copied: _unused, ...plain} = storage(log);
+    log.length = 0;
+    assert.equal(await saveProjectAs(plain, 'Cat', {current: () => true, serialize: (_t, run) => run(), committed() {}}), true);
+    assert.deepEqual(log, ['write:data']);
 });
 
 test('overwriting and folder saves collect edits first and save nothing when collection fails', async () => {

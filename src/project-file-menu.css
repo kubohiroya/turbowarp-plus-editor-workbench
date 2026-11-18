@@ -92,3 +92,58 @@ ul:has(> li .tw-project-file-menu__item) {
     font-size: 0.85em;
     white-space: nowrap;
 }
+
+/* The modal dialogs of the File menu: Create New Project… and the save name. */
+.tw-project-file-dialog {
+    box-sizing: border-box;
+    inline-size: min(32rem, calc(100vw - 2rem));
+    max-block-size: calc(100vh - 2rem);
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--ui-black-transparent, rgba(0, 0, 0, 0.15));
+    border-radius: 0.5rem;
+    background-color: var(--ui-modal-background, var(--ui-white, #fff));
+    color: var(--text-primary, #575e75);
+    overflow: auto;
+}
+
+.tw-project-file-dialog::backdrop {
+    background-color: rgba(0, 0, 0, 0.4);
+}
+
+.tw-project-file-dialog h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.125rem;
+}
+
+.tw-project-file-dialog fieldset {
+    margin: 0 0 0.75rem;
+    border: 1px solid var(--ui-black-transparent, rgba(0, 0, 0, 0.15));
+    border-radius: 0.25rem;
+}
+
+.tw-project-file-dialog label {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.25rem 0.5rem;
+    margin-block: 0.25rem;
+}
+
+.tw-project-file-dialog input:not([type="radio"]),
+.tw-project-file-dialog select {
+    flex: 1 1 12rem;
+    min-inline-size: 0;
+}
+
+.tw-project-file-dialog input[aria-invalid="true"] {
+    outline: 2px solid var(--error-primary, #ff8c1a);
+}
+
+.tw-project-file-dialog p {
+    margin-block: 0.25rem;
+}
+
+.tw-project-file-dialog [role="alert"]:empty,
+.tw-project-file-dialog [role="status"]:empty {
+    display: none;
+}

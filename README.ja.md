@@ -121,7 +121,7 @@ turbowarp-plus-editor の `packages/editor-ui` と `packages/editor-backpack` �
 | --- | --- |
 | `./project-info-menu` | 作品と設定のメニュー。作品名の欄と、ホストが渡す GUI の表示設定を含む |
 | `./edit-menu` | 編集メニューのワークスペースの操作、復元、置換のショートカット |
-| `./project-file-menu`・`./project-file-dialogs` | ファイルメニュー、名前を付けて保存（現在の形式・埋め込み・フォルダ、GitHub の新しいリポジトリ）、書き出しの表示、拡張の置き場所のフォーム |
+| `./project-file-menu`・`./project-file-dialogs` | ファイルメニュー、新しいプロジェクトを作成…（メモリ上・フォルダ・GitHub の新しいリポジトリ）、プロジェクトのコピーを保存（現在の形式・埋め込み・フォルダ、GitHub の新しいリポジトリ）、保存用の名前、書き出しの表示、拡張の置き場所のフォーム |
 | `./project-search` | 作品全体の検索と置換のボックス（検索そのものは `@kubohiroya/turbowarp-plus-editor-project-model` にある） |
 | `./project-load-progress`・`./project-load-progress-view`・`./project-size-approval` | 読み込みの進み具合と、標準の上限を超える作品を開く前の確認 |
 | `./stage-controls`・`./stage-controls-view` | 拡張が登録するステージの操作と、デバッガーと録画のボタンを含むメニューバーの表示 |
@@ -134,6 +134,42 @@ turbowarp-plus-editor の `packages/editor-ui` と `packages/editor-backpack` �
 デバッガーのボタンは GUI のアドオンが作る。ホストは `setDebuggerButton` に渡すとき、アドオンのボタンに `data-tw-stage-button`、アイコンに `data-tw-stage-button-icon`、中身に `data-tw-stage-button-content` の印を付ける。スタイルシートとキーボードの扱いは、GUI のクラス名ではなくこの印を使う。
 
 これらは同じ作者が書いたもので、移すときに GPL-3.0 から MPL-2.0 にした。由来の監査は [turbowarp-plus-packages の移行計画](https://github.com/kubohiroya/turbowarp-plus-packages/blob/main/docs/editor-migration-plan.ja.md)の「由来の監査（7b）」にある。作品のメニューの Mark GitHub と Law のアイコンは GitHub Octicons（MIT）のもの。`NOTICE` を参照。
+
+### ファイルメニュー：新しいプロジェクトを作成…・プロジェクトのコピーを保存…
+
+ファイルメニューの先頭は「新しいプロジェクトを作成…」、保存の区切りには「プロジェクトのコピーを保存…」が並ぶ（コマンドの id は `save-as` のままなので、アイコンとホストはそのまま動く。未保存の印から開く保存の一覧も同じ表記）。ホストが `entries.createIn` を渡さないときは、先頭の項目は「新しいプロジェクトを作成」のままで、`entries.create` を直接呼ぶ。
+
+**新しいプロジェクトを作成…** ホストが `entries.createIn` を渡すと、項目は `openNewProjectDialog(document, locale, options)` を開く。中身は `renderNewProjectForm(document, locale, options, close)` で、ホストが自分のダイアログに載せるときは `projectFileDialogTitle('new', locale)` を題名にする。作成先を選ぶ。
+
+| 作成先 | 出す条件 | 要求 |
+| --- | --- | --- |
+| メモリ上の SB3（既定） | いつも | 今までどおり `entries.create` を呼ぶ（`create` が無いときは `createIn` に `{destination: 'memory'}`） |
+| ブラウザー内のプロジェクトフォルダ | `newProject.browserFolders` | `{destination: 'browser', title, saveName}` |
+| 手元のプロジェクトフォルダ | `newProject.deviceFolders` が `true`。`false` なら「フォルダを開く…」と同じ理由を添えて無効で出す | `{destination: 'device', title, saveName}` |
+| Git のリモートリポジトリ | `newProject.github`（`connectForCreation`・`licenses`）と、作業用の写しの置き場所がある | `{destination: 'github', title, saveName, draft, workingCopy: 'browser' \| 'device'}` |
+
+```ts
+entries.createIn = (request: NewProjectRequest, signal: AbortSignal) => Promise<'created' | 'cancelled'>;
+entries.newProject = {defaultTitle: 'Scratch の作品', browserFolders: true, deviceFolders: canPickFolders,
+    github: {connectForCreation, licenses}};
+```
+
+- フォルダとリポジトリでは、作品名（初期値は `newProject.defaultTitle`）と保存用の名前を決める。作品名が保存用の名前の規則に収まればそのまま使い、収まらなければダイアログの中で規則を案内し、`suggestSaveName(title)` を初期値にして保存用の名前を入力してもらう。
+- GitHub では、コピーの保存と同じリポジトリの入力（作成先、リポジトリ名、概要、トピック、ライセンス、公開範囲）を使い、接続して確認の段を経たうえで、作業用の写しの置き場所（手元のフォルダは上と同じ条件）を選ぶ。リポジトリ名の初期値は保存用の名前で、要求の `saveName` はリポジトリ名（`draft.name`）になる。
+- `createIn` は作品を開き終えたら `created` を返し、ダイアログが閉じる。`cancelled`（フォルダの選択を取り消したときなど）ならダイアログは開いたまま。Error で失敗すると、その message をダイアログに出す。`signal` はダイアログを閉じると中断される。
+
+**保存用の名前。** 作品名をフォルダ名やリポジトリ名に使えないときの保存用の名前は、GitHub のリポジトリ名の規則に従う。半角英数字、`-`・`_`・`.`、100 文字まで。`.` と `..`、末尾の `.git` は使えない。
+
+- `isValidSaveName(name)` は規則に合うかを返す（`.git` は大文字・小文字を区別しない）。
+- `suggestSaveName(title)` は作品名から ASCII の候補を作る（アクセントを外し、小文字にし、ほかの文字は `-`）。使える文字が残らないとき（日本語だけの作品名など）は `''` を返す。
+- `askSaveName({document, locale, title, current})` は規則を示すモーダルのダイアログで保存用の名前を尋ね、入力のたびに確かめる。OK で名前を、キャンセルで `null` を返す。
+
+**プロジェクトのコピーを保存…（ホストに影響する変更）。** 保存は写しを書くだけになり、今の作品はそのまま残る。作品名、ファイルのハンドル、フォルダ、未保存の変更は変わらない。`saveProjectAs` は `storage.finish`（任意・非推奨になった）を呼ばず、書き終えたら `committed()` に続けて新しい任意の `storage.copied(handle, title)` を呼ぶ。ホストはここで保存中の表示を終えるだけにする。`unchanged` は使わなくなった。ダイアログの題名は `projectFileDialogTitle('save-as', locale)`（「プロジェクトのコピーを保存」）。今の「名前を変えて保存」を結線しているホストは、次をやめる。
+
+1. `committed()` の中の `detachFolder()`（作品はプロジェクトフォルダに結び付いたまま）。
+2. 写しの後にファイルのハンドルと作品名を設定すること（`storage.finish` の中の `onSetFileHandle(handle)` と `onSetProjectTitle(title)`）。代わりに `storage.copied` を用意し、保存の完了の通知はそこで出してよい。
+3. 作品を保存済みにすること（`finishedSaving()`・`onProjectUnchanged()`）と、作品のプロパティの保存の受領（`commitMetadata()`）や組み込みデータの確定（`embed()`）を、作品そのものを保存したかのように確定すること。
+4. フォルダへの写し（`createFolder`）や、このダイアログから作った GitHub のリポジトリを、利用者が開くと選ばないのに開いたり結び付けたりすること。
 
 ## 検証
 
