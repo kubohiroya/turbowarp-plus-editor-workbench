@@ -75,6 +75,7 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
         open: Action;
         externalYaml?: React.ReactNode;
         folder?: FolderActions;
+        openRemote?: Action;
         storage: ProjectFileStorage;
         saveAs?: Action;
         saveCommit?: Action;
@@ -119,6 +120,8 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
                     'This browser cannot open folders on your device. Use Chrome or Edge, or open a folder saved in this browser.'])}
             {e.folder?.openBrowser && item(['project-folder-open-browser',
                 ja ? 'ブラウザーに保存したフォルダを開く…' : 'Open Folder Saved in This Browser…', e.folder.openBrowser])}
+            {e.openRemote && item(['git-open-remote',
+                ja ? 'Git のリモートリポジトリを開く…' : 'Open Remote Git Repository…', e.openRemote])}
             {e.git}
             {e.externalYaml}
         </MenuSection>

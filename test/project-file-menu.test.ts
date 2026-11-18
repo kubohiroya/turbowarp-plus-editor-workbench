@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import {JSDOM} from 'jsdom';
 import {createFileMenuItem} from '../src/extension-file-menu.ts';
 
-async function mountMenu(t, locale: string, folder?: Record<string, unknown>) {
+async function mountMenu(t, locale: string, folder?: Record<string, unknown>, openRemote?: () => void) {
     const dom = new JSDOM('<main></main>', {pretendToBeVisual: true});
     const globals = {window: dom.window, document: dom.window.document, navigator: dom.window.navigator,
         IS_REACT_ACT_ENVIRONMENT: true};
@@ -29,7 +29,7 @@ async function mountMenu(t, locale: string, folder?: Record<string, unknown>) {
     const storage = {canSave: true, filename: 'a.sb3', write: async () => {}, download: async () => {},
         finish() {}, fail() {}};
     act(() => root.render(h(ProjectFileMenu, {locale, MenuItem, MenuSection, close: () => calls.push('close'),
-        entries: {create() {}, open: () => calls.push('open'), restore() {}, storage, folder,
+        entries: {create() {}, open: () => calls.push('open'), restore() {}, storage, folder, openRemote,
             git: h('li', {'data-command': 'git'}), externalYaml: h('li', {'data-command': 'yaml'})}})));
     const items = [...dom.window.document.querySelectorAll('main > ul:first-of-type > li')];
     return {calls, act, items: items.map(item => [item.getAttribute('data-command'), item.textContent]),
@@ -102,4 +102,39 @@ test('with device folders, Open Folder stays available and has no unavailable no
     const open = globalThis.document.querySelector('[data-command="project-folder-open"] [role="button"]')!;
     assert.equal(open.getAttribute('aria-disabled'), null);
     assert.equal(open.getAttribute('title'), null);
+});
+
+test('the remote Git repository item follows the browser folder only when the host offers it', async t => {
+    const opened: string[] = [];
+    const menu = await mountMenu(t, 'en', {open() {}, detach() {}, openBrowser() {}}, () => opened.push('remote'));
+    assert.deepEqual(menu.items.map(([command]) => command),
+        ['open', 'project-folder-open', 'project-folder-open-browser', 'git-open-remote', 'git', 'yaml']);
+    assert.equal(menu.items[3][1], 'Open Remote Git Repository…');
+    menu.click('git-open-remote');
+    assert.deepEqual(menu.calls, ['close']);
+    assert.deepEqual(opened, ['remote']);
+});
+
+test('the remote Git repository item has a Japanese label', async t => {
+    const withRemote = await mountMenu(t, 'ja', undefined, () => {});
+    assert.deepEqual(withRemote.items.map(([command]) => command), ['open', 'git-open-remote', 'git', 'yaml']);
+    assert.equal(withRemote.items[1][1], 'Git のリモートリポジトリを開く…');
+});
+
+test('without openRemote the menu has no remote Git repository item', async t => {
+    const {items} = await mountMenu(t, 'en', {open() {}, detach() {}, openBrowser() {}});
+    assert.ok(!items.some(([command]) => command === 'git-open-remote'));
+});
+
+test('the remote Git repository item gets its own decorative icon', () => {
+    const MenuItem = createFileMenuItem('li', '/extension.svg');
+    const path = (command: string) => MenuItem({command, children: command}).props.children.props.children[0];
+    const icon = path('git-open-remote');
+    assert.equal(icon.type, 'svg');
+    assert.equal(icon.props['data-file-menu-icon'], 'git-open-remote');
+    assert.equal(icon.props['aria-hidden'], true);
+    assert.equal(icon.props.viewBox, '0 0 24 24');
+    const others = ['open', 'project-folder-open', 'project-folder-open-browser', 'download', 'new']
+        .map(command => path(command).props.children.props.d);
+    assert.ok(!others.includes(icon.props.children.props.d));
 });
