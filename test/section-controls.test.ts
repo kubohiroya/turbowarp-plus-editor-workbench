@@ -65,9 +65,29 @@ test('relationship controls update their own split view and survive a section ch
     await act(async () => {filter(first, 'Messages').click();});
     assert.equal(filter(first, 'Messages').getAttribute('aria-pressed'), 'false');
     assert.equal(filter(second, 'Messages').getAttribute('aria-pressed'), 'true');
+
+    const node = id => graph(id).querySelector<HTMLButtonElement>('.tw-sprite-functions__node[data-function-key="f"]');
+    const position = id => {
+        const style = node(id).parentElement.style;
+        return {x: Number.parseFloat(style.left), y: Number.parseFloat(style.top)};
+    };
+    const before = position(first);
+    const other = position(second);
+    const pointer = (type, x, y) => new dom.window.MouseEvent(type, {
+        button: 0, clientX: x, clientY: y, bubbles: true, cancelable: true
+    });
+    await act(async () => {node(first).dispatchEvent(pointer('pointerdown', 10, 10));});
+    await act(async () => {dom.window.dispatchEvent(pointer('pointermove', 60, 45));});
+    await act(async () => {dom.window.dispatchEvent(pointer('pointerup', 60, 45));});
+    const moved = position(first);
+    assert.notDeepEqual(moved, before);
+    assert.deepEqual(position(second), other, 'moving a node leaves the other split unchanged');
+
     await act(async () => {controller.setViewSection(first, 0);});
     assert.equal(toolbar(first).querySelector('button'), null, 'code has no relationship section controls');
     await act(async () => {controller.setViewSection(first, calls);});
+    assert.deepEqual(position(first), moved, 'manual positions survive the graph being remounted');
+    assert.deepEqual(position(second), other);
     assert.equal(flow(first).dataset.direction, 'TD');
     assert.equal(filter(first, 'Messages').getAttribute('aria-pressed'), 'false');
     assert.equal(flow(second).dataset.direction, 'LR');
