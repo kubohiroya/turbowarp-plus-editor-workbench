@@ -136,7 +136,7 @@
 }
 
 /* The layout menu can hide the section buttons at the left of every sprite tab. */
-.tw-plus-sprite-tab-toolbar[data-sections-hidden] .tw-plus-sprite-toolbar-sections {
+.tw-plus-sprite-tab-toolbar[data-sections-hidden] :is(.tw-plus-sprite-toolbar-rail, .tw-plus-sprite-toolbar-sections) {
     display: none;
 }
 

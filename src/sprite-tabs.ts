@@ -23,8 +23,9 @@ import type {ProjectScreenState, SavedScreenState} from './project-screen-state.
 import type {SpriteVariableEdit, SpriteVariableEditError} from '@kubohiroya/turbowarp-plus-editor-project-model/sprite-variable-edit';
 import {SpriteMessagePane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-message-pane';
 import type {MessageRenameError} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-message-pane';
-import {functionLabel, SpriteFunctionPane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
-import type {FunctionKind, FunctionPaneData, FunctionPaneSettings, MountFunctionEditor, OpenScriptOptions, SpriteFunction, SpriteHatScript} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
+import {FunctionFlowToggle, FunctionRelationToggles, functionLabel, SpriteFunctionPane} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
+import type {CallGraphDirection, FunctionKind, FunctionPaneData, FunctionPaneSettings, FunctionRelationVisibility,
+    MountFunctionEditor, OpenScriptOptions, ScriptEndpoint, SpriteFunction, SpriteHatScript} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
 import type {MessageUse, ProjectMessage, TargetMessages} from '@kubohiroya/turbowarp-plus-editor-project-model/project-messages';
 import {createTargetTabMenuItem, spriteRenameLabel} from './target-tab-menu.ts';
 
@@ -194,6 +195,8 @@ interface TabOptions<Snapshot = unknown> {
 interface ToolbarActions {
     activate(): void;
     setSection(section: number): void;
+    /** Controls for the displayed section, separate from the rail's section tabs. */
+    sectionControls?: React.ReactNode;
 }
 
 interface ToolbarSlot {
@@ -1566,6 +1569,8 @@ type SpriteTabsProps<Snapshot> = Omit<TabOptions<Snapshot>, 'activateSection' | 
      * `options.block` asks to show one block, such as a call picked in the list of a function's uses.
      */
     openScript?(targetId: string, hat: SpriteHatScript, options?: OpenScriptOptions): void;
+    /** Open a script chosen in the relationship graph, including one on another target. */
+    openRelationScript?(endpoint: ScriptEndpoint): void;
     /** The function or hat script shown beside the sprite, which the list of hats and functions highlights. */
     selectedScript?: {targetId: string; id: string};
     /**
@@ -1630,7 +1635,13 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
     const [toolbarSlots, setToolbarSlots] = React.useState<readonly ToolbarSlot[]>([]);
     const [assetPreviewSlots, setAssetPreviewSlots] = React.useState<readonly AssetPreviewSlot[]>([]);
     // The functions pane remounts when its view switches sections; keep the view, order and flow each view chose.
-    const [functionSettings] = React.useState(() => new Map<string, FunctionPaneSettings>());
+    const [functionSettings, setFunctionSettings] = React.useState(() => new Map<string, Partial<FunctionPaneSettings>>());
+    const changeFunctionSettings = (id: string, patch: Partial<FunctionPaneSettings>) => setFunctionSettings(previous => {
+        const current = previous.get(id) ?? {};
+        const next = {...current, ...patch};
+        if (Object.keys(next).every(key => current[key] === next[key])) return previous;
+        return new Map(previous).set(id, next);
+    });
     const controller = React.useRef<SpriteTabsController<Snapshot>>(null);
     const hasVariables = Boolean(props.getVariables);
     const hasMessages = Boolean(props.getMessages);
@@ -1719,14 +1730,32 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
         createPortal(React.createElement(React.Fragment, null,
             props.multiView && props.getVariables ? React.createElement('div', {hidden: true}, props.children) : props.children,
             React.createElement('div', {ref: sections, className: 'tw-plus-sprite-tab-sections'})), content), toolbarSlots.map(({view, element}) => {
+            const currentSection = spriteEditorSections[view.section] ?? 'code';
+            const sectionControls = currentSection === 'calls' && props.getFunctions ? React.createElement(React.Fragment, null,
+                React.createElement(FunctionFlowToggle, {
+                    locale: props.locale,
+                    value: functionSettings.get(view.id)?.direction ?? 'LR',
+                    onChange: (direction: CallGraphDirection) => {
+                        workspace?.activateView(view.id);
+                        changeFunctionSettings(view.id, {direction});
+                    }
+                }),
+                React.createElement(FunctionRelationToggles, {
+                    locale: props.locale,
+                    value: functionSettings.get(view.id)?.relationVisibility ?? {function: true, message: true},
+                    onChange: (relationVisibility: FunctionRelationVisibility) => {
+                        workspace?.activateView(view.id);
+                        changeFunctionSettings(view.id, {relationVisibility});
+                    }
+                })) : undefined;
             const actions = {
                 activate: () => { workspace?.activateView(view.id); },
                 setSection: (section: number) => {
                     workspace?.setViewSection(view.id, section);
                     workspace?.activateView(view.id);
-                }
+                },
+                sectionControls
             };
-            const currentSection = spriteEditorSections[view.section] ?? 'code';
             const toolbar = props.renderToolbar?.(view, actions) ?? (props.getVariables &&
                 React.createElement(SpriteEditorToolbar, {
                     viewId: view.id, locale: props.locale, section: currentSection, isStage: view.isStage,
@@ -1736,6 +1765,7 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                         (section !== 'messages' || Boolean(props.getMessages)) &&
                         (section !== 'functions' && section !== 'calls' || Boolean(props.getFunctions))),
                     actions: view.active && currentSection !== 'variables' ? props.activeTools : undefined,
+                    sectionControls,
                     onSectionChange: section => actions.setSection(spriteEditorSections.indexOf(section)),
                     search: {
                         onFocus: actions.activate,
@@ -1793,12 +1823,15 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                 kind: 'functions', view: kind === 'calls' ? 'graph' : 'list',
                 locale: props.locale, editable, data: props.getFunctions!(targetId),
                 defaultSettings: functionSettings.get(id),
-                onSettingsChange: (settings: FunctionPaneSettings) => functionSettings.set(id, settings),
+                direction: functionSettings.get(id)?.direction ?? 'LR',
+                relationVisibility: functionSettings.get(id)?.relationVisibility,
+                onSettingsChange: (settings: FunctionPaneSettings) => changeFunctionSettings(id, settings),
                 mountEditor: props.mountFunctionEditor,
                 onOpenFunction: props.openFunction &&
                     ((fn: SpriteFunction, options?: OpenScriptOptions) => props.openFunction!(targetId, fn, options)),
                 onOpenScript: props.openScript &&
                     ((hat: SpriteHatScript, options?: OpenScriptOptions) => props.openScript!(targetId, hat, options)),
+                onOpenRelationScript: props.openRelationScript,
                 selectedId: props.selectedScript?.targetId === targetId ? props.selectedScript.id : undefined,
                 onCreate: props.createFunction && (async (functionKind: FunctionKind, name: string) => {
                     const created = await props.createFunction!(targetId, functionKind, name);
