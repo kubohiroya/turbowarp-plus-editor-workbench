@@ -290,3 +290,8 @@ Web 版の Plus 標準配置で `twPlusDockview=1` を付けて起動すると�
 `@kubohiroya/turbowarp-plus-editor-sprite-panes` のツールバーが決め、保存済みのレイアウトが持つセクションの番号は変わらない。「呼び出し関係」は次の番号を使う）。`SpriteFunctionPane` が、前者ではホストが `hats` で渡すハットのスクリプトとブロック定義を
 一覧し（並べ方は名前順・Z順・N順）、後者では LR・TD の呼び出し図を表示する。並べ方・流れはビューごとに保つ。どちらで選んだ関数もホストの `openFunction` で、ハットのスクリプトは `openScript` で開く（スプライトの横のタブなど）。`openFunction` が無ければ関数はダイアログで開く。`createFunction(targetId, kind, name)` を渡すと、一覧の下と図の左下の「＋ 新しい関数を追加」で、名前を入れて標準のブロック定義か TurboWarp-Plus の名前付き関数を作れる。ダイアログはホストの
 `mountFunctionEditor` を呼び、その定義のコード編集画面はホストが持つ。このパッケージは Scratch Blocks のコードを持たないためである。
+
+## Editor の実装との責務分担
+
+Editor 独自実装の移管元とライセンス確認は [EDITOR-MIGRATION.md](EDITOR-MIGRATION.md) に記録しています。
+追加した公開 API は GUI モジュールを import せず、ホストから必要な値・データ・コールバックを受け取ります。

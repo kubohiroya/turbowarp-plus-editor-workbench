@@ -1,0 +1,4 @@
+/* SPDX-License-Identifier: MPL-2.0 */
+.root {
+    --tw-plus-icon-menu-max-width: min(17rem, 90vw);
+}
