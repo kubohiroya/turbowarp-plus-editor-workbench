@@ -45,7 +45,7 @@ export function createBasicPanel({WindowLayoutContext, PopupLayout, surfaceRecov
     surfaceRecovery: SurfaceRecovery;
     styles: Record<string, string>;
 }) {
-    // The GUI uses React 16, which has no useSyncExternalStore.
+    // React 16 needs an explicit subscription to the external layout state.
     function useLostWindow(recovery: SurfaceRecovery | null | undefined, id: string) {
         const [lost, setLost] = React.useState(() => Boolean(recovery?.isLost(id)));
         React.useEffect(() => {
