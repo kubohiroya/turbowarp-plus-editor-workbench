@@ -211,14 +211,14 @@ export function createEditorTabLayout({desktopCodeEnabled, openDesktopCode, styl
             get screenState() { return projectScreenState(vm); }
         } : undefined, [multiView, vm]);
         // The script shown beside the sprite, which the list of hats and functions highlights.
-        const [selectedScript, setSelectedScript] = React.useState<{targetId: string; id: string}>();
+        const [selectedScript, setSelectedScript] = React.useState<{targetId: string; id: string; focusRequest?: number}>();
         // The code view beside the sprite that shows one script at a time: the code area itself, without the other
         // scripts and without the section buttons.
         const [scriptView, setScriptView] = React.useState<{viewId: string; targetId: string}>();
         const scriptViewRef = React.useRef(scriptView);
         scriptViewRef.current = scriptView;
         // A function or hat script picked in the functions sections shows there. `block` asks to show one of its blocks.
-        const openScriptView = (targetId: string, id: string, block?: string) => {
+        const openScriptView = (targetId: string, id: string, block?: string, centerInCalls = false) => {
             const views = spriteTabs.controller.current;
             if (!views) return;
             let viewId = scriptViewRef.current?.targetId === targetId &&
@@ -249,7 +249,8 @@ export function createEditorTabLayout({desktopCodeEnabled, openDesktopCode, styl
             }));
             views.setViewSection(shown, codeTab);
             views.activateView(shown);
-            setSelectedScript(current => current?.targetId === targetId && current.id === id ? current : {targetId, id});
+            setSelectedScript(current => !centerInCalls && current?.targetId === targetId && current.id === id ? current :
+                {targetId, id, ...(centerInCalls && {focusRequest: (current?.focusRequest ?? 0) + 1})});
             if (block) {
                 requestAnimationFrame(() => {
                     const workspace = getScratchBlocks()?.getMainWorkspace();
@@ -469,6 +470,16 @@ export function createEditorTabLayout({desktopCodeEnabled, openDesktopCode, styl
                         const fn = target && readTargetFunctions(target).functions.find(item => item.id === functionId);
                         if (!fn) return;
                         openScriptViewRef.current(target.id, fn.id);
+                    },
+                    scriptEditor: {
+                        vm, locale,
+                        open(scriptId, blockId, section) {
+                            const views = spriteTabs.controller.current;
+                            const current = views?.currentView();
+                            if (!current || !vm.editingTarget) return;
+                            views.setViewSection(current.id, spriteEditorSections.indexOf(section));
+                            openScriptViewRef.current(vm.editingTarget.id, scriptId, blockId, section === 'calls');
+                        }
                     }
                 });
             };

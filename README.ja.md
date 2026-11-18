@@ -242,6 +242,10 @@ Editor のルートから、`site/source.json` の GUI を `npm run build:pages`
 
 スプライトの「呼び出し関係」では、図の方向を切り替える LR／TD と、関数・メッセージの表示を切り替えるボタンを縦ツールバーの下端に置く。方向と表示の選択はビューごとに管理し、分割した別ビューの選択を変えない。ホストが `renderToolbar` でツールバーを描く場合は、受け取る `actions.sectionControls` を `SpriteEditorToolbar` の `sectionControls` に渡す。図で選んだスクリプトは `openRelationScript` で開き、ホストが対象のスプライトとブロックへ移動する。
 
+`createEditorTabLayout` は自由配置のブロックメニューから、対象を含むスクリプトを右の個別編集ビューで開く。一覧を開く項目は左をハット・関数一覧へ、呼び出し関係を開く項目は左を図へ切り替えて対象を中央に置く。
+
+外部のメニューから対象スクリプトへ中央フォーカスする場合は、`selectedScript` の `{targetId, id}` に更新するたびに異なる `focusRequest` の数値を添える。対象のペインの `SpriteFunctionPane` へ同じ要求を渡し、関係図の移動や強調は図を所有するパッケージが行う。切り戻す場合は `focusRequest` を渡さない。
+
 コードペインのアダプターに `relations` がある場合、「自由配置」にも同じ関数・メッセージの2ボタンを縦ツールバー下端に置く。表示状態の所有者はコードペインで、`getVisibility(paneId)`・`setVisibility(paneId, value)`・`subscribe(listener)` を使って描画へ反映する。関数だけ、メッセージだけ、両方、両方非表示を選べ、分割した別のペインや呼び出し関係パネルの設定は変えない。両方とも既定で表示する。アダプターにこの接続がなければボタンを追加しない。切り戻しは workbench と code-views の固定依存を導入前の版へ戻して再ビルドする。
 
 ## デバッガーのタブ

@@ -1,6 +1,6 @@
 {
   "name": "@kubohiroya/turbowarp-plus-editor-workbench",
-  "version": "0.27.1",
+  "version": "0.28.0",
   "description": "The TurboWarp Plus Editor workbench: layout, dockable sprite tabs, stage, debugger tab and file menu",
   "type": "module",
   "license": "MPL-2.0",
@@ -212,7 +212,7 @@
     "@turbowarp/jszip": "3.12.0",
     "@kubohiroya/turbowarp-extension-loader": "0.11.1",
     "@kubohiroya/turbowarp-plus-editor-project-folder": "0.20.1",
-    "@kubohiroya/turbowarp-plus-editor-code-views": "0.21.2",
+    "@kubohiroya/turbowarp-plus-editor-code-views": "0.22.0",
     "@kubohiroya/turbowarp-extension-security-dialog": "0.9.0"
   },
   "repository": {
@@ -221,7 +221,7 @@
   },
   "dependencies": {
     "@kubohiroya/turbowarp-plus-editor-project-model": "0.2.0",
-    "@kubohiroya/turbowarp-plus-editor-sprite-panes": "0.10.1",
+    "@kubohiroya/turbowarp-plus-editor-sprite-panes": "0.11.0",
     "@kubohiroya/turbowarp-script-transfer": "0.1.5",
     "dockview": "8.8.3"
   },
@@ -234,7 +234,7 @@
     "@turbowarp/jszip": ">=3.12.0 <4",
     "@kubohiroya/turbowarp-extension-loader": ">=0.11.1 <0.12.0",
     "@kubohiroya/turbowarp-plus-editor-project-folder": ">=0.20.1 <0.21.0",
-    "@kubohiroya/turbowarp-plus-editor-code-views": ">=0.21.2 <0.22.0",
+    "@kubohiroya/turbowarp-plus-editor-code-views": ">=0.22.0 <0.23.0",
     "@kubohiroya/turbowarp-extension-security-dialog": ">=0.9.0 <0.10.0"
   },
   "peerDependenciesMeta": {

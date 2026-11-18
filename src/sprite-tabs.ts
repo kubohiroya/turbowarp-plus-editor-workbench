@@ -1578,7 +1578,7 @@ type SpriteTabsProps<Snapshot> = Omit<TabOptions<Snapshot>, 'activateSection' | 
     /** Open a script chosen in the relationship graph, including one on another target. */
     openRelationScript?(endpoint: ScriptEndpoint): void;
     /** The function or hat script shown beside the sprite, which the list of hats and functions highlights. */
-    selectedScript?: {targetId: string; id: string};
+    selectedScript?: {targetId: string; id: string; focusRequest?: number};
     /**
      * Make a new function of this name in the target: a standard custom block, whose block text is the name,
      * or a TurboWarp-Plus named function. Resolves with the id of the new hat, or with nothing when nothing
@@ -1849,6 +1849,7 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                     ((hat: SpriteHatScript, options?: OpenScriptOptions) => props.openScript!(targetId, hat, options)),
                 onOpenRelationScript: props.openRelationScript,
                 selectedId: props.selectedScript?.targetId === targetId ? props.selectedScript.id : undefined,
+                focusRequest: props.selectedScript?.targetId === targetId ? props.selectedScript.focusRequest : undefined,
                 onCreate: props.createFunction && (async (functionKind: FunctionKind, name: string) => {
                     const created = await props.createFunction!(targetId, functionKind, name);
                     // Show the new function now rather than at the next project change.
