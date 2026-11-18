@@ -193,7 +193,7 @@ const {createIn, newProject} = createNewProjectHandler({
     create,                                   // GUI の「新しいプロジェクトを作成」（メモリ上）
     openDefaultProject: signal => ...,        // create() して、初期の作品が表示され題名が戻るまで待つ。
                                               // 今の作品を残すと選んだら false
-    setTitle: title => ..., setSaveName: name => ...,
+    nameProject: (title, saveName) => ...,   // properties.apply({title, saveName}) を一度で
     pickDeviceFolder: () => ...,              // 手元の空のフォルダ、取り消したら null
     createFolder: (destination, title, signal) => ...,  // 'browser' か選んだフォルダに作って開く
     repositoryCreation,                       // {connect, licenses, list, advance, open, start(draft, serialize, current, signal, target)}
@@ -204,8 +204,8 @@ const {createIn, newProject} = createNewProjectHandler({
 ```
 
 - 手元のフォルダは、ブラウザーが選択画面を許すクリックの直後に、最初に選ぶ。選択の取り消し、今の作品を残す選択（`openDefaultProject` が `false`）、フォルダを作れなかったときは `cancelled` を返す。
-- フォルダとリポジトリの作品は初期の作品から始め、`setTitle` と `setSaveName` で名前を付ける。
-- GitHub では、同じ作成先と名前（大文字・小文字を区別しない、`list()` から）の止まった作成があれば、新しく作らずに続きから再開する。なければ `start` が作業用の写し（`'browser'` か選んだフォルダ）を作り、`advance` を `open` の段まで繰り返す（9 段を超えるか、`unknown` が続いたら止める）。デバイスコードは `notify` で知らせ、新しい作品では `open` の前に `markSaved` を呼んで、開くときに何も尋ねないようにする。`popupBlocked`・`nameConflict` などの失敗は、ダイアログに出す文言に置き換える。
+- フォルダとリポジトリの作品は初期の作品から始め、`nameProject(title, saveName)` で名前を付ける。
+- GitHub では、同じ作成先と名前（大文字・小文字を区別しない、`list()` から）の止まった作成があれば、新しく作らずに続きから再開する。なければ `start` が作業用の写し（`'browser'` か選んだフォルダ）を作る。結果が偽なら取り消しとし、それ以外はそのまま `advance` に渡して、`advance` を `open` の段まで繰り返す（9 段を超えるか、`unknown` が続いたら止める）。デバイスコードは `notify` で知らせ、新しい作品では `open` の前に `markSaved` を呼んで、開くときに何も尋ねないようにする。`popupBlocked`・`nameConflict` などの失敗は、ダイアログに出す文言に置き換える。
 
 **作品名の確定（`@kubohiroya/turbowarp-plus-editor-workbench/project-title`）。** `followProjectTitleCommits(document, {readTitle, onCommit})` はメニューバーの作品名の入力欄（`projectTitleFieldClassName`）を見張り、利用者が Enter（IME の変換中は除く）か入力欄から離れることで確定した編集ごとに 1 回、`onCommit(title)` を呼ぶ。読み込みやプロパティで変わった作品名と、変わらなかった作品名は知らせない。戻り値は見張りをやめる関数。続く `reflectProjectTitle({document, locale, title, saveName, location, gitBound, renameBrowserFolder, setSaveName, notify, current})` が作品名を反映する。
 

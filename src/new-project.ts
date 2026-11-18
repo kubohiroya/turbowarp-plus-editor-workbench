@@ -12,8 +12,8 @@ export interface NewProjectRepositoryCreation extends Pick<RepositoryCreationCon
     licenses?: readonly {id: string; label: string}[];
     /**
      * Starts creating the repository from the serialized project, with its working copy in `target`. Resolves the
-     * progress to {@link NewProjectRepositoryCreation.advance}, or a value that is not an object when the creation
-     * was cancelled.
+     * progress to {@link NewProjectRepositoryCreation.advance}, or a falsy value when the creation was cancelled.
+     * Any other result is passed on to `advance` as it is.
      */
     start(draft: GitHubRepositoryDraft, serialize: () => Promise<Uint8Array>, current: () => boolean, signal: AbortSignal,
         target: NewProjectFolderDestination): Promise<RepositoryCreationProgress | boolean | null | undefined>;
@@ -30,10 +30,8 @@ export interface NewProjectHost {
      * the unsaved-changes question, and rejects when it fails to load or `signal` aborts.
      */
     openDefaultProject(signal: AbortSignal): Promise<boolean>;
-    /** Names the new default project. */
-    setTitle(title: string): void;
-    /** Sets the new default project's save name. */
-    setSaveName(name: string): void;
+    /** Names the new default project: its title and save name, applied together. */
+    nameProject(title: string, saveName: string): void;
     /**
      * Picks an empty folder on the device; `null` when the person cancelled. It is called first, during the click
      * that asked for it, so the browser still allows the picker. Without it a device folder is cancelled.
@@ -110,10 +108,6 @@ export function createNewProjectHandler(host: NewProjectHost): {
         if (fresh) host.markSaved?.();
         return creation.open(progress);
     };
-    const name = (title: string, saveName: string) => {
-        host.setTitle(title);
-        host.setSaveName(saveName);
-    };
     const createIn = async (request: NewProjectRequest, signal: AbortSignal): Promise<NewProjectResult> => {
         if (request.destination === 'memory') {
             host.create();
@@ -130,17 +124,19 @@ export function createNewProjectHandler(host: NewProjectHost): {
             // The folder is picked first, while the click that asked for it still allows the picker.
             const target = request.workingCopy === 'device' ? await host.pickDeviceFolder?.() : 'browser';
             if (!target || !await host.openDefaultProject(signal)) return 'cancelled';
-            name(title, saveName);
+            host.nameProject(title, saveName);
             const open = host.trackProject?.() ?? (() => true);
             const current = () => !signal.aborted && open();
             const progress = await repositoryCreation.start(request.draft, () => host.serialize(title), current, signal, target)
                 .catch(error => {throw repositoryError(error);});
-            if (!progress || typeof progress !== 'object') return 'cancelled';
-            return await finishRepository(repositoryCreation, progress, signal, true) ? 'created' : 'cancelled';
+            if (!progress) return 'cancelled';
+            // Any other result goes on to advance, as the Editor's own flow did.
+            return await finishRepository(repositoryCreation, progress as RepositoryCreationProgress, signal, true) ?
+                'created' : 'cancelled';
         }
         const target = request.destination === 'device' ? await host.pickDeviceFolder?.() : 'browser';
         if (!target || !await host.openDefaultProject(signal)) return 'cancelled';
-        name(title, saveName);
+        host.nameProject(title, saveName);
         return await host.createFolder(target, title, signal) ? 'created' : 'cancelled';
     };
     return {createIn, newProject: {

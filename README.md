@@ -195,7 +195,7 @@ const {createIn, newProject} = createNewProjectHandler({
     create,                                   // the GUI's own Create New Project (in memory)
     openDefaultProject: signal => ...,        // create(), wait until the default project is shown and its title reset;
                                               // false when the person kept the current project
-    setTitle: title => ..., setSaveName: name => ...,
+    nameProject: (title, saveName) => ...,   // properties.apply({title, saveName}) in one step
     pickDeviceFolder: () => ...,              // an empty folder on the device, or null
     createFolder: (destination, title, signal) => ...,  // 'browser' or the picked folder; opens it
     repositoryCreation,                       // {connect, licenses, list, advance, open, start(draft, serialize, current, signal, target)}
@@ -206,8 +206,8 @@ const {createIn, newProject} = createNewProjectHandler({
 ```
 
 - The device folder is picked first, while the click still allows the picker; a cancelled picker, a kept project (`openDefaultProject` resolves `false`) or a folder that was not made resolves `cancelled`.
-- A folder or repository project starts from the default project, named with `setTitle` and `setSaveName`.
-- For GitHub, a stopped setup of the same owner and name (case-insensitively, from `list()`) is resumed instead of starting another. Otherwise `start` creates the working copy (`'browser'` or the picked folder), and `advance` runs until the `open` phase (it gives up after nine steps, or when `unknown` repeats); the device code is shown with `notify`; `markSaved` runs before `open` for a fresh project so opening asks nothing. `popupBlocked`, `nameConflict` and other coded failures become localized messages that the dialog shows.
+- A folder or repository project starts from the default project, named with `nameProject(title, saveName)`.
+- For GitHub, a stopped setup of the same owner and name (case-insensitively, from `list()`) is resumed instead of starting another. Otherwise `start` creates the working copy (`'browser'` or the picked folder); a falsy result cancels and any other result goes on to `advance`, and `advance` runs until the `open` phase (it gives up after nine steps, or when `unknown` repeats); the device code is shown with `notify`; `markSaved` runs before `open` for a fresh project so opening asks nothing. `popupBlocked`, `nameConflict` and other coded failures become localized messages that the dialog shows.
 
 **Project title commits (`@kubohiroya/turbowarp-plus-editor-workbench/project-title`).** `followProjectTitleCommits(document, {readTitle, onCommit})` watches the menu bar's title field (`projectTitleFieldClassName`) and calls `onCommit(title)` once per edit the person commits, on Enter (not while an IME is composing) or when the field loses focus; titles set by loading or the properties, and unchanged titles, are not reported. It returns a function that stops watching. `reflectProjectTitle({document, locale, title, saveName, location, gitBound, renameBrowserFolder, setSaveName, notify, current})` then reflects the title:
 

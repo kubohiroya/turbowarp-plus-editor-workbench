@@ -15,8 +15,7 @@ function host(log: string[], overrides: Partial<NewProjectHost> = {}): NewProjec
         locale: 'en',
         create: () => log.push('create'),
         async openDefaultProject() {log.push('default'); return true;},
-        setTitle: title => log.push(`title:${title}`),
-        setSaveName: name => log.push(`saveName:${name}`),
+        nameProject: (title, saveName) => log.push(`name:${title}:${saveName}`),
         async pickDeviceFolder() {log.push('pick'); return deviceFolder;},
         async createFolder(destination, title) {
             log.push(`folder:${destination === 'browser' ? 'browser' : (destination as {name: string}).name}:${title}`);
@@ -60,14 +59,14 @@ test('a browser folder starts from the named default project', async () => {
     const log: string[] = [];
     const {createIn} = createNewProjectHandler(host(log));
     assert.equal(await createIn({destination: 'browser', title: '猫の冒険', saveName: 'neko'}, signal()), 'created');
-    assert.deepEqual(log, ['default', 'title:猫の冒険', 'saveName:neko', 'folder:browser:猫の冒険']);
+    assert.deepEqual(log, ['default', 'name:猫の冒険:neko', 'folder:browser:猫の冒険']);
 });
 
 test('a device folder is picked before the default project replaces the open one', async () => {
     const log: string[] = [];
     const {createIn} = createNewProjectHandler(host(log));
     assert.equal(await createIn({destination: 'device', title: 'Cat', saveName: 'cat'}, signal()), 'created');
-    assert.deepEqual(log, ['pick', 'default', 'title:Cat', 'saveName:cat', 'folder:picked:Cat']);
+    assert.deepEqual(log, ['pick', 'default', 'name:Cat:cat', 'folder:picked:Cat']);
 });
 
 test('a cancelled picker, a kept project or a folder that was not made cancels', async () => {
@@ -99,7 +98,7 @@ test('a GitHub repository is created, pushed and opened, with the device folder 
     assert.equal(newProject.github.licenses, repositoryCreation.licenses);
     assert.equal(await createIn({destination: 'github', title: 'Cat', saveName: 'cat-story', draft, workingCopy: 'device'}, signal()),
         'created');
-    assert.deepEqual(log, ['pick', 'default', 'title:Cat', 'saveName:cat-story', 'start:device:true', 'serialized:3',
+    assert.deepEqual(log, ['pick', 'default', 'name:Cat:cat-story', 'start:device:true', 'serialized:3',
         'advance:create', 'notify:Authorize on GitHub: https://github.com/login/device (code ABCD)',
         'advance:prepare', 'advance:push', 'saved', 'open:open']);
 });
@@ -114,7 +113,7 @@ test('pressing Create again resumes a stopped setup without a new default projec
     assert.deepEqual(log, ['advance:push', 'open:open']);
 });
 
-test('GitHub failures become messages, and a cancelled start or an aborted dialog cancels', async () => {
+test('GitHub failures become messages, a falsy start cancels and any other start result goes on to advance', async () => {
     const log: string[] = [];
     const request = {destination: 'github', title: 'Cat', saveName: 'cat-story', draft, workingCopy: 'browser'} as const;
     const failing = (code: string, locale = 'en') => createNewProjectHandler(host(log, {locale, serialize: async () => new Uint8Array(),
@@ -131,6 +130,12 @@ test('GitHub failures become messages, and a cancelled start or an aborted dialo
     const cancelled = createNewProjectHandler(host(log, {serialize: async () => new Uint8Array(),
         repositoryCreation: repository(log, [], {async start() {return null;}})}));
     assert.equal(await cancelled.createIn(request, signal()), 'cancelled');
+    const truthy: string[] = [];
+    const passedOn = createNewProjectHandler(host(truthy, {serialize: async () => new Uint8Array(),
+        markSaved: () => truthy.push('saved'),
+        repositoryCreation: repository(truthy, ['open'], {async start() {return true;}})}));
+    assert.equal(await passedOn.createIn(request, signal()), 'created');
+    assert.deepEqual(truthy, ['default', 'name:Cat:cat-story', 'advance:undefined', 'saved', 'open:open']);
     const controller = new AbortController();
     let current: () => boolean;
     const aborted = createNewProjectHandler(host(log, {serialize: async () => new Uint8Array(),
