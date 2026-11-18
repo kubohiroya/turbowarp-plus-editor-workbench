@@ -4,7 +4,9 @@ import type {CreationInteraction, GitHubCreationAccount, GitHubRepositoryDraft, 
 
 export type Action = () => void;
 // `openBrowser` opens a folder kept in the browser (OPFS), where the host offers one.
-export type FolderActions = {open: Action; openBrowser?: Action; save?: Action; detach: Action};
+export type FolderActions = {open: Action; openBrowser?: Action;
+    /** Whether Open can pick a folder on the device; `false` in browsers without the folder picker (Safari, Firefox). */
+    deviceFolders?: boolean; save?: Action; detach: Action};
 export type SaveFormat = 'current' | 'embedded' | 'folder';
 type Serialize = <T>(run: () => T) => T;
 

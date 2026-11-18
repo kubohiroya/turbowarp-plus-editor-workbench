@@ -2,7 +2,7 @@ import React from 'react';
 import {isMacPlatform} from '@kubohiroya/turbowarp-plus-editor-project-model/project-search-connections';
 import type {Action, FolderActions, ProjectFileStorage} from './project-file-dialogs.js';
 
-type Entry = [command: string, label: string, action: Action | undefined, showShortcut?: boolean];
+type Entry = [command: string, label: string, action: Action | undefined, showShortcut?: boolean, unavailable?: string];
 interface SaveWorkspace {
     saveScope: 'project' | 'tab';
     canSaveActive: boolean;
@@ -92,10 +92,11 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
     React.useLayoutEffect(() => workspace?.subscribeSave(redraw), [workspace]);
     const tabShortcut = workspace?.saveScope === 'tab';
     const mac = isMacPlatform();
-    const item = ([command, label, action, showShortcut]: Entry) => {
+    const item = ([command, label, action, showShortcut, unavailable]: Entry) => {
         const run = action && (() => {close(); action();});
         return <MenuItem key={command} command={command} onClick={run}>
             <span className="tw-project-file-menu__item" role="button" aria-disabled={!run || undefined} tabIndex={run ? 0 : -1}
+                title={!run ? unavailable : undefined}
                 aria-keyshortcuts={showShortcut ? (mac ? 'Meta+S' : 'Control+S') : undefined}
                 style={!run ? {opacity: 0.5, cursor: 'default'} : undefined} onKeyDown={event => {
                     if (!run || (event.key !== 'Enter' && event.key !== ' ')) return;
@@ -111,7 +112,11 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
         {e.newWindow && item(['window', ja ? '新しいウィンドウ' : 'New Window', e.newWindow])}
         <MenuSection>
             {item(['open', ja ? 'SB3ファイルを開く…' : 'Open SB3 File…', e.open])}
-            {e.folder && item(['project-folder-open', ja ? 'フォルダを開く…' : 'Open Folder…', e.folder.open])}
+            {/* Safari and Firefox cannot pick folders on the device; the browser's folders have their own item. */}
+            {e.folder && item(['project-folder-open', ja ? 'フォルダを開く…' : 'Open Folder…',
+                e.folder.deviceFolders === false ? undefined : e.folder.open, false,
+                ja ? 'このブラウザーでは端末のフォルダを開けません。Chrome か Edge を使うか、ブラウザーに保存したフォルダを開いてください。' :
+                    'This browser cannot open folders on your device. Use Chrome or Edge, or open a folder saved in this browser.'])}
             {e.folder?.openBrowser && item(['project-folder-open-browser',
                 ja ? 'ブラウザーに保存したフォルダを開く…' : 'Open Folder Saved in This Browser…', e.folder.openBrowser])}
             {e.git}
