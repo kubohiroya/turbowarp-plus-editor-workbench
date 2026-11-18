@@ -50,6 +50,10 @@
       "types": "./dist/ime-key.d.ts",
       "default": "./dist/ime-key.js"
     },
+    "./new-project": {
+      "types": "./dist/new-project.d.ts",
+      "default": "./dist/new-project.js"
+    },
     "./project-file-dialogs": {
       "types": "./dist/project-file-dialogs.d.ts",
       "default": "./dist/project-file-dialogs.js"
@@ -76,6 +80,10 @@
       "types": "./dist/project-messages.d.ts",
       "default": "./dist/project-messages.js"
     },
+    "./project-notice": {
+      "types": "./dist/project-notice.d.ts",
+      "default": "./dist/project-notice.js"
+    },
     "./project-screen-state": {
       "types": "./dist/project-screen-state.d.ts",
       "default": "./dist/project-screen-state.js"
@@ -88,6 +96,10 @@
     "./project-size-approval": {
       "types": "./dist/project-size-approval.d.ts",
       "default": "./dist/project-size-approval.js"
+    },
+    "./project-title": {
+      "types": "./dist/project-title.d.ts",
+      "default": "./dist/project-title.js"
     },
     "./sprite-layout-menu.css": "./src/sprite-layout-menu.css",
     "./sprite-tabs": {

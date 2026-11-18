@@ -185,6 +185,48 @@ entries.newProject = {defaultTitle: 'Scratch の作品', browserFolders: true, d
 
 そのうえで、以前の「名前を変えて保存」の動き（上の 1〜4 を含む）は `mode: 'save'` にして `entries.saveNew`（と `projectSaveShortcut` の第 3 引数）に結線する。
 
+**「新しいプロジェクトを作成…」の結線（`@kubohiroya/turbowarp-plus-editor-workbench/new-project`）。** `createNewProjectHandler(host)` は `entries.createIn` と `entries.newProject` に渡す `{createIn, newProject}` を返す。段取りの順序、GitHub の作成とその文言はパッケージが持ち、ホストは GUI と保存場所に依存するものだけを渡す。
+
+```ts
+const {createIn, newProject} = createNewProjectHandler({
+    locale, defaultTitle, browserFolders, deviceFolders,
+    create,                                   // GUI の「新しいプロジェクトを作成」（メモリ上）
+    openDefaultProject: signal => ...,        // create() して、初期の作品が表示され題名が戻るまで待つ。
+                                              // 今の作品を残すと選んだら false
+    setTitle: title => ..., setSaveName: name => ...,
+    pickDeviceFolder: () => ...,              // 手元の空のフォルダ、取り消したら null
+    createFolder: (destination, title, signal) => ...,  // 'browser' か選んだフォルダに作って開く
+    repositoryCreation,                       // {connect, licenses, list, advance, open, start(draft, serialize, current, signal, target)}
+    serialize: title => ...,                  // 最初のコミットに使うプロジェクトフォルダの内容
+    trackProject: () => () => stillTheSameProject(),
+    markSaved, notify: text => showNotice(document, text, {locale})
+});
+```
+
+- 手元のフォルダは、ブラウザーが選択画面を許すクリックの直後に、最初に選ぶ。選択の取り消し、今の作品を残す選択（`openDefaultProject` が `false`）、フォルダを作れなかったときは `cancelled` を返す。
+- フォルダとリポジトリの作品は初期の作品から始め、`setTitle` と `setSaveName` で名前を付ける。
+- GitHub では、同じ作成先と名前（大文字・小文字を区別しない、`list()` から）の止まった作成があれば、新しく作らずに続きから再開する。なければ `start` が作業用の写し（`'browser'` か選んだフォルダ）を作り、`advance` を `open` の段まで繰り返す（9 段を超えるか、`unknown` が続いたら止める）。デバイスコードは `notify` で知らせ、新しい作品では `open` の前に `markSaved` を呼んで、開くときに何も尋ねないようにする。`popupBlocked`・`nameConflict` などの失敗は、ダイアログに出す文言に置き換える。
+
+**作品名の確定（`@kubohiroya/turbowarp-plus-editor-workbench/project-title`）。** `followProjectTitleCommits(document, {readTitle, onCommit})` はメニューバーの作品名の入力欄（`projectTitleFieldClassName`）を見張り、利用者が Enter（IME の変換中は除く）か入力欄から離れることで確定した編集ごとに 1 回、`onCommit(title)` を呼ぶ。読み込みやプロパティで変わった作品名と、変わらなかった作品名は知らせない。戻り値は見張りをやめる関数。続く `reflectProjectTitle({document, locale, title, saveName, location, gitBound, renameBrowserFolder, setSaveName, notify, current})` が作品名を反映する。
+
+| 作品 | 結果 |
+| --- | --- |
+| `location: 'browser'`（ブラウザー内のフォルダ） | `renameBrowserFolder(title)`（失敗は無視） |
+| `location: 'device'` | 手元のフォルダの名前は変わらないと知らせる |
+| `gitBound: true` | Git のリポジトリの名前はまだ変わらないと知らせる（フォルダの知らせの後に続ける） |
+| 作品名が保存用の名前に使えず、`saveName` が無く、フォルダかリポジトリに保存している | `askSaveName` で尋ね、OK なら `setSaveName(name)` |
+| `location: 'none'` で Git にも結び付いていない、または作品名が空 | 何もしない |
+
+`current()` は待つたびに確かめるので、別の作品を開く直前に確定した作品名は何も変えない。ホストは次のように結線する。
+
+```ts
+const stop = followProjectTitleCommits(document, {readTitle: () => store.getState().scratchGui.projectTitle,
+    onCommit: title => void reflectProjectTitle({document, locale, title, saveName: projectSaveName(), location, gitBound,
+        renameBrowserFolder: title => browserStorage.rename(entry.id, title), setSaveName, notify, current}).catch(() => {})});
+```
+
+**通知（`@kubohiroya/turbowarp-plus-editor-workbench/project-notice`）。** `showNotice(document, text, {locale, timeout = 12000})` は、エディターを止めない通知を窓の下に出す（`role="status"`、`data-testid="project-notice-snackbar"`）。閉じるボタンは X のアイコンで、名前は `閉じる`／`Dismiss`。`timeout` が過ぎると、通知の中にフォーカスが無ければ消える。同じ文書に出ている通知は置き換え、戻り値は通知を消す関数。見た目は `project-file-menu.css`（`.tw-project-notice`）にある。
+
 ## 検証
 
 `npm test` で配分・縦横比・設定の読み書きを、`npm run test:browser` で独立した試験用ホストを検証する。試験用ホストを手動で開くには、このディレクトリで `npm install` と `python3 -m http.server` を実行し、`/example/` を表示する。
