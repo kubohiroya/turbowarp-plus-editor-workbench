@@ -1,6 +1,6 @@
 {
   "name": "@kubohiroya/turbowarp-plus-editor-workbench",
-  "version": "0.27.0",
+  "version": "0.27.1-ownership.0",
   "description": "The TurboWarp Plus Editor workbench: layout, dockable sprite tabs, stage, debugger tab and file menu",
   "type": "module",
   "license": "MPL-2.0",
@@ -123,7 +123,63 @@
       "types": "./dist/standard-layout.d.ts",
       "default": "./dist/standard-layout.js"
     },
-    "./targets.css": "./src/targets.css"
+    "./targets.css": "./src/targets.css",
+    "./project-dialogs": {
+      "types": "./dist/project-tools/dialog.d.ts",
+      "default": "./dist/project-tools/dialog.js"
+    },
+    "./project-dialog.css": "./src/project-dialog.css",
+    "./project-snackbar.css": "./src/project-snackbar.css",
+    "./project-payload-forms": {
+      "types": "./dist/project-payload-forms.d.ts",
+      "default": "./dist/project-payload-forms.js"
+    },
+    "./project-diagnostics": {
+      "types": "./dist/project-tools/diagnostics.d.ts",
+      "default": "./dist/project-tools/diagnostics.js"
+    },
+    "./project-history": {
+      "types": "./dist/project-tools/history.d.ts",
+      "default": "./dist/project-tools/history.js"
+    },
+    "./project-links": {
+      "types": "./dist/project-tools/links.d.ts",
+      "default": "./dist/project-tools/links.js"
+    },
+    "./project-properties": {
+      "types": "./dist/project-tools/properties.d.ts",
+      "default": "./dist/project-tools/properties.js"
+    },
+    "./project-tools": {
+      "types": "./dist/project-tools/integration.d.ts",
+      "default": "./dist/project-tools/integration.js"
+    },
+    "./project-folder-workflows": {
+      "types": "./dist/project-folder-workflows.d.ts",
+      "default": "./dist/project-folder-workflows.js"
+    },
+    "./basic-panel": {
+      "types": "./dist/basic-panel.d.ts",
+      "default": "./dist/basic-panel.js"
+    },
+    "./popup-layout": {
+      "types": "./dist/popup-layout.d.ts",
+      "default": "./dist/popup-layout.js"
+    },
+    "./stage-display-menu": {
+      "types": "./dist/stage-display-menu.d.ts",
+      "default": "./dist/stage-display-menu.js"
+    },
+    "./stage-panel": {
+      "types": "./dist/stage-panel.d.ts",
+      "default": "./dist/stage-panel.js"
+    },
+    "./popup-layout.css": "./src/popup-layout.css",
+    "./stage-display-menu.css": "./src/stage-display-menu.css",
+    "./editor-tabs": {
+      "types": "./dist/editor-tabs.d.ts",
+      "default": "./dist/editor-tabs.js"
+    }
   },
   "files": [
     "dist",
@@ -132,16 +188,17 @@
     "README.md",
     "README.ja.md",
     "LICENSE",
-    "NOTICE"
+    "NOTICE",
+    "EDITOR-MIGRATION.md"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json && tsc -p example/tsconfig.json",
     "prepare": "npm run build",
-    "test": "npm run build && node --test test/*.test.ts",
+    "test": "npm run build && node --test test/*.test.ts test/*.test.cts",
     "test:browser": "npm run build && node --test test/*.browser.ts"
   },
   "devDependencies": {
-    "@kubohiroya/turbowarp-plus-editor-git": "0.22.0",
+    "@kubohiroya/turbowarp-plus-editor-git": "0.25.2",
     "@kubohiroya/turbowarp-plus-editor-windows": "0.2.1",
     "@playwright/test": "1.64.1",
     "@types/react": "18.3.31",
@@ -150,7 +207,13 @@
     "jsdom": "26.1.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "@kubohiroya/turbowarp-sb3-save-format": "0.4.0-rc.2",
+    "@turbowarp/jszip": "3.12.0",
+    "@kubohiroya/turbowarp-extension-loader": "0.11.1",
+    "@kubohiroya/turbowarp-plus-editor-project-folder": "0.20.1",
+    "@kubohiroya/turbowarp-plus-editor-code-views": "0.21.2",
+    "@kubohiroya/turbowarp-extension-security-dialog": "0.9.0"
   },
   "repository": {
     "type": "git",
@@ -158,15 +221,21 @@
   },
   "dependencies": {
     "@kubohiroya/turbowarp-plus-editor-project-model": "0.2.0",
-    "@kubohiroya/turbowarp-plus-editor-sprite-panes": "0.10.0",
+    "@kubohiroya/turbowarp-plus-editor-sprite-panes": "0.10.1",
     "@kubohiroya/turbowarp-script-transfer": "0.1.5",
     "dockview": "8.8.3"
   },
   "peerDependencies": {
-    "@kubohiroya/turbowarp-plus-editor-git": ">=0.21.0 <0.23.0",
+    "@kubohiroya/turbowarp-plus-editor-git": ">=0.25.2 <0.26.0",
     "@kubohiroya/turbowarp-plus-editor-windows": ">=0.2.1 <0.3.0",
     "react": ">=16.14",
-    "react-dom": ">=16.14"
+    "react-dom": ">=16.14",
+    "@kubohiroya/turbowarp-sb3-save-format": ">=0.4.0-rc.2 <0.5.0 || 0.4.0-rc.3-ownership.0",
+    "@turbowarp/jszip": ">=3.12.0 <4",
+    "@kubohiroya/turbowarp-extension-loader": ">=0.11.1 <0.12.0 || 0.11.2-ownership.0",
+    "@kubohiroya/turbowarp-plus-editor-project-folder": ">=0.20.1 <0.21.0",
+    "@kubohiroya/turbowarp-plus-editor-code-views": ">=0.21.2 <0.22.0 || 0.21.3-ownership.0",
+    "@kubohiroya/turbowarp-extension-security-dialog": ">=0.9.0 <0.10.0 || 0.9.1-ownership.0"
   },
   "peerDependenciesMeta": {
     "@kubohiroya/turbowarp-plus-editor-git": {
