@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import {JSDOM} from 'jsdom';
 import {createFileMenuItem} from '../src/extension-file-menu.ts';
 
-async function mountMenu(t, locale: string, folder?: Record<string, () => void>) {
+async function mountMenu(t, locale: string, folder?: Record<string, unknown>) {
     const dom = new JSDOM('<main></main>', {pretendToBeVisual: true});
     const globals = {window: dom.window, document: dom.window.document, navigator: dom.window.navigator,
         IS_REACT_ACT_ENVIRONMENT: true};
@@ -79,4 +79,27 @@ test('both folder commands get a decorative icon', () => {
         assert.equal(label.props.children, command);
     }
     assert.equal(paths.size, 2);
+});
+
+test('without device folders (Safari, Firefox), Open Folder is unavailable with the reason, and the browser folder opens', async t => {
+    const opened: string[] = [];
+    const folder = {open: () => opened.push('device'), openBrowser: () => opened.push('browser'), detach() {}, deviceFolders: false};
+    const {items, click} = await mountMenu(t, 'ja', folder);
+    assert.deepEqual(items.map(([command]) => command), ['open', 'project-folder-open', 'project-folder-open-browser', 'git', 'yaml']);
+    const open = globalThis.document.querySelector('[data-command="project-folder-open"] [role="button"]')!;
+    assert.equal(open.getAttribute('aria-disabled'), 'true');
+    assert.equal(open.getAttribute('tabindex'), '-1');
+    assert.match(open.getAttribute('title')!, /Chrome か Edge/);
+    click('project-folder-open');
+    assert.deepEqual(opened, []);
+    click('project-folder-open-browser');
+    assert.deepEqual(opened, ['browser']);
+});
+
+test('with device folders, Open Folder stays available and has no unavailable note', async t => {
+    const {items} = await mountMenu(t, 'en', {open() {}, detach() {}, deviceFolders: true});
+    assert.equal(items[1][0], 'project-folder-open');
+    const open = globalThis.document.querySelector('[data-command="project-folder-open"] [role="button"]')!;
+    assert.equal(open.getAttribute('aria-disabled'), null);
+    assert.equal(open.getAttribute('title'), null);
 });
