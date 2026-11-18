@@ -111,7 +111,9 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
         {e.newWindow && item(['window', ja ? '新しいウィンドウ' : 'New Window', e.newWindow])}
         <MenuSection>
             {item(['open', ja ? 'SB3ファイルを開く…' : 'Open SB3 File…', e.open])}
-            {e.folder && item(['project-folder-open', ja ? 'プロジェクトフォルダを開く…' : 'Open Project Folder…', e.folder.open])}
+            {e.folder && item(['project-folder-open', ja ? 'フォルダを開く…' : 'Open Folder…', e.folder.open])}
+            {e.folder?.openBrowser && item(['project-folder-open-browser',
+                ja ? 'ブラウザーに保存したフォルダを開く…' : 'Open Folder Saved in This Browser…', e.folder.openBrowser])}
             {e.git}
             {e.externalYaml}
         </MenuSection>

@@ -3,7 +3,8 @@ import type {CreationInteraction, GitHubCreationAccount, GitHubRepositoryDraft, 
     RepositoryCreationProgress, RepositoryReceipt} from '@kubohiroya/turbowarp-plus-editor-git/project-repository-creation';
 
 export type Action = () => void;
-export type FolderActions = {open: Action; save?: Action; detach: Action};
+// `openBrowser` opens a folder kept in the browser (OPFS), where the host offers one.
+export type FolderActions = {open: Action; openBrowser?: Action; save?: Action; detach: Action};
 export type SaveFormat = 'current' | 'embedded' | 'folder';
 type Serialize = <T>(run: () => T) => T;
 

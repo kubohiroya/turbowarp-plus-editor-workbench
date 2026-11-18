@@ -34,7 +34,10 @@ const glyphs = {
     save: 'M4 3h13l3 3v15H4z M8 3v6h8V3 M8 21v-7h8v7',
     copy: 'M8 8h12v13H8z M16 8V3H3v13h5',
     remix: 'M18 8a7 7 0 1 0 0 8 M18 3v5h-5 M18 8l2-2',
-    open: 'M3 6h7l2 2h9l-2 11H3z M3 11h16',
+    // An SB3 file is one file: a page with an arrow, set apart from the folder of Open Folder….
+    open: 'M5 3h9l5 5v13H5z M14 3v5h5 M12 18v-7 M9 14l3-3 3 3',
+    'project-folder-open': 'M3 6h7l2 2h9l-2 11H3z M3 11h16',
+    'project-folder-open-browser': 'M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M3 9h18 M6 6.5h.01 M8.5 6.5h.01 M11 6.5h.01',
     'save-as': 'M4 3h13l3 3v15H4z M8 3v6h8V3 M9 17h6 M12 14v6',
     download: 'M12 3v12 M7 10l5 5 5-5 M4 17v4h16v-4',
     package: 'm12 3 8 4v10l-8 4-8-4V7z M4 7l8 4 8-4 M12 11v10 M8 5l8 4',
