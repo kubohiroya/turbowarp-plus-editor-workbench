@@ -240,6 +240,8 @@ Editor のルートから、`site/source.json` の GUI を `npm run build:pages`
 
 スプライト編集タブの中のペイン（素材と変数、メッセージ、設定フォーム、セクション切り替えのツールバー）は `@kubohiroya/turbowarp-plus-editor-sprite-panes` に移った。このパッケージはそれらをタブや分割に並べる。以前の配布アーカイブのソース `b0390c3` から移設したウィンドウ部品は、`@kubohiroya/turbowarp-plus-editor-windows` に移った。Scratch GUI の本家実装はこのパッケージに取り込んでいないため、GPL のコードを含まず、GPL のモジュールも import しない。ライセンスは MPL-2.0 とする。MPL-2.0 は GPL を二次ライセンスとして認めるので、GPL-3.0 の Editor に組み込んで配信できる。ソースに「Incompatible With Secondary Licenses」の表示は付けない。付けると Editor に組み込めなくなる。
 
+スプライトの「呼び出し関係」では、図の方向を切り替える LR／TD と、関数・メッセージの表示を切り替えるボタンを縦ツールバーの下端に置く。方向と表示の選択はビューごとに管理し、分割した別ビューの選択を変えない。ホストが `renderToolbar` でツールバーを描く場合は、受け取る `actions.sectionControls` を `SpriteEditorToolbar` の `sectionControls` に渡す。図で選んだスクリプトは `openRelationScript` で開き、ホストが対象のスプライトとブロックへ移動する。
+
 ## デバッガーのタブ
 
 `attachDebuggerPanel(debugger, {document, vm})` は、デバッガーアドオンのウィンドウを Dockview のタブとして開く。ホストはアドオンのウィンドウ要素、アドオン自身の表示切り替え関数、GUI の言語を返す関数を渡す。ワークスペースがパネルを受け付けるときは「デバッガー」タブで開き、タブとデバッガーの開閉を連動させる。受け付けないときは従来どおり浮動ウィンドウのままにする。タブは一時パネルとして扱い、保存するレイアウトには含めない。
