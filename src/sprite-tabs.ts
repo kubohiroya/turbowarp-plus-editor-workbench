@@ -72,6 +72,12 @@ export interface SpriteTabView {
 }
 
 export interface SpriteTabAdapter<Snapshot = unknown> {
+    /** Optional per-pane filters supplied by the code view owner. */
+    relations?: {
+        getVisibility(paneId: string): FunctionRelationVisibility;
+        setVisibility(paneId: string, value: FunctionRelationVisibility): void;
+        subscribe(listener: () => void): () => void;
+    };
     /** Read the state of the mounted surface; the host's selected target may have changed already. */
     capture(view: SpriteTabView): Snapshot;
     renderInactive(container: HTMLElement, view: SpriteTabView, snapshot: Snapshot | undefined): void | (() => void);
@@ -1634,6 +1640,9 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
     });
     const [toolbarSlots, setToolbarSlots] = React.useState<readonly ToolbarSlot[]>([]);
     const [assetPreviewSlots, setAssetPreviewSlots] = React.useState<readonly AssetPreviewSlot[]>([]);
+    const [, refreshCodeRelations] = React.useReducer(value => value + 1, 0);
+    const codeRelations = props.viewAdapter?.relations;
+    React.useLayoutEffect(() => codeRelations?.subscribe(refreshCodeRelations), [codeRelations]);
     // The functions pane remounts when its view switches sections; keep the view, order and flow each view chose.
     const [functionSettings, setFunctionSettings] = React.useState(() => new Map<string, Partial<FunctionPaneSettings>>());
     const changeFunctionSettings = (id: string, patch: Partial<FunctionPaneSettings>) => setFunctionSettings(previous => {
@@ -1747,7 +1756,14 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
                         workspace?.activateView(view.id);
                         changeFunctionSettings(view.id, {relationVisibility});
                     }
-                })) : undefined;
+                })) : currentSection === 'code' && codeRelations ? React.createElement(FunctionRelationToggles, {
+                    locale: props.locale,
+                    value: codeRelations.getVisibility(view.id),
+                    onChange: (visibility: FunctionRelationVisibility) => {
+                        workspace?.activateView(view.id);
+                        codeRelations.setVisibility(view.id, visibility);
+                    }
+                }) : undefined;
             const actions = {
                 activate: () => { workspace?.activateView(view.id); },
                 setSection: (section: number) => {
