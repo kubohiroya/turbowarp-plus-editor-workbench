@@ -87,3 +87,34 @@ test('overwriting and folder saves collect edits first and save nothing when col
     const plain = storage(log);
     assert.equal(collectBeforeSaving(plain, undefined, collect).storage, plain);
 });
+
+test('saving a project with no target makes the picked file its target through finish, never copied', async () => {
+    const log: string[] = [];
+    const handle = {name: 'Cat Game.sb3'} as FileSystemFileHandle;
+    const gui: ProjectFileStorage = {...storage(log), pick: async () => handle,
+        async write(target, serialize) {log.push(`write:${target.name}:${serialize(() => 'data')}`);},
+        finish(target, title, unchanged) {log.push(`finish:${target.name}:${title}:${unchanged}`);}};
+    let edited = false;
+    const options = {current: () => true, unchanged: () => !edited, serialize: <T>(_t: string, run: () => T) => run(),
+        committed: () => log.push('committed'), mode: 'save' as const};
+    assert.equal(await saveProjectAs(gui, 'Cat', options), true);
+    assert.deepEqual(log, ['write:Cat Game.sb3:data', 'committed', 'finish:Cat Game.sb3:Cat Game:true']);
+    log.length = 0;
+    edited = true;
+    await saveProjectAs(gui, 'Cat', options);
+    assert.equal(log.at(-1), 'finish:Cat Game.sb3:Cat Game:false');
+    // The copy mode, the default, never attaches.
+    log.length = 0;
+    await saveProjectAs(gui, 'Cat', {...options, mode: undefined});
+    assert.deepEqual(log, ['write:Cat Game.sb3:data', 'committed', 'copied:[object Object]:Cat Game']);
+});
+
+test('Ctrl/Cmd+S overwrites the target, saves into the folder, or opens the save form when there is no target', () => {
+    const log: string[] = [];
+    const saveNew = () => log.push('save-new');
+    projectSaveShortcut(storage(log), undefined, saveNew);
+    projectSaveShortcut({...storage(log), overwrite: () => log.push('overwrite')}, undefined, saveNew);
+    projectSaveShortcut(storage(log), {open() {}, detach() {}, save: () => log.push('folder')}, saveNew);
+    projectSaveShortcut({...storage(log), canSave: false}, undefined, saveNew);
+    assert.deepEqual(log, ['save-new', 'overwrite', 'folder']);
+});

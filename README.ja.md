@@ -164,12 +164,26 @@ entries.newProject = {defaultTitle: 'Scratch の作品', browserFolders: true, d
 - `suggestSaveName(title)` は作品名から ASCII の候補を作る（アクセントを外し、小文字にし、ほかの文字は `-`）。使える文字が残らないとき（日本語だけの作品名など）は `''` を返す。
 - `askSaveName({document, locale, title, current})` は規則を示すモーダルのダイアログで保存用の名前を尋ね、入力のたびに確かめる。OK で名前を、キャンセルで `null` を返す。
 
-**プロジェクトのコピーを保存…（ホストに影響する変更）。** 保存は写しを書くだけになり、今の作品はそのまま残る。作品名、ファイルのハンドル、フォルダ、未保存の変更は変わらない。`saveProjectAs` は `storage.finish`（任意・非推奨になった）を呼ばず、書き終えたら `committed()` に続けて新しい任意の `storage.copied(handle, title)` を呼ぶ。ホストはここで保存中の表示を終えるだけにする。`unchanged` は使わなくなった。ダイアログの題名は `projectFileDialogTitle('save-as', locale)`（「プロジェクトのコピーを保存」）。今の「名前を変えて保存」を結線しているホストは、次をやめる。
+**保存先の無い作品の「プロジェクトを保存」。** 「プロジェクトを保存」（`save`、Ctrl/⌘+S）は、保存できる作品ならいつも使える。作品のファイルへの上書き（`storage.overwrite`）か、フォルダへの保存（`folder.save`）をし、どちらも無い作品（メモリ上の新しい作品など）では新しい `entries.saveNew` を呼ぶ。ホストはそこで同じ `renderSaveAsForm`（名前、SB3 かプロジェクトフォルダ、Git と GitHub）を `projectFileDialogTitle('save', locale)`（「プロジェクトを保存」）の題名で開き、その結果を**作品の保存先にする**。SB3 なら `saveProjectAs(..., {mode: 'save', unchanged})` が `storage.finish(handle, title, unchanged)` を呼び、ホストは今までどおりファイルのハンドルと作品名を設定して保存済みにする。フォルダや GitHub の新しいリポジトリなら、以前の「名前を変えて保存」と同じくホストが開いて結び付ける。`projectSaveShortcut(storage, folder, saveNew)` の第 3 引数にも同じものを渡す。ここに「コピーを保存」を渡すと、保存先の無い作品はいつまでも写しを作るだけになる。
+
+**プロジェクトのコピーを保存…（ホストに影響する変更）。** 写しを書くだけで、今の作品はそのまま残る。作品名、ファイルのハンドル、フォルダ、未保存の変更は変わらない。既定の `mode: 'copy'` の `saveProjectAs` は `storage.finish` を呼ばず、書き終えたら `committed()` に続けて新しい任意の `storage.copied(handle, title)` を呼ぶ。ホストはここで保存中の表示を終えるだけにする。ダイアログの題名は `projectFileDialogTitle('save-as', locale)`（「プロジェクトのコピーを保存」）。
+
+保存先になるかどうか：
+
+| 経路 | 保存先 | 呼ばれるもの |
+| --- | --- | --- |
+| 「プロジェクトを保存」（保存先あり） | 今の保存先のまま | `storage.overwrite`・`folder.save` |
+| 「プロジェクトを保存」（保存先なし、`entries.saveNew`） | 新しいファイル・フォルダ・リポジトリが保存先になる | `saveProjectAs({mode: 'save'})` → `storage.finish`。フォルダとリポジトリはホストが結び付ける |
+| 「プロジェクトのコピーを保存…」（`entries.saveAs`） | 変わらない | `saveProjectAs()`（写し）→ `storage.copied`。ホストはフォルダもリポジトリも結び付けない |
+
+今の「名前を変えて保存」を結線しているホストは、写しの経路で次をやめる。
 
 1. `committed()` の中の `detachFolder()`（作品はプロジェクトフォルダに結び付いたまま）。
-2. 写しの後にファイルのハンドルと作品名を設定すること（`storage.finish` の中の `onSetFileHandle(handle)` と `onSetProjectTitle(title)`）。代わりに `storage.copied` を用意し、保存の完了の通知はそこで出してよい。
+2. 写しの後にファイルのハンドルと作品名を設定すること（`storage.finish` の中の `onSetFileHandle(handle)` と `onSetProjectTitle(title)`。写しでは `finish` は呼ばれない）。代わりに `storage.copied` を用意し、保存の完了の通知はそこで出してよい。
 3. 作品を保存済みにすること（`finishedSaving()`・`onProjectUnchanged()`）と、作品のプロパティの保存の受領（`commitMetadata()`）や組み込みデータの確定（`embed()`）を、作品そのものを保存したかのように確定すること。
-4. フォルダへの写し（`createFolder`）や、このダイアログから作った GitHub のリポジトリを、利用者が開くと選ばないのに開いたり結び付けたりすること。
+4. フォルダへの写し（`createFolder`）や、コピーのダイアログから作った GitHub のリポジトリを、利用者が開くと選ばないのに開いたり結び付けたりすること。
+
+そのうえで、以前の「名前を変えて保存」の動き（上の 1〜4 を含む）は `mode: 'save'` にして `entries.saveNew`（と `projectSaveShortcut` の第 3 引数）に結線する。
 
 ## 検証
 

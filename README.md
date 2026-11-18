@@ -166,12 +166,26 @@ entries.newProject = {defaultTitle: 'Scratch Project', browserFolders: true, dev
 - `suggestSaveName(title)` returns an ASCII slug of the title (accents removed, lower case, other characters as `-`), or `''` when nothing usable remains, as for a title only in Japanese.
 - `askSaveName({document, locale, title, current})` asks for a save name in a modal dialog with the rule, validates as the person types, and resolves the name on OK or `null` on Cancel.
 
-**Save a Copy of the Project… (breaking for hosts).** Saving now writes a copy and leaves the project where it is: its title, file handle, folder and unsaved changes stay. `saveProjectAs` no longer calls `storage.finish` (now optional and deprecated); after writing it runs `committed()` and then the new optional `storage.copied(handle, title)`, where the host only ends its save indicator. The `unchanged` option is ignored. Title the dialog with `projectFileDialogTitle('save-as', locale)` ("Save a Copy of the Project"). A host that wired the old Save As must stop:
+**Save Project with no save target.** Save Project (`save`, Ctrl/⌘+S) is enabled whenever the project can be saved. It overwrites the project's file (`storage.overwrite`) or saves into its folder (`folder.save`); a project with neither, such as a new project in memory, runs the new `entries.saveNew`. The host opens the same `renderSaveAsForm` there (name, SB3 or project folder, Git and GitHub), titled `projectFileDialogTitle('save', locale)` ("Save Project"), and the result **becomes the save target**: for an SB3, `saveProjectAs(..., {mode: 'save', unchanged})` calls `storage.finish(handle, title, unchanged)`, where the host sets the file handle and title and marks the project saved as before; for a folder or a new GitHub repository the host opens and attaches it, as the old Save As did. Pass the same action as the third argument of `projectSaveShortcut(storage, folder, saveNew)`; passing Save a Copy there would leave such a project copying forever.
+
+**Save a Copy of the Project… (breaking for hosts).** Saving a copy writes a copy and leaves the project where it is: its title, file handle, folder and unsaved changes stay. `saveProjectAs` in its default `mode: 'copy'` never calls `storage.finish`; after writing it runs `committed()` and then the new optional `storage.copied(handle, title)`, where the host only ends its save indicator. Title the dialog with `projectFileDialogTitle('save-as', locale)` ("Save a Copy of the Project").
+
+Which path attaches:
+
+| Path | Becomes the save target | Hooks |
+| --- | --- | --- |
+| Save Project, with a target | stays the same target | `storage.overwrite` / `folder.save` |
+| Save Project, no target (`entries.saveNew`) | yes: the new file, folder or repository | `saveProjectAs({mode: 'save'})` → `storage.finish`; the host attaches a folder or repository |
+| Save a Copy of the Project… (`entries.saveAs`) | never | `saveProjectAs()` (copy) → `storage.copied`; the host does not attach a folder or repository |
+
+A host that wired the old Save As must, for the copy path, stop:
 
 1. calling `detachFolder()` in `committed()` (the project keeps its project folder);
-2. setting the file handle and the project title after the copy (`onSetFileHandle(handle)` and `onSetProjectTitle(title)` in its `storage.finish`); implement `storage.copied` instead, which may show the save-success alert;
+2. setting the file handle and the project title after the copy (`onSetFileHandle(handle)` and `onSetProjectTitle(title)` in its `storage.finish`, which the copy no longer calls); implement `storage.copied` instead, which may show the save-success alert;
 3. marking the project as saved (`finishedSaving()`/`onProjectUnchanged()`), and committing the project properties' deferred save receipt (`commitMetadata()`) or the embedded-payload commit (`embed()`) as if the project itself had been saved;
-4. opening or attaching the new folder after a folder copy (`createFolder`), or after a new GitHub repository is set up from this dialog, unless the person chooses to open it.
+4. opening or attaching the new folder after a folder copy (`createFolder`), or after a new GitHub repository is set up from the copy dialog, unless the person chooses to open it.
+
+and wire `entries.saveNew` (and the third argument of `projectSaveShortcut`) to the old Save As behaviour with `mode: 'save'`, keeping all of the above there.
 
 ## Verification
 

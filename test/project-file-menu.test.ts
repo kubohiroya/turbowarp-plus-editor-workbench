@@ -180,3 +180,28 @@ test('with createIn, Create New Project… opens the dialog, and the default cre
     assert.deepEqual(requests, []);
     assert.equal(menu.document.querySelector('[data-new-project-dialog]'), null);
 });
+
+test('Save Project with no target opens the save form, and the copy stays separate', async t => {
+    const none = await mountMenu(t, 'ja', undefined, undefined, {saveNew: () => none.calls.push('save-new')});
+    const save = () => none.document.querySelector('[data-command="save"] [role="button"]');
+    assert.equal(save().getAttribute('aria-disabled'), null);
+    assert.equal(save().textContent, 'プロジェクトを保存Ctrl+S');
+    none.click('save');
+    none.click('save-as');
+    assert.deepEqual(none.calls, ['close', 'save-new', 'close', 'save-as']);
+});
+
+test('Save Project with a target overwrites it', async t => {
+    const base = {canSave: true, filename: 'a.sb3', write: async () => {}, download: async () => {}, finish() {}, fail() {}};
+    const target = await mountMenu(t, 'en', undefined, undefined, {
+        saveNew: () => target.calls.push('save-new'),
+        storage: {...base, overwrite: () => target.calls.push('overwrite')}
+    });
+    target.click('save');
+    assert.deepEqual(target.calls, ['close', 'overwrite']);
+});
+
+test('Save Project with no target and no save form stays disabled', async t => {
+    const without = await mountMenu(t, 'en');
+    assert.equal(without.document.querySelector('[data-command="save"] [role="button"]').getAttribute('aria-disabled'), 'true');
+});

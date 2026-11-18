@@ -44,28 +44,31 @@ export interface ProjectFileStorage {
     write(handle: FileSystemFileHandle, serialize: Serialize, current: () => boolean): Promise<void>;
     download(filename: string, serialize: Serialize, current: () => boolean): Promise<void>;
     /**
-     * Called after a copy was written by {@link saveProjectAs}, with the file it was written to (`null` for a
-     * download) and the title stored in the copy. The host ends its save indicator here. It must not make the copy
-     * the current file, change the project title, or mark the project as saved: the project keeps its own file,
-     * folder and unsaved changes.
+     * Called after a copy was written by {@link saveProjectAs} in the `copy` mode, with the file it was written to
+     * (`null` for a download) and the title stored in the copy. The host ends its save indicator here. It must not
+     * make the copy the current file, change the project title, or mark the project as saved: the project keeps its
+     * own file, folder and unsaved changes.
      */
     copied?(handle: FileSystemFileHandle | null, title: string): void;
     /**
-     * @deprecated No longer called. Saving a copy used to retarget the project to the new file with
-     * `finish(handle, title, unchanged)`; a copy now leaves the project where it is (see {@link copied}).
+     * Called after {@link saveProjectAs} in the `save` mode (Save Project for a project with no save target yet):
+     * the written file becomes the project's file (`null` for a download), `title` its title, and `unchanged` says
+     * whether the project was not edited while saving, so the host can mark it saved. Never called for a copy.
      */
-    finish?(handle: FileSystemFileHandle | null, title: string, unchanged: boolean): void;
+    finish(handle: FileSystemFileHandle | null, title: string, unchanged: boolean): void;
     fail(error: unknown): void;
 }
 
 /**
- * The titles of the dialogs this package fills, by the File menu command that opens them: `save-as` is
- * "Save a Copy of the Project" and `new` is "Create New Project".
+ * The titles of the dialogs this package fills, by the File menu command that opens them: `save` is "Save Project"
+ * (the save form for a project with no save target yet), `save-as` is "Save a Copy of the Project" and `new` is
+ * "Create New Project".
  */
-export function projectFileDialogTitle(command: 'save-as' | 'new', locale: string) {
+export function projectFileDialogTitle(command: 'save' | 'save-as' | 'new', locale: string) {
     const ja = locale.startsWith('ja');
     return command === 'new' ? (ja ? '新しいプロジェクトを作成' : 'Create New Project') :
-        (ja ? 'プロジェクトのコピーを保存' : 'Save a Copy of the Project');
+        command === 'save' ? (ja ? 'プロジェクトを保存' : 'Save Project') :
+            (ja ? 'プロジェクトのコピーを保存' : 'Save a Copy of the Project');
 }
 
 /**
@@ -90,21 +93,31 @@ export function collectBeforeSaving(storage: ProjectFileStorage, folder: FolderA
     };
 }
 
-export function projectSaveShortcut(storage: ProjectFileStorage, folder?: FolderActions, saveAs?: Action) {
-    if (storage.canSave) (storage.overwrite || folder?.save || saveAs)?.();
+/**
+ * Save Project and Ctrl/⌘+S: overwrite the project's file or save into its folder; with no save target yet, run
+ * `saveNew`, which opens the save form whose result becomes the target. Pass the save-to-a-new-place action here,
+ * never Save a Copy, or a project without a target would only ever be copied.
+ */
+export function projectSaveShortcut(storage: ProjectFileStorage, folder?: FolderActions, saveNew?: Action) {
+    if (storage.canSave) (storage.overwrite || folder?.save || saveNew)?.();
 }
 
 /**
- * Saves a copy of the project as an SB3: picks the file (or downloads it), collects edits held by other windows,
- * serializes the copy under its own title and writes it. The project stays as it was: its file, folder, title and
- * unsaved state do not change. After the copy is written `committed` runs, then `storage.copied`.
+ * Saves the project as an SB3: picks the file (or downloads it), collects edits held by other windows, serializes
+ * it under the file's title and writes it, then runs `committed`.
+ *
+ * - `mode: 'copy'` (the default, Save a Copy of the Project): the project stays as it was; its file, folder, title
+ *   and unsaved state do not change. `storage.copied` runs last.
+ * - `mode: 'save'` (Save Project with no save target yet): the file becomes the project's save target through
+ *   `storage.finish(handle, title, unchanged())`.
  */
 export async function saveProjectAs(storage: ProjectFileStorage, name: string, {
-    current, serialize, committed, collect
+    current, unchanged, serialize, committed, collect, mode = 'copy'
 }: {
     current(): boolean;
-    /** @deprecated Ignored; a copy does not change whether the project has unsaved changes. */
+    /** Whether the project was not edited while saving; used by the `save` mode only. */
     unchanged?(): boolean;
+    mode?: 'copy' | 'save';
     serialize<T>(title: string, run: () => T): T;
     committed(): void;
     // Collects edits still held by other windows. A failure leaves them there for a retry.
@@ -126,7 +139,8 @@ export async function saveProjectAs(storage: ProjectFileStorage, name: string, {
         else await storage.download(filename, output, current);
         if (!current()) return false;
         committed();
-        storage.copied?.(handle, title);
+        if (mode === 'save') storage.finish(handle, title, unchanged ? unchanged() : true);
+        else storage.copied?.(handle, title);
         return true;
     } catch (error) {
         storage.fail(error);

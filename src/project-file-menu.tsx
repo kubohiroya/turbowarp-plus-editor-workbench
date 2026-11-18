@@ -12,12 +12,15 @@ interface SaveWorkspace {
     subscribeSave(listener: () => void): () => void;
 }
 
-type SaveEntries = {storage: ProjectFileStorage; folder?: FolderActions; saveAs?: Action; saveCommit?: Action};
+type SaveEntries = {storage: ProjectFileStorage; folder?: FolderActions; saveNew?: Action; saveAs?: Action;
+    saveCommit?: Action};
 
-function saveEntries(locale: string, {storage, folder, saveAs, saveCommit}: SaveEntries): Entry[] {
+function saveEntries(locale: string, {storage, folder, saveNew, saveAs, saveCommit}: SaveEntries): Entry[] {
     const ja = locale.startsWith('ja');
     return [
-        ['save', ja ? 'プロジェクトを保存' : 'Save Project', storage.canSave ? storage.overwrite || folder?.save : undefined],
+        // Overwrites the file or saves into the folder; with no target yet, saveNew picks one that becomes the target.
+        ['save', ja ? 'プロジェクトを保存' : 'Save Project',
+            storage.canSave ? storage.overwrite || folder?.save || saveNew : undefined],
         // Saves a copy and leaves the project where it is; the command id stays `save-as` for icons and hosts.
         ['save-as', ja ? 'プロジェクトのコピーを保存…' : 'Save a Copy of the Project…', storage.canSave ? saveAs : undefined],
         ...(saveCommit ? [['save-commit', ja ? '保存してコミット…' : 'Save and Commit…', saveCommit] as Entry] : [])
@@ -88,6 +91,12 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
         folder?: FolderActions;
         openRemote?: Action;
         storage: ProjectFileStorage;
+        /**
+         * Save Project for a project with no save target (no file handle, no folder): opens the save form titled
+         * `projectFileDialogTitle('save', locale)`, whose file or folder becomes the project's target.
+         */
+        saveNew?: Action;
+        /** Save a Copy of the Project…: writes a copy and never changes the project's target. */
         saveAs?: Action;
         saveCommit?: Action;
         exportProject?: Action;
