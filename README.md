@@ -187,6 +187,48 @@ A host that wired the old Save As must, for the copy path, stop:
 
 and wire `entries.saveNew` (and the third argument of `projectSaveShortcut`) to the old Save As behaviour with `mode: 'save'`, keeping all of the above there.
 
+**Wiring Create New Project… (`@kubohiroya/turbowarp-plus-editor-workbench/new-project`).** `createNewProjectHandler(host)` returns `{createIn, newProject}` to pass as `entries.createIn` and `entries.newProject`. It owns the order of the steps, the GitHub setup and its messages; the host supplies only what depends on the GUI and its storage:
+
+```ts
+const {createIn, newProject} = createNewProjectHandler({
+    locale, defaultTitle, browserFolders, deviceFolders,
+    create,                                   // the GUI's own Create New Project (in memory)
+    openDefaultProject: signal => ...,        // create(), wait until the default project is shown and its title reset;
+                                              // false when the person kept the current project
+    nameProject: (title, saveName) => ...,   // properties.apply({title, saveName}) in one step
+    pickDeviceFolder: () => ...,              // an empty folder on the device, or null
+    createFolder: (destination, title, signal) => ...,  // 'browser' or the picked folder; opens it
+    repositoryCreation,                       // {connect, licenses, list, advance, open, start(draft, serialize, current, signal, target)}
+    serialize: title => ...,                  // the project folder snapshot for the first commit
+    trackProject: () => () => stillTheSameProject(),
+    markSaved, notify: text => showNotice(document, text, {locale})
+});
+```
+
+- The device folder is picked first, while the click still allows the picker; a cancelled picker, a kept project (`openDefaultProject` resolves `false`) or a folder that was not made resolves `cancelled`.
+- A folder or repository project starts from the default project, named with `nameProject(title, saveName)`.
+- For GitHub, a stopped setup of the same owner and name (case-insensitively, from `list()`) is resumed instead of starting another. Otherwise `start` creates the working copy (`'browser'` or the picked folder); a falsy result cancels and any other result goes on to `advance`, and `advance` runs until the `open` phase (it gives up after nine steps, or when `unknown` repeats); the device code is shown with `notify`; `markSaved` runs before `open` for a fresh project so opening asks nothing. `popupBlocked`, `nameConflict` and other coded failures become localized messages that the dialog shows.
+
+**Project title commits (`@kubohiroya/turbowarp-plus-editor-workbench/project-title`).** `followProjectTitleCommits(document, {readTitle, onCommit})` watches the menu bar's title field (`projectTitleFieldClassName`) and calls `onCommit(title)` once per edit the person commits, on Enter (not while an IME is composing) or when the field loses focus; titles set by loading or the properties, and unchanged titles, are not reported. It returns a function that stops watching. `reflectProjectTitle({document, locale, title, saveName, location, gitBound, renameBrowserFolder, setSaveName, notify, current})` then reflects the title:
+
+| Project | Result |
+| --- | --- |
+| `location: 'browser'` (a folder in the browser's storage) | `renameBrowserFolder(title)` (failures ignored) |
+| `location: 'device'` | notice: the folder on the device keeps its name |
+| `gitBound: true` | notice: the Git repository keeps its name for now (joined after the folder note) |
+| title not a valid save name, no `saveName`, saved in a folder or repository | `askSaveName`, then `setSaveName(name)` on OK |
+| `location: 'none'` and not Git-bound, or an empty title | nothing |
+
+`current()` is checked after each wait, so a title committed just before another project opened changes nothing. A host wires it as:
+
+```ts
+const stop = followProjectTitleCommits(document, {readTitle: () => store.getState().scratchGui.projectTitle,
+    onCommit: title => void reflectProjectTitle({document, locale, title, saveName: projectSaveName(), location, gitBound,
+        renameBrowserFolder: title => browserStorage.rename(entry.id, title), setSaveName, notify, current}).catch(() => {})});
+```
+
+**Notices (`@kubohiroya/turbowarp-plus-editor-workbench/project-notice`).** `showNotice(document, text, {locale, timeout = 12000})` shows a snackbar at the bottom of the window (`role="status"`, `data-testid="project-notice-snackbar"`) with an X dismiss button named `閉じる` / `Dismiss`. It hides itself after `timeout` unless focus is inside it, replaces the notice already shown in that document, and returns a function that removes it. Its styles are in `project-file-menu.css` (`.tw-project-notice`).
+
 ## Verification
 
 Run `npm test` to verify split sizing, aspect ratios, and settings persistence. Run `npm run test:browser` to test the standalone host. To open the test host manually, run `npm install` and `python3 -m http.server` in this directory, then open `/example/`.
