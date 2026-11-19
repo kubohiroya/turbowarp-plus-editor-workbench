@@ -38,14 +38,19 @@ function afterPaint(document: Document) {
 }
 
 /** Give the browser a frame before starting work that may block its main thread. */
-export async function withWaitCursor<T>(documents: Iterable<Document>, run: () => T): Promise<Awaited<T>> {
+export async function withWaitCursor<T>(documents: Iterable<Document>, run: () => T,
+    {releaseAfterPaint = false}: {releaseAfterPaint?: boolean} = {}): Promise<Awaited<T>> {
     const visible = [...new Set(documents)].filter(document => document?.head && document.defaultView && !document.defaultView.closed);
     const release = visible.map(holdCursor);
     try {
         await Promise.all(visible.map(afterPaint));
         return await run();
     } finally {
-        release.forEach(done => done());
+        const finish = () => release.forEach(done => done());
+        // Resolving the project load lets the host mount its initial code view. Keep the already-painted
+        // wait cursor through that synchronous work without delaying the host's load continuation.
+        if (releaseAfterPaint) void Promise.all(visible.map(afterPaint)).then(finish, finish);
+        else finish();
     }
 }
 

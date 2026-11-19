@@ -51,7 +51,8 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
     const installProjectToolsHost = (vm, settings: Parameters<typeof installEditorExtensionHost>[1] & Parameters<typeof installProjectProperties>[1] = {}, enabled = PROJECT_TOOLS_ENABLED) => {
         const diagnostics = createProjectDiagnostics();
         const document = settings.document || globalThis.document;
-        const runProjectLoad = document ? <T>(run: () => Promise<T>) => withWaitCursor([document], run) : undefined;
+        const runProjectLoad = document ? <T>(run: () => Promise<T>) =>
+            withWaitCursor([document], run, {releaseAfterPaint: true}) : undefined;
         const host = installEditorExtensionHost(vm, {...settings, showDiagnostics: false, runProjectLoad,
             projectArchives: editorProjectArchives,
             captureProjectProgress: () => captureProjectLoad(vm),
