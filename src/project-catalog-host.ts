@@ -286,9 +286,9 @@ export function createProjectCatalogRuntime(ports: CatalogRuntimePorts) {
             schedule();
         },
         capture: schedule,
-        show(locale: string, fileStorage: ProjectFileStorage) {
+        show(locale: string, fileStorage: ProjectFileStorage, createProject?: () => void) {
             storage = fileStorage;
-            dialog?.(); dialog = openProjectCatalog(document, host(locale), locale);
+            dialog?.(); dialog = openProjectCatalog(document, {...host(locale), createProject}, locale);
         },
         dispose() {
             alive = false; view.clearTimeout(timer); stopLoad(); stopLocation?.();

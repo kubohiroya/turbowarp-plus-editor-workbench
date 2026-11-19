@@ -99,6 +99,16 @@ export function openProjectCatalog(document: Document, host: CatalogHost, locale
         if (action) element.addEventListener('click', action);
         return element;
     };
+    const header = document.createElement('div');
+    header.className = 'tw-project-catalog__header';
+    header.append(heading);
+    if (host.createProject) header.append(button(label('新しいプロジェクトを作成…', 'Create New Project…'), 'create', () => {
+        if (busy || !alive) return;
+        dialog.close();
+        // Dispose before opening the next dialog so the queued close event cannot steal its focus.
+        dispose();
+        host.createProject!();
+    }));
     const rename = (project: CatalogProject, target: 'title' | 'storageName') => {
         editor.replaceChildren(); editor.hidden = false;
         const operations = host.operations(project);
@@ -187,7 +197,7 @@ export function openProjectCatalog(document: Document, host: CatalogHost, locale
         const [by, direction] = order.value.split(':') as [CatalogSort['by'], CatalogSort['direction']];
         sort = await host.store.sort({by, direction});
     }));
-    dialog.append(heading, removalNote, orderLabel, status, error, list, editor, close);
+    dialog.append(header, removalNote, orderLabel, status, error, list, editor, close);
     document.body.append(dialog); dialog.showModal(); close.focus();
     void run(async () => {
         await host.refresh(); sort = await host.store.sort(); order.value = `${sort.by}:${sort.direction}`;

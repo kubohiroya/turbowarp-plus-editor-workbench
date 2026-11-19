@@ -1,6 +1,6 @@
 {
   "name": "@kubohiroya/turbowarp-plus-editor-workbench",
-  "version": "0.29.0",
+  "version": "0.29.1",
   "description": "The TurboWarp Plus Editor workbench: layout, dockable sprite tabs, stage, debugger tab and file menu",
   "type": "module",
   "license": "MPL-2.0",
@@ -226,7 +226,8 @@
     "@kubohiroya/turbowarp-extension-loader": "0.11.1",
     "@kubohiroya/turbowarp-plus-editor-project-folder": "0.20.1",
     "@kubohiroya/turbowarp-plus-editor-code-views": "0.22.1",
-    "@kubohiroya/turbowarp-extension-security-dialog": "0.9.0"
+    "@kubohiroya/turbowarp-extension-security-dialog": "0.9.0",
+    "esbuild": "0.25.12"
   },
   "repository": {
     "type": "git",

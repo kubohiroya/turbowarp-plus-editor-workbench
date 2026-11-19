@@ -378,7 +378,8 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
     const projectToolsOwnKeyEvent = event => Boolean(event.target?.closest?.('[data-project-tools]'));
 
     const bindProjectCatalogFolder = (vm: object, ports: CatalogFolderPorts) => projects.get(vm)?.catalog?.bindFolder(ports);
-    const projectCatalog = (vm: object, locale: string, storage: ProjectFileStorage) => projects.get(vm)?.catalog?.show(locale, storage);
+    const projectCatalog = (vm: object, locale: string, storage: ProjectFileStorage, createProject?: () => void) =>
+        projects.get(vm)?.catalog?.show(locale, storage, createProject);
     const projectFileOpened = (vm: object, file: File | null) => projects.get(vm)?.catalog?.fileOpened(file);
     return {installProjectToolsHost, projectScreenState, loadedProjectTitle, restoreProjectTitle, isProjectLoading, subscribeProjectLoad, projectSaveName, setProjectSaveName, createFolderFromCurrentProject, projectFileActions, projectCreation, renderFileMenu, projectToolsOwnKeyEvent,
         bindProjectCatalogFolder, projectCatalog, projectFileOpened};

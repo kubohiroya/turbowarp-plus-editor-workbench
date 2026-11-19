@@ -87,7 +87,8 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
         newProject?: NewProjectChoices;
         newWindow?: Action;
         open: Action;
-        catalog?: Action;
+        /** Receives the same creation command as Create New Project, including its destination choices. */
+        catalog?: (createProject: Action) => void;
         externalYaml?: React.ReactNode;
         folder?: FolderActions;
         openRemote?: Action;
@@ -130,15 +131,15 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
     };
     const e = entries;
     const createIn = e.createIn;
-    const createNew: Entry = createIn ? ['new', ja ? '新しいプロジェクトを作成…' : 'Create New Project…', () => {
+    const createNew: Action = createIn ? () => {
         if (typeof document === 'undefined') return;
         void openNewProjectDialog(document, locale, {...e.newProject, create: e.create, createIn});
-    }] : ['new', ja ? '新しいプロジェクトを作成' : 'Create New Project', e.create];
+    } : e.create;
     return <>
-        {item(createNew)}
+        {item(['new', ja ? `新しいプロジェクトを作成${createIn ? '…' : ''}` : `Create New Project${createIn ? '…' : ''}`, createNew])}
         {e.newWindow && item(['window', ja ? '新しいウィンドウ' : 'New Window', e.newWindow])}
         <MenuSection>
-            {e.catalog && item(['projects', ja ? 'プロジェクト一覧…' : 'Projects…', e.catalog])}
+            {e.catalog && item(['projects', ja ? 'プロジェクト一覧…' : 'Projects…', () => e.catalog!(createNew)])}
             {item(['open', ja ? 'SB3ファイルを開く…' : 'Open SB3 File…', e.open])}
             {/* Safari and Firefox cannot pick folders on the device; the browser's folders have their own item. */}
             {e.folder && item(['project-folder-open', ja ? 'フォルダを開く…' : 'Open Folder…',

@@ -56,11 +56,37 @@ test('the open section lists the SB3 file, the folder and the browser folder in 
 
 test('the common project catalog closes the file menu before it opens', async t => {
     const calls: string[] = [];
-    const menu = await mountMenu(t, 'ja', undefined, undefined, {catalog: () => calls.push('catalog')});
+    let createProject: () => void;
+    const menu = await mountMenu(t, 'ja', undefined, undefined, {catalog: create => {
+        calls.push('catalog'); createProject = create;
+    }});
     assert.deepEqual(menu.items[0], ['projects', 'プロジェクト一覧…']);
     menu.click('projects');
     assert.deepEqual(menu.calls, ['close']);
     assert.deepEqual(calls, ['catalog']);
+    createProject();
+    assert.deepEqual(menu.calls, ['close', 'create']);
+});
+
+test('the catalog receives the existing creation dialog command with its destination choices', async t => {
+    let createProject: () => void;
+    const requests: unknown[] = [];
+    const menu = await mountMenu(t, 'ja', undefined, undefined, {
+        catalog: create => {createProject = create;},
+        createIn: async request => {requests.push(request); return 'created';},
+        newProject: {defaultTitle: 'Scratch の作品', browserFolders: true}
+    });
+    menu.click('projects');
+    assert.deepEqual(menu.calls, ['close']);
+    createProject();
+    const dialog = menu.document.querySelector('[data-new-project-dialog]')!;
+    assert.equal(dialog.querySelector('h2')!.textContent, '新しいプロジェクトを作成');
+    assert.deepEqual([...dialog.querySelectorAll<HTMLInputElement>('input[name="destination"]')].map(input => input.value),
+        ['memory', 'browser']);
+    (dialog.querySelector('[data-new-project-cancel]') as HTMLButtonElement).click();
+    assert.equal(menu.document.querySelector('[data-new-project-dialog]'), null);
+    assert.deepEqual(menu.calls, ['close']);
+    assert.deepEqual(requests, []);
 });
 
 test('without a browser folder the menu offers only the folder picker', async t => {
