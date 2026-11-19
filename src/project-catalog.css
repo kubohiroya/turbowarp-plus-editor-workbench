@@ -11,6 +11,8 @@
     font: .875rem/1.5 system-ui, sans-serif;
 }
 .tw-project-catalog h2 {margin-top: 0; font-size: 1.25rem;}
+.tw-project-catalog__header {display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .5rem; margin-bottom: .75rem;}
+.tw-project-catalog__header h2 {margin: 0;}
 .tw-project-catalog ul {list-style: none; padding: 0; display: grid; gap: .75rem;}
 .tw-project-catalog li {border: 1px solid GrayText; border-radius: .375rem; padding: .75rem; overflow-wrap: anywhere;}
 .tw-project-catalog li p {margin: .25rem 0;}

@@ -6,6 +6,8 @@ TurboWarp Plus Editor の作業画面。分割レイアウト、Plus 標準配�
 
 ## プロジェクト一覧
 
+一覧上部の「新しいプロジェクトを作成…」は、登録がないときもファイルメニューと共通の新規作成へ進む。ホストはメニューから渡される作成コールバックを `projectCatalog` の第4引数へ渡す。一覧を閉じてから作成ダイアログを開き、作成先の選択・未保存変更の確認は既存の処理を利用する。
+
 `project-catalog` は SB3、手元のフォルダ、ブラウザー保存、リモート Git と作業コピーを共通の登録として扱う。`project-catalog-dialog` と `project-catalog.css` が一覧・並び替え・開く・除外・保存データ削除・2種類の改名を提供する。`project-catalog-host` が既存のファイル保存、作品情報、project-folder と Git の接続口へつなぐ。Editor は `createProjectTools` の `catalogEnvironment` にファイルハンドルの読み取りと変更購読を渡し、`bindProjectCatalogFolder` でフォルダとリモート操作を渡す。`projectFileOpened` は読み込み成功後だけ呼ぶ。
 
 カタログは IndexedDB の `twPlusProjectCatalog` に保存する。作品名を識別子に使わず、ファイルハンドル・OPFS の ID で照合する。同じリモートの別作業コピーは別登録のまま保持する。以前の画面配置に残ったハンドルと既存 OPFS 作品を取り込み、「一覧から除外」した作品は再取り込みで戻さない。最終利用日時は正常に開いた場合だけ更新する。

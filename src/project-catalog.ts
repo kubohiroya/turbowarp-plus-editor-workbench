@@ -142,6 +142,8 @@ export interface CatalogOperations {
 }
 export interface CatalogHost {
     store: ProjectCatalogStore;
+    /** Opens the host's existing new-project flow after the catalog is dismissed. */
+    createProject?(): void;
     refresh(): Promise<void>;
     operations(project: CatalogProject): CatalogOperations;
 }
