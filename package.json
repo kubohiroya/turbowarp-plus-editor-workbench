@@ -226,7 +226,8 @@
     "@kubohiroya/turbowarp-extension-loader": "0.11.1",
     "@kubohiroya/turbowarp-plus-editor-project-folder": "0.20.1",
     "@kubohiroya/turbowarp-plus-editor-code-views": "0.22.1",
-    "@kubohiroya/turbowarp-extension-security-dialog": "0.9.0"
+    "@kubohiroya/turbowarp-extension-security-dialog": "0.9.0",
+    "esbuild": "0.25.12"
   },
   "repository": {
     "type": "git",
