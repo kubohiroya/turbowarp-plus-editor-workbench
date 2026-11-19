@@ -54,6 +54,15 @@ test('the open section lists the SB3 file, the folder and the browser folder in 
     ]);
 });
 
+test('the common project catalog closes the file menu before it opens', async t => {
+    const calls: string[] = [];
+    const menu = await mountMenu(t, 'ja', undefined, undefined, {catalog: () => calls.push('catalog')});
+    assert.deepEqual(menu.items[0], ['projects', 'プロジェクト一覧…']);
+    menu.click('projects');
+    assert.deepEqual(menu.calls, ['close']);
+    assert.deepEqual(calls, ['catalog']);
+});
+
 test('without a browser folder the menu offers only the folder picker', async t => {
     const {items} = await mountMenu(t, 'ja', {open() {}, detach() {}});
     assert.deepEqual(items.map(([command]) => command), ['open', 'project-folder-open', 'git', 'yaml']);

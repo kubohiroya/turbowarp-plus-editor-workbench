@@ -36,6 +36,7 @@ const glyphs = {
     remix: 'M18 8a7 7 0 1 0 0 8 M18 3v5h-5 M18 8l2-2',
     // An SB3 file is one file: a page with an arrow, set apart from the folder of Open Folder….
     open: 'M5 3h9l5 5v13H5z M14 3v5h5 M12 18v-7 M9 14l3-3 3 3',
+    projects: 'M4 4h16v16H4z M4 9h16 M9 9v11 M12 13h5 M12 17h5',
     'project-folder-open': 'M3 6h7l2 2h9l-2 11H3z M3 11h16',
     'project-folder-open-browser': 'M4 4h16a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z M3 9h18 M6 6.5h.01 M8.5 6.5h.01 M11 6.5h.01',
     // A remote Git repository: a cloud with an arrow down, fetched onto the device.
