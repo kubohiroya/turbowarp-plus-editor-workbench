@@ -10,6 +10,56 @@ const deferred = () => {
     return {promise, resolve};
 };
 
+test('project loading retains the painted wait cursor through the initial code-view continuation', async () => {
+    const dom = new JSDOM('', {pretendToBeVisual: true});
+    const {document} = dom.window;
+    const paints: number[] = [];
+    try {
+        const released = new Promise<void>(resolve => {
+            const observer = new dom.window.MutationObserver(() => {
+                if (waiting(document)) return;
+                observer.disconnect();
+                resolve();
+            });
+            observer.observe(document.head, {childList: true});
+        });
+        const load = withWaitCursor([document], () => {
+            assert.equal(paints.length, 1, 'the cursor gets a paint before the load blocks');
+            return 'project';
+        }, {releaseAfterPaint: true});
+        dom.window.requestAnimationFrame(() => paints.push(waiting(document)));
+        const value = await load;
+        assert.equal(value, 'project');
+        assert.equal(waiting(document), 1, 'the initial code view mounts in the load continuation');
+        await new Promise<void>(resolve => dom.window.requestAnimationFrame(() => {
+            assert.equal(waiting(document), 1, 'the first code frame is still covered');
+            resolve();
+        }));
+        await released;
+        assert.deepEqual(paints, [1]);
+        assert.equal(waiting(document), 0);
+    } finally {dom.window.close();}
+});
+
+test('a failed project load also releases its deferred wait cursor', async () => {
+    const dom = new JSDOM('', {pretendToBeVisual: true});
+    const {document} = dom.window;
+    try {
+        const released = new Promise<void>(resolve => {
+            const observer = new dom.window.MutationObserver(() => {
+                if (waiting(document)) return;
+                observer.disconnect();
+                resolve();
+            });
+            observer.observe(document.head, {childList: true});
+        });
+        await assert.rejects(withWaitCursor([document], () => {throw new Error('load failed');},
+            {releaseAfterPaint: true}), /load failed/);
+        await released;
+        assert.equal(waiting(document), 0);
+    } finally {dom.window.close();}
+});
+
 test('overlapping operations keep the wait cursor until the final operation settles', async () => {
     const dom = new JSDOM('');
     const {document} = dom.window;
