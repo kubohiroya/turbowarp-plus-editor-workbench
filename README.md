@@ -6,6 +6,16 @@ The workbench of TurboWarp Plus Editor: the resizable layout, the Plus standard 
 
 This package was published as `@kubohiroya/turbowarp-plus-editor-layout` up to 0.3.0.
 
+## Project catalog
+
+The `project-catalog`, `project-catalog-dialog`, `project-catalog-host` exports and `project-catalog.css` provide one catalog for SB3 files, device folders, browser storage and remote Git worktrees. The Editor supplies file handles, location subscriptions, folder operations and the remote opener through `createProjectTools`, `bindProjectCatalogFolder` and the successful-upload callback `projectFileOpened`.
+
+The catalog uses the `twPlusProjectCatalog` IndexedDB database and matches resources by handle or browser ID. Names never identify resources, and different worktrees of one remote remain separate. Existing browser projects and handles from workspace history are imported without restoring forgotten entries. Sorting persists; only successful opens update usage times. Forgetting an entry never deletes its data.
+
+Project-title changes open and save the project through its existing metadata and save services. Storage renaming is separate, with an optional shared name; native file renames retain `.sb3`. Unsupported operations explain why they are unavailable. Each completed rename is recorded independently, including when a later step fails. Deleting saved data requires confirmation and refuses the currently open resource. Deleting a repository on GitHub is not offered; repository renaming depends on Editor issue #681.
+
+Run `npm run build`, the catalog/workspace/file-menu unit tests, and `node --test test/project-catalog.browser.ts` for focused validation. Roll back the host connection and dependency updates to restore the individual menus, keeping the catalog and saved data intact.
+
 ## Resizable layout
 
 Resize the divider between the editor and the stage column, or the divider between the stage and the target pane, within a single document. The host passes its React instance to `createLayout(React)` and connects the dividers, styles, and display dimensions provided by the `render` callback to its existing components. The host supplies a storage provider and key, and this package saves and restores the layout settings.

@@ -59,6 +59,14 @@ test('each sb3 file keeps its own layout, even beside another file of the same n
     assert.equal((await records()).length, 2);
 });
 
+test('renaming the same file preserves its workspace even when its filename changes', async () => {
+    const {store} = setup();
+    await (await store.open(file('Before.sb3', 'stable-file-id'), '')).write('layout', '');
+    const renamed = await store.open(file('After.sb3', 'stable-file-id'), 'changed');
+    assert.equal(renamed.layout, 'layout');
+    assert.equal(renamed.exact, true);
+});
+
 test('a project keeps one record while its sprites and layout change', async () => {
     const {store, records} = setup();
     const session = await store.open({kind: 'anonymous', name: 'Game'}, 'one sprite');

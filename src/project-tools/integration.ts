@@ -24,6 +24,8 @@ import type {ExtensionSpec} from '@kubohiroya/turbowarp-extension-loader';
 import JSZip from '@turbowarp/jszip';
 import {installProjectScreenState} from '../project-screen-state.js';
 import type {ProjectScreenState} from '../project-screen-state.js';
+import {createProjectCatalogRuntime} from '../project-catalog-host.js';
+import type {CatalogFolderPorts} from '../project-catalog-host.js';
 
 export interface ProjectToolsPorts {
     installEditorExtensionHost(vm: any, settings: any): any;
@@ -36,11 +38,16 @@ export interface ProjectToolsPorts {
     projectLoadState(document: Document | undefined): {
         current(): string; isShown(): boolean; subscribe(listener: () => void): () => void;
     } | undefined;
+    catalogEnvironment?(document: Document): {
+        readFile(): FileSystemFileHandle | null;
+        isDirty(): boolean;
+        subscribeLocation(listener: () => void): () => void;
+    } | undefined;
 }
 /** Feature state and workflows are local to one host integration. */
 export function createProjectTools({installEditorExtensionHost, installProjectProperties, createProjectDialogs,
     editorProjectArchives, projectToolsEnabled: PROJECT_TOOLS_ENABLED, manualProjectURIEnabled: MANUAL_PROJECT_URI_ENABLED,
-    readStartupFlags: readWebStartupFeatureFlags, projectLoadState}: ProjectToolsPorts) {
+    readStartupFlags: readWebStartupFeatureFlags, projectLoadState, catalogEnvironment}: ProjectToolsPorts) {
     const projects = new WeakMap();
     const screenStates = new WeakMap<object, ProjectScreenState>();
     const storageFor = document => {
@@ -73,7 +80,13 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
         const dialogs = document?.body ? createProjectDialogs(document, properties, history, diagnostics,
             {locale: settings.locale, getLocale: settings.getLocale}) : null;
         const tools = {dialogs, payloads: 'payloads' in host ? host.payloads : undefined, propertiesEnabled: enabled,
-            projectURIEnabled: MANUAL_PROJECT_URI_ENABLED && host.enabled, properties, projectState: settings.projectState};
+            projectURIEnabled: MANUAL_PROJECT_URI_ENABLED && host.enabled, properties, projectState: settings.projectState,
+            catalog: undefined as ReturnType<typeof createProjectCatalogRuntime> | undefined};
+        const environment = document && catalogEnvironment?.(document);
+        if (environment) tools.catalog = createProjectCatalogRuntime({document, vm, properties, ...environment,
+            report: error => showNotice(document, (settings.getLocale?.() ?? settings.locale ?? 'en').startsWith('ja') ?
+                'プロジェクト履歴を保存できませんでした。' : 'The project history could not be saved.',
+            {locale: settings.getLocale?.() ?? settings.locale ?? 'en'})});
         let lastPhase;
         const unsubscribe = properties.subscribe(() => {
             const state = properties.loadState();
@@ -91,6 +104,7 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
             disposal ??= (async () => {
                 vm.off?.('ASSET_PROGRESS', reportAssets);
                 vm.runtime?.off?.('PROJECT_LOADED', finishProject);
+                tools.catalog?.dispose();
                 unsubscribe(); dialogs?.dispose(); properties.dispose(); diagnostics.dispose(); projects.delete(vm);
                 screenStates.delete(vm);
                 screenState.dispose();
@@ -363,5 +377,9 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
 
     const projectToolsOwnKeyEvent = event => Boolean(event.target?.closest?.('[data-project-tools]'));
 
-    return {installProjectToolsHost, projectScreenState, loadedProjectTitle, restoreProjectTitle, isProjectLoading, subscribeProjectLoad, projectSaveName, setProjectSaveName, createFolderFromCurrentProject, projectFileActions, projectCreation, renderFileMenu, projectToolsOwnKeyEvent};
+    const bindProjectCatalogFolder = (vm: object, ports: CatalogFolderPorts) => projects.get(vm)?.catalog?.bindFolder(ports);
+    const projectCatalog = (vm: object, locale: string, storage: ProjectFileStorage) => projects.get(vm)?.catalog?.show(locale, storage);
+    const projectFileOpened = (vm: object, file: File | null) => projects.get(vm)?.catalog?.fileOpened(file);
+    return {installProjectToolsHost, projectScreenState, loadedProjectTitle, restoreProjectTitle, isProjectLoading, subscribeProjectLoad, projectSaveName, setProjectSaveName, createFolderFromCurrentProject, projectFileActions, projectCreation, renderFileMenu, projectToolsOwnKeyEvent,
+        bindProjectCatalogFolder, projectCatalog, projectFileOpened};
 }

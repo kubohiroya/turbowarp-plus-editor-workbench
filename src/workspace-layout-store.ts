@@ -110,7 +110,8 @@ async function find(database: IDBDatabase, identity: WorkspaceProjectIdentity, s
     const store = transaction.objectStore(layoutsStore);
     const records = identity.kind === 'desktop' ?
         await result(store.index('desktopKey').getAll(identity.key)) as LayoutRecord[] :
-        await result(store.index('name').getAll(identity.name)) as LayoutRecord[];
+        identity.kind === 'anonymous' ? await result(store.index('name').getAll(identity.name)) as LayoutRecord[] :
+            await result(store.getAll()) as LayoutRecord[];
     await finished;
     const candidates = recent(records.filter(record => record.kind === identity.kind));
     if (identity.kind === 'desktop') return candidates[0];

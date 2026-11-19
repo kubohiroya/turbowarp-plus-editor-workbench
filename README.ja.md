@@ -4,6 +4,18 @@ TurboWarp Plus Editor の作業画面。分割レイアウト、Plus 標準配�
 
 このパッケージは 0.3.0 まで `@kubohiroya/turbowarp-plus-editor-layout` として公開していた。
 
+## プロジェクト一覧
+
+`project-catalog` は SB3、手元のフォルダ、ブラウザー保存、リモート Git と作業コピーを共通の登録として扱う。`project-catalog-dialog` と `project-catalog.css` が一覧・並び替え・開く・除外・保存データ削除・2種類の改名を提供する。`project-catalog-host` が既存のファイル保存、作品情報、project-folder と Git の接続口へつなぐ。Editor は `createProjectTools` の `catalogEnvironment` にファイルハンドルの読み取りと変更購読を渡し、`bindProjectCatalogFolder` でフォルダとリモート操作を渡す。`projectFileOpened` は読み込み成功後だけ呼ぶ。
+
+カタログは IndexedDB の `twPlusProjectCatalog` に保存する。作品名を識別子に使わず、ファイルハンドル・OPFS の ID で照合する。同じリモートの別作業コピーは別登録のまま保持する。以前の画面配置に残ったハンドルと既存 OPFS 作品を取り込み、「一覧から除外」した作品は再取り込みで戻さない。最終利用日時は正常に開いた場合だけ更新する。
+
+作品名変更は作品を開き、作品情報を変更して既存の保存経路で書き戻す。保存先名は別操作で、両方を同名に揃える選択もできる。非対応の操作は理由を表示する。ファイル名の変更では `.sb3` を保持し、改名後もハンドルで画面配置を照合する。途中まで成功した場合は、成功した変更を個別に記録する。
+
+一覧からの除外は保存データを消さない。保存データ削除には確認を求め、開いている作品の保存先は先に別作品を開くまで削除しない。GitHub 上のリポジトリ削除は提供しない。GitHub の改名は #681 の対応を必要とする。切り戻す場合は一覧の接続と依存更新を戻し、カタログ・保存データを残す。
+
+対象検証: `npm run build`、`node --test test/project-catalog.test.ts test/workspace-layout-store.test.ts test/project-file-menu.test.ts`、`node --test test/project-catalog.browser.ts`（ヘッドレス）。
+
 ## 分割レイアウト
 
 同じ document 内で「編集領域／ステージ列」と「ステージ／対象領域」の境界を調整する。ホストは `createLayout(React)` に既存の React を渡し、`render` に渡される境界・スタイル・表示サイズを既存コンポーネントに接続する。ホストがストレージとキーを指定し、このパッケージが設定を保存・復元する。

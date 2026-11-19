@@ -87,6 +87,7 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
         newProject?: NewProjectChoices;
         newWindow?: Action;
         open: Action;
+        catalog?: Action;
         externalYaml?: React.ReactNode;
         folder?: FolderActions;
         openRemote?: Action;
@@ -137,6 +138,7 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
         {item(createNew)}
         {e.newWindow && item(['window', ja ? '新しいウィンドウ' : 'New Window', e.newWindow])}
         <MenuSection>
+            {e.catalog && item(['projects', ja ? 'プロジェクト一覧…' : 'Projects…', e.catalog])}
             {item(['open', ja ? 'SB3ファイルを開く…' : 'Open SB3 File…', e.open])}
             {/* Safari and Firefox cannot pick folders on the device; the browser's folders have their own item. */}
             {e.folder && item(['project-folder-open', ja ? 'フォルダを開く…' : 'Open Folder…',
