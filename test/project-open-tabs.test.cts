@@ -125,3 +125,30 @@ test('returning to confirmation reuses the selected incoming File after its tran
     assert.deepEqual(received, ['requested project', 'requested project']);
     assert.equal(outcome.isConnected, false);
 });
+
+test('the URL command runs its input dialog only in the incoming tab', async t => {
+    const {installProjectOpenTabs, bindProjectOpenTabActions, openProjectInNewTab} = await import('../dist/project-open-tabs.js');
+    const Channel = channelClass();
+    const source = environment('https://editor.test/editor.html?lang=ja');
+    source.window.BroadcastChannel = Channel;
+    const options = document => ({document, locale: () => 'ja', ready: () => true,
+        subscribe: () => () => {}, isCancelled: () => false});
+    const original = {runtime: new EventEmitter(), loadProject: assert.fail, quit: assert.fail};
+    const stop = installProjectOpenTabs(original, options(source.window.document));
+    let child, stopChild;
+    let opened;
+    const ready = new Promise(resolve => {opened = resolve;});
+    bindProjectOpenTabActions(original, {commands: {url: assert.fail}});
+    source.window.open = url => {
+        child = environment(url); child.window.BroadcastChannel = Channel;
+        const target = {runtime: new EventEmitter(), loadProject: assert.fail, quit: assert.fail};
+        stopChild = installProjectOpenTabs(target, options(child.window.document));
+        bindProjectOpenTabActions(target, {storage: {finish() {}}, commands: {url: () => {opened();}}});
+        return child.window;
+    };
+    t.after(() => {stop(); stopChild?.(); source.window.close(); child?.window.close();});
+    assert.equal(openProjectInNewTab(original, {kind: 'command', command: 'url'}), true);
+    await ready;
+    assert.equal(source.window.document.querySelector('dialog'), null);
+    assert.equal(child.window.document.querySelector('dialog'), null);
+});

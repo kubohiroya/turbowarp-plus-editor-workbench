@@ -4,7 +4,7 @@ import type {ProjectFileStorage} from './project-file-dialogs.js';
 import {canReturnToPreviousPage, closeProjectLoadFailure, projectStartURL as startURL,
     showProjectLoadFailure} from './project-load-failure.js';
 
-export type ProjectTabCommand = 'folder' | 'browser-folder' | 'remote' | 'catalog';
+export type ProjectTabCommand = 'folder' | 'browser-folder' | 'remote' | 'catalog' | 'url';
 export type ProjectTabRequest = {kind: 'file'; file: File; handle?: FileSystemFileHandle} |
     {kind: 'command'; command: ProjectTabCommand} |
     {kind: 'folder'; directory: FileSystemDirectoryHandle; root?: FileSystemDirectoryHandle};
@@ -91,12 +91,13 @@ function createService(host: object, ports: TabPorts) {
             } else {
                 const command = actions.commands[request.command];
                 if (!command) throw new Error('The requested opening command is unavailable');
-                if (request.command === 'catalog' || request.command === 'remote') {
+                if (request.command === 'catalog' || request.command === 'remote' || request.command === 'url') {
                     await command();
                     return;
                 }
                 const ja = ports.locale().startsWith('ja');
                 const names: Record<ProjectTabCommand, [string, string]> = {
+                    url: ['SB3ファイルのURLを開く', 'Open SB3 File URL'],
                     folder: ['フォルダを選ぶ', 'Choose a folder'],
                     'browser-folder': ['ブラウザーに保存したフォルダを選ぶ', 'Choose a browser folder'],
                     remote: ['Git のリモートリポジトリを選ぶ', 'Choose a Git remote repository'],

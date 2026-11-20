@@ -240,3 +240,14 @@ test('Save Project with no target and no save form stays disabled', async t => {
     const without = await mountMenu(t, 'en');
     assert.equal(without.document.querySelector('[data-command="save"] [role="button"]').getAttribute('aria-disabled'), 'true');
 });
+
+test('the URL command follows the local SB3 command and closes the menu before opening', async t => {
+    let opened = 0;
+    const menu = await mountMenu(t, 'ja', {open() {}, detach() {}}, undefined, {openURL: () => {opened++;}});
+    assert.deepEqual(menu.items.slice(0, 3), [
+        ['open', 'SB3ファイルを開く…'], ['open-url', 'SB3ファイルのURLを開く…'], ['project-folder-open', 'フォルダを開く…']
+    ]);
+    menu.click('open-url');
+    assert.deepEqual(menu.calls, ['close']);
+    assert.equal(opened, 1);
+});
