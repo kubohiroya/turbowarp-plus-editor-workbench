@@ -87,6 +87,7 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
         newProject?: NewProjectChoices;
         newWindow?: Action;
         open: Action;
+        openURL?: Action;
         /** Receives the same creation command as Create New Project, including its destination choices. */
         catalog?: (createProject: Action) => void;
         externalYaml?: React.ReactNode;
@@ -141,6 +142,7 @@ export default function ProjectFileMenu({locale, MenuItem, MenuSection, close, e
         <MenuSection>
             {e.catalog && item(['projects', ja ? 'プロジェクト一覧…' : 'Projects…', () => e.catalog!(createNew)])}
             {item(['open', ja ? 'SB3ファイルを開く…' : 'Open SB3 File…', e.open])}
+            {e.openURL && item(['open-url', ja ? 'SB3ファイルのURLを開く…' : 'Open SB3 File URL…', e.openURL])}
             {/* Safari and Firefox cannot pick folders on the device; the browser's folders have their own item. */}
             {e.folder && item(['project-folder-open', ja ? 'フォルダを開く…' : 'Open Folder…',
                 e.folder.deviceFolders === false ? undefined : e.folder.open, false,

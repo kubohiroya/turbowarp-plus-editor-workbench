@@ -299,3 +299,9 @@ graph flowing LR or TD in the second; each view keeps the order and flow it chos
 in a dialog. With `createFunction(targetId, kind, name)`, an “Add a new function” button below the list and in the bottom left
 corner of the graph asks for a name and makes a standard custom block or a TurboWarp-Plus named function. The dialog calls the host's `mountFunctionEditor`, which owns the code workspace of that
 definition, because this package carries no Scratch Blocks code.
+
+## Open an SB3 file URL
+
+Pass `entries.openURL` to `ProjectFileMenu` to add **Open SB3 File URL…** immediately after **Open SB3 File…**. `openProjectURL(document, locale, ports)` from `./project-url` provides the HTTP(S) URL dialog, download cancellation and retries. The host supplies its VM, file save service, dirty-state check, loaded title, folder detachment and permission-cancellation classification. It uses the installed project loader for size checks, extension approval and progress; only a successful load clears the previous save target. The server must allow CORS access from the Editor.
+
+The Web Editor uses the `url` command of `project-open-tabs` to open the dialog in a separate tab, preserving the original project. Hosts without `entries.openURL` keep their existing menu. Run `npm run build` and `node --test test/project-url.test.ts test/project-file-menu.test.ts test/project-open-tabs.test.cts` for focused validation. Roll back the Editor connection and its Workbench dependency pin.
