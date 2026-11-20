@@ -1,0 +1,127 @@
+const {test} = require('node:test');
+const assert = require('node:assert/strict');
+const {EventEmitter} = require('node:events');
+const {JSDOM} = require('jsdom');
+
+function environment(url) {
+    const dom = new JSDOM('', {url});
+    dom.window.HTMLDialogElement.prototype.showModal = function () {this.open = true;};
+    return dom;
+}
+function channelClass() {
+    const groups = new Map();
+    return class Channel {
+        constructor(name) {this.name=name; if(!groups.has(name))groups.set(name,new Set());groups.get(name).add(this);}
+        postMessage(message) {
+            for(const peer of groups.get(this.name)) if(peer!==this) {
+                const copy=structuredClone(message);
+                queueMicrotask(()=>peer.onmessage?.({data:copy}));
+            }
+        }
+        close(){groups.get(this.name).delete(this);this.onmessage=null;}
+    };
+}
+
+for (const name of ['new.sb3', 'legacy.sb2']) test(`${name}: only the selected incoming file crosses tabs; the original VM is never saved, stopped or loaded`, async t => {
+    const {installProjectOpenTabs,bindProjectOpenTabActions,openProjectInNewTab}=await import('../dist/project-open-tabs.js');
+    const Channel=channelClass();
+    const original=environment('https://editor.test/editor.html?lang=ja&project_url=old#123');
+    original.window.BroadcastChannel=Channel;
+    const vm={runtime:new EventEmitter(),loadProject:assert.fail,saveProjectSb3DontZip:assert.fail,quit:assert.fail};
+    const options=document=>({document,locale:()=> 'ja',ready:()=>true,subscribe:()=>()=>{},isCancelled:()=>false});
+    const dispose=installProjectOpenTabs(vm,options(original.window.document));
+    let target,disposeTarget,received,finished;
+    let done;
+    const completion=new Promise(resolve=>{done=resolve;});
+    original.window.open=url=>{
+        target=environment(url);target.window.BroadcastChannel=Channel;
+        const next={runtime:new EventEmitter(),async loadProject(input){received=new TextDecoder().decode(input);next.runtime.emit('PROJECT_LOADED');}};
+        disposeTarget=installProjectOpenTabs(next,options(target.window.document));
+        bindProjectOpenTabActions(next,{storage:{finish(...args){finished=args;done();}},commands:{}});
+        return target.window;
+    };
+    t.after(()=>{dispose();disposeTarget?.();original.window.close();target?.window.close();});
+    const file=new File(['new project bytes'],name);
+    const handle={kind:'file',name};
+    assert.equal(openProjectInNewTab(vm,{kind:'file',file,handle}),true);
+    await completion;
+    assert.equal(received,'new project bytes');
+    assert.deepEqual(finished,[name.endsWith('.sb3') ? handle : null,name.split('.')[0],true]);
+    assert.equal(original.window.location.href,'https://editor.test/editor.html?lang=ja&project_url=old#123');
+    assert.equal(target.window.opener,null);
+    assert.equal(new URL(target.window.location.href).searchParams.has('project_url'),false);
+    assert.equal(new URL(target.window.location.href).searchParams.has('twPlusOpenTab'),false);
+});
+
+test('a blocked popup offers an explicit retry or cancel and never falls back to replacing the original', async t => {
+    const {installProjectOpenTabs,openProjectInNewTab}=await import('../dist/project-open-tabs.js');
+    const dom=environment('https://editor.test/editor.html');dom.window.BroadcastChannel=channelClass();
+    dom.window.open=()=>null;
+    const vm={runtime:new EventEmitter(),loadProject:assert.fail,saveProjectSb3DontZip:assert.fail,quit:assert.fail};
+    const dispose=installProjectOpenTabs(vm,{document:dom.window.document,locale:()=> 'ja',ready:()=>true,
+        subscribe:()=>()=>{},isCancelled:()=>false});
+    t.after(()=>{dispose();dom.window.close();});
+    assert.equal(openProjectInNewTab(vm,{kind:'file',file:new File(['new'],'new.sb3')}),true);
+    const buttons=[...dom.window.document.querySelectorAll('dialog button')];
+    assert.deepEqual(buttons.map(button=>button.textContent),['新しいタブで開く','キャンセル']);
+    buttons[1].click();
+    assert.equal(dom.window.document.querySelector('dialog'),null);
+    assert.equal(dom.window.location.href,'https://editor.test/editor.html');
+});
+
+test('direct startup does not invent a preceding history entry and cancellation keeps its main result', async t => {
+    const {installProjectOpenTabs, cancelProjectTabOpening} = await import('../dist/project-open-tabs.js');
+    const dom = environment('https://editor.test/editor.html?lang=ja&project_url=failed');
+    const vm = {runtime: new EventEmitter(), loadProject: assert.fail};
+    let backs = 0; dom.window.history.back = () => {backs++;};
+    const dispose = installProjectOpenTabs(vm, {document: dom.window.document, locale: () => 'ja',
+        ready: () => true, subscribe: () => () => {}, isCancelled: () => true});
+    t.after(() => {dispose(); dom.window.close();});
+    assert.equal(dom.window.history.length, 1);
+    assert.equal(cancelProjectTabOpening(dom.window.document), true);
+    assert.equal(backs, 0);
+    const result = dom.window.document.querySelector('[data-testid="project-load-failure"]');
+    assert.ok(result);
+    const buttons = [...result.querySelectorAll('button')];
+    assert.equal(buttons.find(button => button.textContent === '前の画面に戻る').disabled, true);
+    assert.equal(buttons.find(button => button.textContent === '確認画面に戻る').disabled, false);
+});
+
+test('returning to confirmation reuses the selected incoming File after its transfer channel has closed', async t => {
+    const {installProjectOpenTabs, bindProjectOpenTabActions, openProjectInNewTab} = await import('../dist/project-open-tabs.js');
+    const Channel = channelClass();
+    const source = environment('https://editor.test/editor.html?lang=ja');
+    source.window.BroadcastChannel = Channel;
+    const options = document => ({document, locale: () => 'ja', ready: () => true,
+        subscribe: () => () => {}, isCancelled: error => error.code === 'CANCELLED'});
+    const vm = {runtime: new EventEmitter(), loadProject: assert.fail, saveProjectSb3DontZip: assert.fail};
+    const dispose = installProjectOpenTabs(vm, options(source.window.document));
+    let target, disposeTarget, closeTarget;
+    const received = [];
+    let finished;
+    source.window.open = url => {
+        target = environment(url); closeTarget = target.window.close.bind(target.window);
+        target.window.close = () => {}; // Some embedded browsers refuse script-initiated tab closing.
+        target.window.BroadcastChannel = Channel;
+        const next = {runtime: new EventEmitter(), async loadProject(bytes) {
+            received.push(new TextDecoder().decode(bytes));
+            if (received.length === 1) throw Object.assign(new Error('Declined'), {code: 'CANCELLED'});
+            next.runtime.emit('PROJECT_LOADED');
+        }};
+        disposeTarget = installProjectOpenTabs(next, options(target.window.document));
+        bindProjectOpenTabActions(next, {storage: {finish() {finished = true;}}, commands: {}});
+        return target.window;
+    };
+    t.after(() => {dispose(); disposeTarget?.(); source.window.close(); closeTarget?.();});
+    openProjectInNewTab(vm, {kind: 'file', file: new File(['requested project'], 'new.sb3')});
+    for (let i = 0; i < 100 && !target.window.document.querySelector('[data-testid="project-load-failure"]'); i++) {
+        await new Promise(resolve => setImmediate(resolve));
+    }
+    const outcome = target.window.document.querySelector('[data-testid="project-load-failure"]');
+    assert.ok(outcome);
+    [...outcome.querySelectorAll('button')].find(button => button.textContent === '確認画面に戻る').click();
+    for (let i = 0; i < 100 && !finished; i++) await new Promise(resolve => setImmediate(resolve));
+    assert.equal(finished, true);
+    assert.deepEqual(received, ['requested project', 'requested project']);
+    assert.equal(outcome.isConnected, false);
+});
