@@ -207,13 +207,13 @@ export function ProjectInfoMenu({
             <a className="tw-info-menu__entry" href={sourceUrl}
                 target="_blank" rel="noreferrer" title={newTabLabel} onClick={close}>
                 <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d={githubPath} /></svg>
-                {japanese ? 'ソースコード' : 'Source code'}
+                {japanese ? 'TurboWarp-Plusのソースコード' : 'TurboWarp-Plus source code'}
                 {newTabIcon}
             </a>
             <a className="tw-info-menu__entry" href="credits.html" target="_blank" rel="noreferrer"
                 title={newTabLabel} onClick={close}>
                 <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d={licensePath} /></svg>
-                {japanese ? 'ライセンスとクレジット' : 'Licenses and credits'}
+                {japanese ? 'TurboWarpのライセンスとクレジット' : 'TurboWarp licenses and credits'}
                 {newTabIcon}
             </a>
         </nav>
