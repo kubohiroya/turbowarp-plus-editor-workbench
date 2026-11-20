@@ -4,10 +4,12 @@ import {contactLink, descriptionParts} from './links.js';
 import {diagnosticText} from './diagnostics.js';
 import {renderBundleAssetForm, renderPayloadForm} from '../project-payload-forms.js';
 import {isValidSaveName} from '../project-file-dialogs.js';
+import {closeProjectLoadFailure, showProjectLoadFailure} from '../project-load-failure.js';
 
 /** Presentation is supplied by the host's CSS Modules build. */
-export function createProjectDialogService({styles, snackbarStyles}: {
+export function createProjectDialogService({styles, snackbarStyles, isCancelled = () => false}: {
     styles: Record<string, string>; snackbarStyles: Record<string, string>;
+    isCancelled?: (error: unknown) => boolean;
 }) {
     const element = <Tag extends keyof HTMLElementTagNameMap>(document: Document, tag: Tag, text?: string, attributes: Record<string, string> = {}) => {
         const node = document.createElement(tag);
@@ -47,7 +49,7 @@ export function createProjectDialogService({styles, snackbarStyles}: {
         };
         const unsubscribe = properties.subscribe(() => {
             // A form must never apply an old project's draft to the newly opened project.
-            if (properties.loadState().phase === 'loading') close();
+            if (properties.loadState().phase === 'loading') {close(); closeProjectLoadFailure(document);}
         });
         const stopNotice = diagnostics?.subscribe(() => {
             const sessions = diagnostics.snapshot();
@@ -59,6 +61,12 @@ export function createProjectDialogService({styles, snackbarStyles}: {
             notice?.remove();
             const locale = getLocale?.() || hostLocale || document.documentElement.lang || 'en';
             const ja = locale.startsWith('ja');
+            if (error.type === 'project-error') {
+                notice = null;
+                showProjectLoadFailure(document, {locale, cancelled: isCancelled(error),
+                    onDetails: () => api.showDiagnostics(locale, sessions[0].id)});
+                return;
+            }
             notice = element(document, 'aside', undefined, {class: snackbarStyles.snackbar, 'data-project-tools': '',
                 'data-testid': 'project-diagnostics-snackbar'});
             const message = error.type === 'project-error' ?
@@ -332,7 +340,7 @@ export function createProjectDialogService({styles, snackbarStyles}: {
                 render(); dialog.showModal(); done.focus();
             },
             ownsKeyEvent: event => Boolean(event.target?.closest?.('[data-project-tools]')),
-            dispose () { unsubscribe(); stopNotice?.(); notice?.remove(); close(); }
+            dispose () { unsubscribe(); stopNotice?.(); notice?.remove(); close(); closeProjectLoadFailure(document); }
         };
         return api;
     };

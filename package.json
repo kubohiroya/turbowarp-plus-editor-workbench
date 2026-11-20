@@ -1,6 +1,6 @@
 {
   "name": "@kubohiroya/turbowarp-plus-editor-workbench",
-  "version": "0.29.1",
+  "version": "0.30.0",
   "description": "The TurboWarp Plus Editor workbench: layout, dockable sprite tabs, stage, debugger tab and file menu",
   "type": "module",
   "license": "MPL-2.0",
@@ -153,6 +153,14 @@
     "./project-tools": {
       "types": "./dist/project-tools/integration.d.ts",
       "default": "./dist/project-tools/integration.js"
+    },
+    "./project-open-tabs": {
+      "types": "./dist/project-open-tabs.d.ts",
+      "default": "./dist/project-open-tabs.js"
+    },
+    "./project-load-failure": {
+      "types": "./dist/project-load-failure.d.ts",
+      "default": "./dist/project-load-failure.js"
     },
     "./project-folder-workflows": {
       "types": "./dist/project-folder-workflows.d.ts",
