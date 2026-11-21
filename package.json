@@ -101,6 +101,10 @@
       "types": "./dist/project-size-approval.d.ts",
       "default": "./dist/project-size-approval.js"
     },
+    "./project-payload-approval": {
+      "types": "./dist/project-payload-approval.d.ts",
+      "default": "./dist/project-payload-approval.js"
+    },
     "./project-title": {
       "types": "./dist/project-title.d.ts",
       "default": "./dist/project-title.js"

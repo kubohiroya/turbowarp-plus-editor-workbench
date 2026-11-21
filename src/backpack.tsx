@@ -31,7 +31,8 @@ const messages = {
         dock: 'Dock Backpack',
         drag: 'Drag script to code',
         blocked: 'Could not open Backpack window',
-        copyFailed: 'Could not copy Backpack script'
+        copyFailed: 'Could not copy Backpack script',
+        reveal: 'Reveal Backpack'
     },
     ja: {
         undock: 'バックパックをブラウザーの別ウィンドウで開く',
@@ -43,9 +44,14 @@ const messages = {
         dock: 'バックパックを元の位置に戻す',
         drag: 'スクリプトをコードへドラッグ',
         blocked: 'バックパックのウィンドウを開けませんでした',
-        copyFailed: 'バックパックのスクリプトをコピーできませんでした'
+        copyFailed: 'バックパックのスクリプトをコピーできませんでした',
+        reveal: 'バックパックを展開'
     }
 };
+
+/** The label of the drawer that holds the Backpack at the bottom of the Plus layout. */
+export const backpackRevealLabel = (locale: string | undefined) =>
+    (/^ja(?:-|$)/i.test(locale || '') ? messages.ja : messages.en).reveal;
 
 // The GUI uses React 16, which has no hook for external stores (added in React 18).
 function useLostWindow(recovery: SurfaceRecovery | null | undefined, id: string) {

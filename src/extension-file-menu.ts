@@ -28,6 +28,16 @@ export function renderExtensionFileMenu({locale = 'en', MenuSection, MenuItem, o
         }, /^ja(?:-|$)/i.test(locale) ? '機能拡張の追加' : 'Add Extension')));
 }
 
+/**
+ * The GUI's extension library title, worded for adding extensions to the open project.
+ * The host merges these into the GUI's translations.
+ */
+export const extensionLibraryTranslations: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+    en: {'gui.extensionLibrary.chooseAnExtension': 'Add Extensions to the Project'},
+    ja: {'gui.extensionLibrary.chooseAnExtension': '機能拡張を作品に追加する'},
+    'ja-hira': {'gui.extensionLibrary.chooseAnExtension': 'かくちょうきのうをさくひんについかする'}
+};
+
 const glyphs = {
     new: 'M5 3h9l5 5v13H5z M14 3v5h5 M9 14h6 M12 11v6',
     window: 'M3 5h18v14H3z M3 9h18 M9 14h6 M12 11v6',
