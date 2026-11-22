@@ -62,6 +62,10 @@
       "types": "./dist/project-url.d.ts",
       "default": "./dist/project-url.js"
     },
+    "./workspace-navigation": {
+      "types": "./dist/workspace-navigation.d.ts",
+      "default": "./dist/workspace-navigation.js"
+    },
     "./project-file-menu": {
       "types": "./dist/project-file-menu.d.ts",
       "default": "./dist/project-file-menu.js"

@@ -337,6 +337,8 @@ Editor 独自実装の移管元とライセンス確認は [EDITOR-MIGRATION.md]
 Fileメニューの「SB3ファイルを開く…」の直下に「SB3ファイルのURLを開く…」を表示するには、`ProjectFileMenu` の `entries.openURL` を渡す。
 `./project-url` の `openProjectURL(document, locale, ports)` はHTTP(S) URLの入力、取得、キャンセル、エラーと再試行を担当する。ホストはVM、保存サービス、未保存変更の判定、保存済みの作品名、フォルダ接続の解除、許可確認のキャンセル判定を渡す。
 
+`./project-url` の `fetchProjectUrl(url, fetch?)` は、入力された URL を取得する。Scratch の作品ページ（`scratch.mit.edu/projects/<id>`）は Scratch の作品 API から、GitHub の紙芝居のリリースは CORS で配れる Pages の写しから先に取り、だめなら入力どおりに取得する。`./workspace-navigation` は、コード領域の操作部品（横方向のズーム、Code Views のミニマップ、コスチュームのサムネイル）を、浮いたステージを避けて配置する（`attachWorkspaceNavigation`）。Git のレビューのプレビューでも同じ配置にする（`attachReviewNavigation`・`attachCodePreviewMinimap`）。
+
 取得中はキャンセルできる。取得後に未保存変更を確認し、VMの既存の読み込み処理を呼ぶため、作品サイズ・拡張機能の許可確認と進捗表示を再利用できる。読み込み中の中断は既存の確認フローに任せる。成功時だけ以前のフォルダとの接続を解除し、ローカル保存先のない作品として扱う。元のURLへ上書き保存は行わない。配信元はEditorからのCORSアクセスを許可する必要がある。
 
 Web Editorは `project-open-tabs` の `url` コマンドで別タブのURL入力を開き、元の作品を保持する。URLコマンドが渡されないホストのメニューは従来どおり。検証は `npm run build` と `node --test test/project-url.test.ts test/project-file-menu.test.ts test/project-open-tabs.test.cts`。切戻しはEditorのURLコマンド接続を外し、Workbenchの固定版を直前版へ戻す。
