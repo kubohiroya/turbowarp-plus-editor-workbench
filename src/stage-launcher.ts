@@ -70,11 +70,12 @@ export interface StageDockAction {
 }
 
 interface MenuItem {
-    id: StageMode;
+    id: string;
     label: string;
-    current: boolean;
-    disabled: boolean;
-    icon: React.ReactNode;
+    current?: boolean;
+    disabled?: boolean;
+    icon?: React.ReactNode;
+    separatorBefore?: boolean;
     onSelect?(): void;
 }
 
@@ -82,6 +83,12 @@ export interface StageLauncherOptions {
     mount: HTMLElement;
     styles: Record<string, string>;
     MenuButton: ComponentType<{label: string; icon: React.ReactNode; items: MenuItem[]; className: string; disabled?: boolean}>;
+    /**
+     * Items another package adds to the ▼ menu, such as one that opens its own view. They follow the placements after a
+     * separator, in the menu's language. With such items the menu stays open to them while the run view is shown,
+     * when the placements themselves are disabled; in full screen it stays disabled.
+     */
+    menuItems?(locale: string): MenuItem[];
 }
 
 interface StageLauncherProps {
@@ -128,6 +135,11 @@ export function StageLauncher({locale, options, dockAction, tab, drawerOpen, sav
     for (const target of modes) {
         if (!disabled && available[target]) actions[target] = () => activate(target);
     }
+    const added = options.menuItems?.(locale) ?? [];
+    const items: MenuItem[] = [
+        ...stagePresentationItems(locale, mode ?? (drawerSelected ? 'drawer' : null), actions),
+        ...added.map((item, index) => index === 0 ? {...item, separatorBefore: true} : item)
+    ];
     return element('div', {className: styles.stageLauncher},
             element('button', {
                 type: 'button',
@@ -135,7 +147,7 @@ export function StageLauncher({locale, options, dockAction, tab, drawerOpen, sav
                 disabled,
                 onClick: () => activate(defaultTarget)
             }, text.open),
-            element(MenuButton, {label: text.menu, icon: '▾', disabled,
-                className: `${styles.stageLauncherMenu} ${styles.stagePresentationMenu}`,
-                items: stagePresentationItems(locale, mode ?? (drawerSelected ? 'drawer' : null), actions)}));
+            element(MenuButton, {label: text.menu, icon: '▾',
+                disabled: Boolean(editorFullscreen) || (disabled && added.length === 0),
+                className: `${styles.stageLauncherMenu} ${styles.stagePresentationMenu}`, items}));
 }
