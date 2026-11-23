@@ -253,6 +253,10 @@ With a Japanese, Chinese or Korean IME on, the browser reports the key the IME t
 
 The panes inside a sprite editing tab (assets and variables, messages, the properties form and the section toolbar) now live in `@kubohiroya/turbowarp-plus-editor-sprite-panes`; this package arranges them into tabs and splits. The window components, which came from the source of the previous release archive at `b0390c3`, now live in `@kubohiroya/turbowarp-plus-editor-windows`. The extraction kept the upstream Scratch GUI implementation in its original repository, so this package carries no GPL code and imports no GPL module. It is licensed MPL-2.0, which the GPL-3.0 Editor can still bundle because MPL-2.0 treats the GPL as a Secondary License. The source files carry no “Incompatible With Secondary Licenses” notice, and must not: that notice would make the package unusable in the Editor.
 
+## Run view menu
+
+`createStageDisplayMenu` from `./stage-display-menu` builds the ▼ menu of the run view button on the menu bar: the placement, the size presets, full screen and the separate window. Another package can add its own items, such as one that opens its own view, by passing `menuItems(locale)`. The items follow the menu's own after a separator, in the menu's language, and only in the editor: the menu of a separate window and the full screen menu keep their own items. The workbench does not know what the items do.
+
 ## Debugger tab
 
 `attachDebuggerPanel(debugger, {document, vm})` opens the debugger add-on's window as a Dockview tab. The host passes the add-on's window element, the add-on's own visibility setter, and a function returning the GUI's language. While the workspace takes panels the debugger opens as a "Debugger" tab, and closing either the tab or the debugger closes the other. Otherwise it stays the floating window it was. The tab is transient and is left out of the saved layout.
