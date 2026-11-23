@@ -7,12 +7,17 @@ import {stageDockActionLabel, stageDrawerPinItem, stagePresentationItems,
     useStageDocumentFullscreen} from './stage-surface.ts';
 
 export function createStageDisplayMenu({WindowLayoutContext, StageDisplayMenuContext, layoutFlags, styles,
-    workbenchStyles, fullscreenIcon, exitFullscreenIcon, connectFullscreen, fullscreenMount}: {
+    workbenchStyles, fullscreenIcon, exitFullscreenIcon, connectFullscreen, fullscreenMount, menuItems}: {
     WindowLayoutContext: React.Context<any>; StageDisplayMenuContext: React.Context<any>;
     layoutFlags: {stageDisplayMenu: boolean}; styles: Record<string, string>; workbenchStyles: Record<string, string>;
     fullscreenIcon: string; exitFullscreenIcon: string;
     connectFullscreen(component: React.ComponentType<any>): React.ComponentType<any>;
     fullscreenMount(header: HTMLElement): HTMLElement | null;
+    /**
+     * Items another package adds to the menu, such as one that opens its own view. They follow the menu's own
+     * items after a separator, in the editor only: not in a separate window or in full screen.
+     */
+    menuItems?(locale: string): IconMenuItem[];
 }) {
     const stageLayoutIcon = (
         <svg viewBox="-4 -4 24 24" fill="none" stroke="currentColor" strokeWidth="1.4"
@@ -42,6 +47,11 @@ export function createStageDisplayMenu({WindowLayoutContext, StageDisplayMenuCon
             <path d={returning ? 'M12.5 3.5 7 9m0-4v4h4' : 'M8 3h5v5m0-5L7 9'} />
         </svg>;
     }
+
+    const withMenuItems = (locale: string, items: IconMenuItem[]): IconMenuItem[] => {
+        const added = menuItems?.(locale) ?? [];
+        return added.length ? [...items, {...added[0], separatorBefore: true}, ...added.slice(1)] : items;
+    };
 
     function StageLayoutMenu({locale, items, className = ''}: {locale: string; items: IconMenuItem[]; className?: string}) {
         return <IconMenuButton label={menuLabel(locale)} icon={stageLayoutIcon} items={items}
@@ -128,9 +138,9 @@ export function createStageDisplayMenu({WindowLayoutContext, StageDisplayMenuCon
                     strokeLinecap="round" aria-hidden="true"><path d="m4.5 4.5 7 7m0-7-7 7" /></svg>,
                 onSelect: inTab ? stage.commands.close : () => closeDrawer?.current?.()
             };
-            return <StageLayoutMenu locale={locale} items={[
+            return <StageLayoutMenu locale={locale} items={withMenuItems(locale, [
                 ...placement, {...enterFullscreen, separatorBefore: true}, ...items, close
-            ]} />;
+            ])} />;
         }
         if (drawerPin) items.push(drawerPin);
         items.push(japanese ? enterFullscreen : {...enterFullscreen, label: fullscreen.title});
@@ -168,7 +178,8 @@ export function createStageDisplayMenu({WindowLayoutContext, StageDisplayMenuCon
                 dockAction.dock();
             } : openWindow
         });
-        return <StageLayoutMenu locale={locale} items={items} className={stageHidden ? styles.visibleWhenStageHidden : undefined} />;
+        return <StageLayoutMenu locale={locale} items={withMenuItems(locale, items)}
+            className={stageHidden ? styles.visibleWhenStageHidden : undefined} />;
     }
 
     const StageDisplayMenu = layoutFlags.stageDisplayMenu ? DisplayMenu : undefined;
