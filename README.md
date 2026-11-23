@@ -257,6 +257,8 @@ The panes inside a sprite editing tab (assets and variables, messages, the prope
 
 `createStageDisplayMenu` from `./stage-display-menu` builds the ▼ menu of the run view button on the menu bar: the placement, the size presets, full screen and the separate window. Another package can add its own items, such as one that opens its own view, by passing `menuItems(locale)`. The items follow the menu's own after a separator, in the menu's language, and only in the editor: the menu of a separate window and the full screen menu keep their own items. The workbench does not know what the items do.
 
+The run view launcher on the menu bar (`StageLauncher`, with the button that opens the run view and its ▼ menu of placements) takes the same `menuItems(locale)` in its options. While the run view is shown its placements are disabled; with added items the ▼ menu stays open to those items instead of being disabled as a whole. In full screen it stays disabled.
+
 ## Debugger tab
 
 `attachDebuggerPanel(debugger, {document, vm})` opens the debugger add-on's window as a Dockview tab. The host passes the add-on's window element, the add-on's own visibility setter, and a function returning the GUI's language. While the workspace takes panels the debugger opens as a "Debugger" tab, and closing either the tab or the debugger closes the other. Otherwise it stays the floating window it was. The tab is transient and is left out of the saved layout.
