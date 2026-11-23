@@ -26,7 +26,7 @@ export function createStageDisplayMenu({WindowLayoutContext, StageDisplayMenuCon
     }
 
     const isJapanese = locale => /^ja(?:-|$)/i.test(locale);
-    const menuLabel = locale => isJapanese(locale) ? 'ステージの表示' : 'Stage display';
+    const menuLabel = locale => isJapanese(locale) ? '実行画面の表示' : 'Run view display';
 
     function fullscreenItem(locale: string, active: boolean, onSelect: () => void, disabled = false): IconMenuItem {
         const label = active ? (isJapanese(locale) ? '全画面表示を終了' : 'Exit full screen mode') :
@@ -65,8 +65,8 @@ export function createStageDisplayMenu({WindowLayoutContext, StageDisplayMenuCon
             React.useContext(WindowLayoutContext);
         const japanese = isJapanese(locale);
         const canToggleVisibility = plusLayout && (!dockAction || dockAction.kind === 'docked');
-        const visibilityLabel = stageHidden ? (japanese ? 'ステージを表示' : 'Show stage') :
-            (japanese ? 'ステージを隠す' : 'Hide stage');
+        const visibilityLabel = stageHidden ? (japanese ? '実行画面を表示' : 'Show run view') :
+            (japanese ? '実行画面を隠す' : 'Hide run view');
         const detached = dockAction?.kind === 'external';
         const popupDocument = detached ? dockAction.mount?.ownerDocument : undefined;
         const popupFullscreen = useStageDocumentFullscreen(popupDocument);

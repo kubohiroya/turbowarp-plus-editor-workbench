@@ -22,7 +22,7 @@ export function createStagePanel({WindowLayoutContext, StageDisplayMenuContext, 
         const {stageDrawer, stageHidden, stageResize, locale} = React.useContext(WindowLayoutContext);
         const fit = floating || workspace;
         const resizable = !fit && !isFullScreen && stageResize;
-        const resizeLabel = /^ja(?:-|$)/i.test(locale) ? 'ステージのサイズを変更' : 'Resize stage';
+        const resizeLabel = /^ja(?:-|$)/i.test(locale) ? '実行画面のサイズを変更' : 'Resize run view';
         const viewport = React.useRef(null);
         const header = React.useRef(null);
         const [fullscreenHeader, setFullscreenHeader] = React.useState<HTMLElement>();
