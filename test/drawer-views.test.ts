@@ -232,3 +232,24 @@ test('the saved view is restored and falls back to the sprite list while unavail
     assert.ok(document.querySelector('[data-history]'));
     assert.equal(button('AI agents')!.getAttribute('aria-haspopup'), 'menu');
 });
+
+test('the stage tile in the sprite list names the stage, not its backdrops', async t => {
+    for (const [locale, name] of [['ja', 'ステージ'], ['en-US', 'Stage'], ['de', 'Bühnenbilder']]) {
+        const dom = new JSDOM('<main></main>', {pretendToBeVisual: true});
+        const globals = {window: dom.window, document: dom.window.document, IS_REACT_ACT_ENVIRONMENT: true};
+        Object.assign(globalThis, globals);
+        const React = await import('react');
+        const {createRoot} = await import('react-dom/client');
+        const {createStandardLayout} = await import('../src/standard-layout.ts');
+        const styles = new Proxy({}, {get: (_, key) => String(key)});
+        const context = React.createContext({locale});
+        const {BackdropTile} = createStandardLayout(React, {styles, targetStyles: styles, context, LayoutMenu: () => null});
+        const root = createRoot(dom.window.document.querySelector('main')!);
+        // Scratch GUI passes its own label, which other locales keep.
+        React.act(() => root.render(React.createElement(BackdropTile, {label: 'Bühnenbilder', selected: false})));
+        assert.equal(dom.window.document.querySelector('button')?.textContent, name, locale);
+        React.act(() => root.unmount());
+        dom.window.close();
+        for (const key of Object.keys(globals)) Reflect.deleteProperty(globalThis, key);
+    }
+});

@@ -477,6 +477,16 @@ export function createStandardLayout(React, {styles, targetStyles, context, Layo
         return element('div', {className: styles.targetListContent}, content);
     }
 
+    /**
+     * The tile of the stage, which owns scripts, variables and sounds. Scratch GUI labels it with its backdrop images
+     * ("Backdrops"), so name the stage itself in the locales this product words.
+     */
+    function StageTile(props) {
+        const locale = useContext(context)?.locale ?? '';
+        const label = isJapanese(locale) ? 'ステージ' : /^en(?:-|$)/i.test(locale) ? 'Stage' : props.label;
+        return element(targets.BackdropTile, {...props, label});
+    }
+
     function BackdropActions({compact, buttons, children}) {
         const {plusLayout, locale} = useContext(context);
         if (!plusLayout && !compact) return children;
@@ -584,5 +594,5 @@ export function createStandardLayout(React, {styles, targetStyles, context, Layo
         };
     }
 
-    return {StandardLayout, EdgeDrawer, TargetLayout, useSpriteListTools, TargetSearchProvider: targetSearch.Provider, SpriteGrid, SpriteListContent, BackdropTile: targets.BackdropTile, BackdropActions, SpritePropertiesSection};
+    return {StandardLayout, EdgeDrawer, TargetLayout, useSpriteListTools, TargetSearchProvider: targetSearch.Provider, SpriteGrid, SpriteListContent, BackdropTile: StageTile, BackdropActions, SpritePropertiesSection};
 }

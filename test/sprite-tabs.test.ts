@@ -127,7 +127,7 @@ test('a project with many sprites opens them as tabs in one group, not as split 
     }
 });
 
-test('the backdrop tab uses the editor locale and sprite tabs keep their names', t => {
+test('the stage tab uses the editor locale and sprite tabs keep their names', t => {
     const document = setupDom(t);
     const root = document.querySelector('main');
     const content = document.createElement('div');
@@ -141,7 +141,7 @@ test('the backdrop tab uses the editor locale and sprite tabs keep their names',
             this.emit('targetsUpdate');
         }
     });
-    for (const [locale, title] of [['ja-JP', '背景'], ['en', 'Backdrops']]) {
+    for (const [locale, title] of [['ja-JP', 'ステージ'], ['en', 'Stage']]) {
         vm.editingTarget = sprite;
         const controller = mountSpriteTabs(root, content, {
             vm, locale, getSection: () => 0, activateSection() {}, selectTarget() {}, resize() {}, reopenLabel: 'Reopen'

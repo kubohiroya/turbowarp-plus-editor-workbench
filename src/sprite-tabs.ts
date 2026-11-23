@@ -302,8 +302,8 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
     const document = root.ownerDocument;
     const japanese = /^ja(?:-|$)/i.test(locale);
     const editLabel = japanese ? 'クリックしてこのビューで編集' : 'Activate this view to edit';
-    const backdropTitle = japanese ? '背景' : 'Backdrops';
-    const baseTitle = (target: Target) => target.isStage ? backdropTitle : target.getName();
+    const stageTitle = japanese ? 'ステージ' : 'Stage';
+    const baseTitle = (target: Target) => target.isStage ? stageTitle : target.getName();
     const numberedTitle = (target: Target, number: number) => `${baseTitle(target)}(${number})`;
     const tabTitle = ({target, number}: View<Snapshot>) => number ? numberedTitle(target, number) : baseTitle(target);
     const chipText = japanese ?
