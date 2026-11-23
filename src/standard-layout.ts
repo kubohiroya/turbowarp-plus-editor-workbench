@@ -212,8 +212,8 @@ export function createStandardLayout(React, {styles, targetStyles, context, Layo
             ...props,
             enabled: splitter && !plusLayout,
             labels: {
-                columns: japanese ? '編集領域とステージ列の幅' : 'Editor and stage column width',
-                rows: japanese ? 'ステージと対象領域の高さ' : 'Stage and target pane height'
+                columns: japanese ? '編集領域と実行画面の列の幅' : 'Editor and run view column width',
+                rows: japanese ? '実行画面と対象領域の高さ' : 'Run view and target pane height'
             },
             minimumEditor: 500,
             minimumStageColumn: 350,

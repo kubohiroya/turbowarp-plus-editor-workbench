@@ -169,14 +169,14 @@ test('the menu bar launcher opens the stage drawer without an initial edge handl
         dom.window.close();
         for (const key of Object.keys(globals)) Reflect.deleteProperty(globalThis, key);
     });
-    const handle = () => dom.window.document.querySelector('[aria-label="ステージを展開"]');
+    const handle = () => dom.window.document.querySelector('[aria-label="実行画面を展開"]');
 
     act(() => root.render(React.createElement(StageSurface)));
     assert.ok(handle(), 'the drawer keeps its own handle without a launcher');
 
     act(() => root.render(React.createElement(StageSurface, {launcher: {mount: nav, styles, MenuButton}})));
     assert.equal(handle()?.outerHTML, undefined);
-    assert.match(nav.textContent ?? '', /ステージを開く/);
+    assert.match(nav.textContent ?? '', /実行画面を開く/);
     const [open, options] = nav.querySelectorAll('button');
     assert.equal(open.disabled, false, 'the launcher can open the drawer without a separate window host');
     assert.equal(options.disabled, false);

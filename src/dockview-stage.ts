@@ -61,7 +61,7 @@ export function useDockviewStage(enabled: boolean, locale: string) {
 
     const japanese = /^ja(?:-|$)/i.test(locale);
     const pane = React.useMemo<DockviewStagePane>(() => ({
-        title: japanese ? 'ステージ' : 'Stage',
+        title: japanese ? '実行画面' : 'Run view',
         attach(destination) {
             dock.current = destination;
             move();
@@ -79,7 +79,7 @@ export function useDockviewStage(enabled: boolean, locale: string) {
     }), [japanese, move, restoreDrawer, drawerListeners]);
     return surface && {
         surface, pane, docked, commands, inlineRef, suspend, drawerLayout, updateDrawer, resetDrawerPresentation,
-        openLabel: japanese ? 'ステージをタブで開く' : 'Open stage in workspace',
-        closeLabel: japanese ? 'ステージを元の位置に戻す' : 'Return stage from workspace'
+        openLabel: japanese ? '実行画面をタブで開く' : 'Open run view in workspace',
+        closeLabel: japanese ? '実行画面を元の位置に戻す' : 'Return run view from workspace'
     };
 }

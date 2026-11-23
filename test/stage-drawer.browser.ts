@@ -4,7 +4,7 @@ import {chromium, expect} from '@playwright/test';
 import type {Page} from '@playwright/test';
 
 const preview = process.env.TW_PLUS_LAYOUT_EDITOR_URL;
-const displayMenu = (page: Page) => page.getByRole('button', {name: 'ステージの表示', exact: true});
+const displayMenu = (page: Page) => page.getByRole('button', {name: '実行画面の表示', exact: true});
 const frame = (page: Page) => page.locator('[data-plus-stage-frame]');
 const canvas = (page: Page) => frame(page).locator('[data-gui-stage] canvas').first();
 
@@ -17,7 +17,7 @@ test('the stage drawer stays open during source selection and releases when the 
         url.searchParams.set('lang', 'en');
         await page.goto(url.href);
 
-        const drawer = page.getByRole('button', {name: 'Reveal stage', exact: true});
+        const drawer = page.getByRole('button', {name: 'Reveal run view', exact: true});
         const title = page.getByRole('textbox', {name: 'Project title here'});
         const chooser = page.locator('[data-turbowarp-app-shell-source-chooser]');
         for (const close of ['hide', 'remove']) {
@@ -58,7 +58,7 @@ test('the default stage opens from the right edge and docks back from a real Doc
         url.searchParams.set('lang', 'ja');
         await page.goto(url.href);
 
-        const drawer = page.getByRole('button', {name: 'ステージを展開', exact: true});
+        const drawer = page.getByRole('button', {name: '実行画面を展開', exact: true});
         await expect(drawer).toHaveAttribute('aria-expanded', 'false');
         await expect(canvas(page)).toBeHidden();
         const rightEdge = await drawer.boundingBox();
@@ -83,7 +83,7 @@ test('the default stage opens from the right edge and docks back from a real Doc
             }
         });
 
-        const openItem = page.getByRole('menuitem', {name: 'ステージを別ウィンドウで開く', exact: true});
+        const openItem = page.getByRole('menuitem', {name: '実行画面を別ウィンドウで開く', exact: true});
         await page.evaluate(() => {
             const original = window.open;
             window.open = () => {
@@ -92,18 +92,18 @@ test('the default stage opens from the right edge and docks back from a real Doc
             };
         });
         await displayMenu(page).click();
-        await expect(page.getByRole('menuitem', {name: 'ステージを全画面表示にする', exact: true})).toBeVisible();
+        await expect(page.getByRole('menuitem', {name: '実行画面を全画面表示にする', exact: true})).toBeVisible();
         await openItem.click();
         await expect(canvas(page)).toBeVisible();
-        await expect(page.getByRole('region', {name: 'ステージ', exact: true})).toHaveCount(0);
+        await expect(page.getByRole('region', {name: '実行画面（ステージ）', exact: true})).toHaveCount(0);
 
         const openStage = async () => {
             await displayMenu(page).click();
             const [popup] = await Promise.all([page.waitForEvent('popup'), openItem.click()]);
             await expect(popup).toHaveURL(/stage-popout\.html#/);
-            await expect(popup.getByRole('tab', {name: 'ステージ', exact: true})).toBeVisible();
+            await expect(popup.getByRole('tab', {name: '実行画面（ステージ）', exact: true})).toBeVisible();
             await expect(canvas(popup)).toBeVisible();
-            await expect(page.getByRole('region', {name: 'ステージ', exact: true})).toHaveCount(0);
+            await expect(page.getByRole('region', {name: '実行画面（ステージ）', exact: true})).toHaveCount(0);
             assert.ok(await page.evaluate(() => window.initialStageCanvas.ownerDocument !== document));
             return popup;
         };
@@ -121,7 +121,7 @@ test('the default stage opens from the right edge and docks back from a real Doc
         await displayMenu(popup).click();
         await Promise.all([
             popup.waitForEvent('close'),
-            popup.getByRole('menuitem', {name: 'ステージをエディターに戻す', exact: true}).click()
+            popup.getByRole('menuitem', {name: '実行画面をエディターに戻す', exact: true}).click()
         ]);
         await expectDocked();
 
@@ -146,7 +146,7 @@ test('the drawer trigger stays on the physical right edge in a right-to-left loc
         url.searchParams.set('lang', 'ar');
         await page.goto(url.href);
 
-        const drawer = page.getByRole('button', {name: 'Reveal stage', exact: true});
+        const drawer = page.getByRole('button', {name: 'Reveal run view', exact: true});
         await expect(drawer).toHaveCSS('direction', 'rtl');
         const closedBounds = await drawer.boundingBox();
         await drawer.hover();
@@ -168,7 +168,7 @@ test('the startup option restores the previous stage layout',
         await page.goto(url.href);
 
         await expect(canvas(page)).toBeVisible();
-        await expect(page.getByRole('button', {name: 'ステージを展開', exact: true})).toHaveCount(0);
+        await expect(page.getByRole('button', {name: '実行画面を展開', exact: true})).toHaveCount(0);
         await displayMenu(page).click();
         await expect(page.getByRole('menuitem', {name: 'アンドック', exact: true})).toBeEnabled();
     });

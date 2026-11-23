@@ -88,7 +88,7 @@ export function createStagePopoutHost<Request, Target extends {mount: HTMLElemen
 const isJapanese = (locale: string) => /^ja(?:-|$)/i.test(locale);
 
 export function stageFullscreenLabel(locale: string, fallback: string) {
-    return isJapanese(locale) ? 'ステージを全画面表示にする' : fallback;
+    return isJapanese(locale) ? '実行画面を全画面表示にする' : fallback;
 }
 
 export function stageDockActionLabel(locale: string, {drawer, detached, external}: {
@@ -97,9 +97,9 @@ export function stageDockActionLabel(locale: string, {drawer, detached, external
     external?: boolean;
 }) {
     const japanese = isJapanese(locale);
-    if (detached) return japanese ? 'ステージをエディターに戻す' : 'Dock stage';
-    if (external) return japanese ? (drawer ? 'ステージを別ウィンドウで開く' : '別ウィンドウで開く') : 'Open in a separate window';
-    return japanese ? 'アンドック' : 'Undock stage';
+    if (detached) return japanese ? '実行画面をエディターに戻す' : 'Dock run view';
+    if (external) return japanese ? (drawer ? '実行画面を別ウィンドウで開く' : '別ウィンドウで開く') : 'Open in a separate window';
+    return japanese ? 'アンドック' : 'Undock run view';
 }
 
 type StagePlacement = Pick<NonNullable<ReturnType<typeof useDockviewStage>>, 'surface' | 'inlineRef' | 'docked'> &
@@ -147,7 +147,7 @@ export function createStageSurface(React: typeof import('react'), {
             setDrawerOpen(open);
         }, [setStageDrawerOpen]);
         const japanese = isJapanese(locale);
-        const title = japanese ? 'ステージ' : 'Stage';
+        const title = japanese ? '実行画面（ステージ）' : 'Run view (Stage)';
         const host = React.useMemo(() => stageDrawer && externalHost ?
             createStagePopoutHost(externalHost, title) : externalHost, [stageDrawer, externalHost, title]);
         const panel = React.createElement(Panel, {
@@ -169,7 +169,7 @@ export function createStageSurface(React: typeof import('react'), {
             available: !placement?.docked && (!dockAction || dockAction.kind === 'docked'),
             stageDrawerLayout: drawerLayout,
             updateStageDrawer: updateDrawer,
-            label: japanese ? 'ステージを展開' : 'Reveal stage',
+            label: japanese ? '実行画面を展開' : 'Reveal run view',
             onOpenChange,
             focusPanelRef: launcher ? focusDrawer : undefined,
             closePanelRef: launcher ? closeDrawerRef : undefined,

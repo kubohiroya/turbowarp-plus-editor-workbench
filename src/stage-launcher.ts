@@ -3,8 +3,8 @@ import {drawerPinIcon} from './drawer-views.ts';
 
 const labels = {
     ja: {
-        open: 'ステージを開く',
-        menu: 'ステージの開き方',
+        open: '実行画面を開く',
+        menu: '実行画面の開き方',
         window: '別ウィンドウで表示',
         tab: 'タブで表示',
         drawer: '引出しで表示',
@@ -12,8 +12,8 @@ const labels = {
         autoHideDrawer: '引出しを自動的に隠す'
     },
     en: {
-        open: 'Open stage',
-        menu: 'Stage opening options',
+        open: 'Open run view',
+        menu: 'Run view opening options',
         window: 'Show in a separate window',
         tab: 'Show in a tab',
         drawer: 'Show in the drawer',
