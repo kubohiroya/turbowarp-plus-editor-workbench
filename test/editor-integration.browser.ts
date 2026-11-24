@@ -11,6 +11,42 @@ function withFlags(base: string, flags: Record<string, string>) {
     return url.href;
 }
 
+test('the closed workspace shows Editor branding and reopens the selected sprite or stage',
+    {skip: !pinned, timeout: 30000}, async t => {
+        const browser = await chromium.launch({headless: true, args: ['--enable-unsafe-swiftshader']});
+        t.after(() => browser.close());
+        const page = await browser.newPage({viewport: {width: 1360, height: 900}, colorScheme: 'light'});
+        await page.goto(withFlags(pinned, {}));
+        const tabs = page.locator('.dv-tab');
+        await expect(tabs.first()).toBeVisible();
+        const brand = page.locator('.tw-plus-workspace-welcome__group');
+        const closeAll = async () => {
+            while (await tabs.count()) await tabs.first().locator('.dv-default-tab-action').click();
+        };
+        await closeAll();
+        await expect(brand.getByRole('heading', {name: 'TurboWarp-Plus-Editor', exact: true})).toBeVisible();
+        await expect(brand.locator('img')).toHaveJSProperty('naturalWidth', 328);
+        const openSprite = brand.getByRole('button', {name: 'スプライトを開く', exact: true});
+        await expect(openSprite).toBeVisible();
+        const workspace = await page.locator('.dv-watermark-container').boundingBox();
+        const content = await brand.boundingBox();
+        assert.ok(Math.abs(content.x + content.width / 2 - workspace.x - workspace.width / 2) < 2);
+        assert.ok(Math.abs(content.y + content.height / 2 - workspace.y - workspace.height / 2) < 2);
+        const light = await brand.evaluate(element => getComputedStyle(element).color);
+        await page.emulateMedia({colorScheme: 'dark'});
+        await expect.poll(() => brand.evaluate(element => getComputedStyle(element).color)).not.toBe(light);
+        await openSprite.press('Enter');
+        await expect(brand).toHaveCount(0);
+        await page.evaluate(() => window.vm.setEditingTarget(window.vm.runtime.targets.find(target => target.isStage).id));
+        await expect.poll(() => page.evaluate(() => window.vm.editingTarget.isStage)).toBe(true);
+        await closeAll();
+        const openStage = brand.getByRole('button', {name: 'ステージを開く', exact: true});
+        await expect(openStage).toBeVisible();
+        await openStage.click();
+        await expect(brand).toHaveCount(0);
+        await expect(page.locator('.dv-tab.dv-active-tab')).toContainText('ステージ');
+    });
+
 test('the sprite tab header shares theme colors and marks the selected tab',
     {skip: !pinned, timeout: 30_000}, async t => {
         const browser = await chromium.launch({args: ['--enable-unsafe-swiftshader']});
