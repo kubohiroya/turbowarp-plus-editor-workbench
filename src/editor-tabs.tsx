@@ -22,9 +22,11 @@ import type {MessagePaneData} from '@kubohiroya/turbowarp-plus-editor-sprite-pan
 import {readTargetFunctions} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
 import type {SpriteAssetKind, SpriteAssetPreviewData, SpriteAssetSelection} from './sprite-tabs.js';
 import type {WorkspaceProjectIdentity} from './sprite-tabs.js';
+import type {WorkspaceWelcomeBrand} from './workspace-welcome.js';
 import {parseExtensionCatalog} from '@kubohiroya/turbowarp-extension-security-dialog';
 import {attachFunctionCallMenu, BackCodeWindows, CodePaneCostumeThumbnail, createCodePaneAdapter, createFunction, mountProcedureEditor, readHatScripts, readScriptRelationGraph, SpriteCodeProvider, useCodeWindows} from '@kubohiroya/turbowarp-plus-editor-code-views/sprite-code-windows';
 export interface EditorTabPorts {
+    welcomeBrand?: WorkspaceWelcomeBrand;
     WindowLayoutContext: React.Context<any>; StageDisplayMenuContext: React.Context<any>; TargetSwitchContext: React.Context<any>;
     desktopCodeEnabled: any;
     openDesktopCode: any;
@@ -55,7 +57,7 @@ export interface EditorTabPorts {
     popupURL: any;
     connectEditorTabs: any;
 }
-export function createEditorTabLayout({desktopCodeEnabled, openDesktopCode, styles, desktopProjectKey, desktopWorkspaceLayoutStore, dockviewMultiViewEnabled, dockviewSpriteTabsEnabled, layoutFlags, WindowLayoutContext, isProjectLoading, loadedProjectTitle, projectScreenState, subscribeProjectLoad, projectFolderDirectory, StageDisplayMenuContext, TargetSwitchContext, openDetachedBlockPalette, categoryArtwork, decorateSurface, plusCatalog, loadPlusExtensions, beginPlusReview, canLoadPlusExtension, attachBackpackDrop, attachCodePreviewMinimap, attachCodeNavigation, getScratchBlocks, assetTransferPort, readOpenedFile, popupURL, connectEditorTabs}: EditorTabPorts) {
+export function createEditorTabLayout({welcomeBrand, desktopCodeEnabled, openDesktopCode, styles, desktopProjectKey, desktopWorkspaceLayoutStore, dockviewMultiViewEnabled, dockviewSpriteTabsEnabled, layoutFlags, WindowLayoutContext, isProjectLoading, loadedProjectTitle, projectScreenState, subscribeProjectLoad, projectFolderDirectory, StageDisplayMenuContext, TargetSwitchContext, openDetachedBlockPalette, categoryArtwork, decorateSurface, plusCatalog, loadPlusExtensions, beginPlusReview, canLoadPlusExtension, attachBackpackDrop, attachCodePreviewMinimap, attachCodeNavigation, getScratchBlocks, assetTransferPort, readOpenedFile, popupURL, connectEditorTabs}: EditorTabPorts) {
     const codeTab = 0;
 
     /**
@@ -352,6 +354,7 @@ export function createEditorTabLayout({desktopCodeEnabled, openDesktopCode, styl
             requestAnimationFrame(() => search.centerBlock(blockId));
         };
         const spriteTabs = useSpriteTabs({
+            welcomeBrand,
             available: dockviewSpriteTabsEnabled, enabled: workspaceEnabled && dockviewSpriteTabsEnabled,
             vm, locale, className: styles.spriteTabs, activeSection: activeEditorTab,
             activateSection: onActivateEditorTab,

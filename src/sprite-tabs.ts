@@ -28,6 +28,7 @@ import type {CallGraphDirection, FunctionKind, FunctionPaneData, FunctionPaneSet
     MountFunctionEditor, OpenScriptOptions, ScriptEndpoint, SpriteFunction, SpriteHatScript} from '@kubohiroya/turbowarp-plus-editor-sprite-panes/sprite-function-pane';
 import type {MessageUse, ProjectMessage, TargetMessages} from '@kubohiroya/turbowarp-plus-editor-project-model/project-messages';
 import {createTargetTabMenuItem, spriteRenameLabel} from './target-tab-menu.ts';
+import {createWorkspaceWelcome, type WorkspaceWelcomeBrand} from './workspace-welcome.ts';
 
 export {getDocumentWorkspace} from './document-workspace.ts';
 export {createWorkspaceLayoutStore, workspaceLayoutDatabase, workspaceLayoutLimit} from './workspace-layout-store.ts';
@@ -169,7 +170,8 @@ interface TabOptions<Snapshot = unknown> {
     activateSection(section: number): void;
     selectTarget(id: string, assetSelections?: AssetSelections): void;
     resize(): void;
-    reopenLabel: string;
+    reopenLabel?: string;
+    welcomeBrand?: WorkspaceWelcomeBrand;
     multiView?: boolean;
     /** Keep the workspace of each project and reopen it with the project. */
     workspaceLayout?: {
@@ -477,15 +479,9 @@ export function mountSpriteTabs<Snapshot>(root: HTMLElement, content: HTMLElemen
                 }
             };
         },
-        createWatermarkComponent: () => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.textContent = options.reopenLabel;
-            button.addEventListener('click', () => {
-                if (vm.editingTarget) select(vm.editingTarget.id);
-            });
-            return {element: button, init() {}};
-        }
+        createWatermarkComponent: () => createWorkspaceWelcome(document, {
+            vm, locale, brand: options.welcomeBrand, reopenLabel: options.reopenLabel, select
+        })
     });
     const preventSplit = (event: {kind: string; position: string; preventDefault(): void}) => {
         if (event.kind === 'edge' || event.kind === 'content' && event.position !== 'center') event.preventDefault();
@@ -1699,6 +1695,7 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
             selectTarget: (id, assets) => latest.current.selectTarget(id, assets),
             resize: () => latest.current.resize(),
             reopenLabel: props.reopenLabel,
+            welcomeBrand: props.welcomeBrand,
             multiView: props.multiView,
             workspaceLayout: props.workspaceLayout,
             stagePane: props.stagePane,
@@ -1721,7 +1718,7 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
             props.stagePane?.connect(null);
             instance.dispose();
         };
-    }, [content, props.enabled, props.vm, props.reopenLabel, props.multiView, props.locale,
+    }, [content, props.enabled, props.vm, props.reopenLabel, props.welcomeBrand, props.multiView, props.locale,
         props.viewAdapter, props.stagePane, props.workspaceLayout, props.renameLabels, props.popouts, props.className,
         hasVariables, hasMessages, hasFunctions, hasToolbar, hasAssetPreview]);
     React.useLayoutEffect(() => {
@@ -1930,7 +1927,6 @@ export function useSpriteTabs<Snapshot>({available, enabled, locale, ...props}:
             ...props, enabled, locale, children, slots, onAttach: () => setReady(true),
             selectTarget: (id, assets) => setSelection({id, assets}),
             connect: next => { controller.current = next; },
-            reopenLabel: japanese ? '編集中のスプライトを開く' : 'Open the editing sprite',
             renameLabels: japanese ? renameLabels.ja : renameLabels.en
         }) : undefined,
         renderEditorPanel: available ? (index: number, children: React.ReactNode) =>

@@ -1099,6 +1099,86 @@ details.layout-menu button {
     --dv-active-sash-color: var(--looks-secondary, #855cd6);
 }
 
+.sprite-tabs :global(.dv-watermark-container) {
+    overflow: auto;
+    background: var(--ui-primary, Canvas);
+    color: var(--text-primary, CanvasText);
+}
+
+.sprite-tabs :global(.tw-plus-workspace-welcome) {
+    display: flex;
+    min-width: 0;
+    min-height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+.sprite-tabs :global(.tw-plus-workspace-welcome__group) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    max-width: 36rem;
+    margin: auto;
+    overflow-wrap: anywhere;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+.sprite-tabs :global(.tw-plus-workspace-welcome__logo) {
+    width: 8rem;
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 0.5rem;
+}
+
+.sprite-tabs :global(.tw-plus-workspace-welcome h1) {
+    margin: 0;
+    font-size: clamp(1.1rem, 3vw, 1.75rem);
+    font-weight: 600;
+    line-height: 1.25;
+}
+
+.sprite-tabs :global(.tw-plus-workspace-welcome p) {
+    margin: 0;
+}
+
+.sprite-tabs :global(.tw-plus-workspace-welcome a) {
+    color: var(--looks-secondary, LinkText);
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+}
+
+.sprite-tabs :global(.tw-plus-workspace-welcome__open) {
+    flex: none;
+    margin-top: 1.5rem;
+    padding: 0.75rem 1.5rem;
+    border: 1px solid var(--looks-secondary, ButtonText);
+    border-radius: 0.5rem;
+    background: var(--ui-white, ButtonFace);
+    color: var(--text-primary, ButtonText);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.sprite-tabs :global(.tw-plus-workspace-welcome__open:hover) {
+    background: var(--looks-light-transparent, ButtonFace);
+}
+
+.sprite-tabs :global(.tw-plus-workspace-welcome__open:disabled) {
+    opacity: 0.5;
+    cursor: default;
+}
+
+.sprite-tabs :global(.tw-plus-workspace-welcome :focus-visible) {
+    outline: 2px solid var(--looks-secondary, Highlight);
+    outline-offset: 3px;
+}
+
 .sprite-tabs :global(.dv-tabs-container > .dv-inactive-tab .dv-default-tab-content) {
     color: light-dark(#6b6b6b, #aaa);
 }

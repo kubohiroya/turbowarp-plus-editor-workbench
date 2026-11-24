@@ -86,6 +86,12 @@ aiAgents.openSettings({locale, returnFocus: trigger});
 - ダイアログ（`role="dialog"`、`aria-modal`）は React を使わない DOM で、`openAgentSettingsDialog` で開ける。開くと最初の欄に移り、Tab はダイアログの中を回る。Escape かキャンセルで保存せずに閉じ、`returnFocus`、なければ開く前の要素に戻る。
 - 設定は `localStorage` の `twPlusAiAgents` に `{"version": 1, "services": [...]}` で保存する。各サービスの `target` は `kind: "url"`。ほかの `kind` は後の段階のためにあけてあり、いまは読み飛ばす。ない・壊れた・誤ったデータは、項目ごとに既定に戻す。
 
+## タブをすべて閉じた画面
+
+`createEditorTabLayout`、`useSpriteTabs`、`mountSpriteTabs` の `welcomeBrand: {logo, version}` に、Editor のロゴ URL と実際のビルド版を渡す。すべてのタブを閉じると、ロゴ、製品名、版、コピーライト、ライセンス、公式サイトの URL を中央にまとめ、その下に「ステージを開く」または「スプライトを開く」を表示する。ボタンは現在選択中の対象の編集タブを開く。表示は Editor の light/dark テーマに追従し、狭い画面ではスクロールできる。
+
+検証は `npm run build` と `node --test test/workspace-welcome.test.ts test/sprite-tabs.test.ts test/workspace-welcome.browser.ts`。切り戻しは Editor の製品情報の結線と Workbench の固定版を変更前に戻す。
+
 ## Dockview のレイアウトの保存
 
 ホストが `workspaceLayout` を渡すと、`useSpriteTabs` と `mountSpriteTabs` は作品ごとの Dockview のレイアウトを IndexedDB に保存する。分割、各タブのスプライトと区分、ステージとドキュメントのタブ、編集中のタブ、別ウィンドウにあったタブを、次にその作品を開いたときに再現する。

@@ -27,6 +27,33 @@ function setupDom(t: TestContext) {
     return dom.window.document;
 }
 
+for (const isStage of [false, true]) {
+    test(`closing all tabs offers to reopen the selected ${isStage ? 'stage' : 'sprite'}`, t => {
+        const document = setupDom(t);
+        const target = {id: 'selected', isOriginal: true, isStage, getName: () => 'Selected'};
+        const vm = Object.assign(new EventEmitter(), {
+            runtime: {targets: [target]}, editingTarget: target,
+            setEditingTarget() { this.emit('targetsUpdate'); }
+        });
+        const root = document.querySelector('main');
+        let selected: string;
+        const controller = mountSpriteTabs(root, document.createElement('div'), {
+            vm, locale: 'ja', getSection: () => 0, activateSection() {}, resize() {},
+            selectTarget: id => { selected = id; }, welcomeBrand: {logo: '/logo.svg', version: '0.4.1'}
+        });
+        root.querySelector<HTMLElement>('.dv-default-tab-action').click();
+        assert.equal(root.querySelectorAll('.dv-tab').length, 0);
+        const button = root.querySelector<HTMLButtonElement>('.tw-plus-workspace-welcome__open');
+        assert.equal(button.textContent, isStage ? 'ステージを開く' : 'スプライトを開く');
+        button.click();
+        assert.equal(selected, target.id);
+        assert.equal(root.querySelectorAll('.dv-tab').length, 1);
+        assert.equal(root.querySelector('.tw-plus-workspace-welcome'), null);
+        controller.dispose();
+        assert.equal(vm.listenerCount('targetsUpdate'), 0);
+    });
+}
+
 test('sprite tabs reuse the native editor, preserve its selected section, and follow the project', t => {
     const document = setupDom(t);
     const sprite = (id: string, name: string) => ({
