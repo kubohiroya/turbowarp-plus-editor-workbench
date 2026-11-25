@@ -3,7 +3,12 @@ import {test} from 'node:test';
 import {JSDOM} from 'jsdom';
 
 // The run view menu in the editor, with items another package adds through `menuItems`.
-async function openMenu(t, menuItems?: (locale: string) => unknown[], locale = 'en') {
+async function openMenu(t, menuItems?: (locale: string) => unknown[], locale = 'en', options: {
+    plusLayout?: boolean;
+    stageHidden?: boolean;
+    setStageVisible?(visible: boolean): void;
+    fixedPreset?: boolean;
+} = {}) {
     const dom = new JSDOM('<main></main>', {pretendToBeVisual: true});
     const globals = {window: dom.window, document: dom.window.document, navigator: dom.window.navigator,
         IS_REACT_ACT_ENVIRONMENT: true};
@@ -16,7 +21,8 @@ async function openMenu(t, menuItems?: (locale: string) => unknown[], locale = '
     const {createRoot} = await import('react-dom/client');
     const {createStageDisplayMenu} = await import('../dist/stage-display-menu.js');
     const h = React.createElement;
-    const WindowLayoutContext = React.createContext({plusLayout: false, stageDrawer: false});
+    const WindowLayoutContext = React.createContext({plusLayout: options.plusLayout ?? false, stageDrawer: false,
+        stageHidden: options.stageHidden ?? false, setStageVisible: options.setStageVisible});
     const StageDisplayMenuContext = React.createContext(null);
     const {StageDisplayMenu} = createStageDisplayMenu({
         WindowLayoutContext, StageDisplayMenuContext, layoutFlags: {stageDisplayMenu: true}, styles: {},
@@ -30,7 +36,7 @@ async function openMenu(t, menuItems?: (locale: string) => unknown[], locale = '
         for (const key of Object.keys(globals)) Reflect.deleteProperty(globalThis, key);
         if (previous) Object.defineProperty(globalThis, 'navigator', previous);
     });
-    const presets = ['small', 'large', 'full'].map(title => ({title, isSelected: title === 'large', handleClick() {}, icon: `${title}.svg`}));
+    const presets = (options.fixedPreset === false ? ['small', 'full'] : ['small', 'large', 'full']).map(title => ({title, isSelected: title === 'large', handleClick() {}, icon: `${title}.svg`}));
     act(() => root.render(h(StageDisplayMenu, {locale, presets, fullscreen: {title: 'Full screen', handleClick() {}}})));
     act(() => (dom.window.document.querySelector('.tw-icon-menu__trigger') as HTMLElement).click());
     const buttons = [...dom.window.document.querySelectorAll('[role^="menuitem"]')] as HTMLElement[];
@@ -88,4 +94,26 @@ for (const [pinned, label, slash] of [
         click(label);
         assert.deepEqual(selected, [!pinned]);
     });
+}
+
+// Without a fixed-width preset, size choices stay out of the run-view menu.
+for (const [locale, stageHidden, action, fullscreen, dock] of [
+    ['en', false, 'Hide run view', 'Full screen', 'Undock run view'],
+    ['en', true, 'Show run view', 'Full screen', 'Undock run view'],
+    ['ja-JP', false, '実行画面を隠す', '全画面表示にする', 'アンドック'],
+    ['ja-JP', true, '実行画面を表示', '全画面表示にする', 'アンドック']
+] as const) {
+    test(`the run view menu offers exactly the available preset and visibility actions (${locale}, hidden=${stageHidden})`,
+        async t => {
+            const visible: boolean[] = [];
+            const {buttons, click} = await openMenu(t, undefined, locale, {
+                plusLayout: true, stageHidden, fixedPreset: false,
+                setStageVisible(value) {visible.push(value);}
+            });
+            assert.deepEqual(buttons.map(button => [button.textContent, button.getAttribute('role')]), [
+                [fullscreen, 'menuitem'], [action, 'menuitem'], [dock, 'menuitem']
+            ]);
+            click(action);
+            assert.deepEqual(visible, [stageHidden]);
+        });
 }
