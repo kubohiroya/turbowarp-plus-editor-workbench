@@ -58,6 +58,37 @@ test('the standalone package uses its configured layout', {timeout: 30_000}, asy
     await expect(anchor).toHaveCount(0);
 });
 
+test('the sprite drawer exposes its ordered tools and indicates when it is pinned', {timeout: 30_000}, async t => {
+    const page = await openExample(t);
+    await page.goto(origin + example + '?standard=1&drawer=1&lang=en');
+    const tools = page.getByRole('group', {name: 'Sprite list tools'});
+    const pin = tools.getByRole('button', {name: 'Pin sprite list'});
+    const reveal = page.getByRole('button', {name: 'Reveal sprite list'});
+    const slash = pin.locator('svg path[d="M2 2l12 12"]');
+    const sprites = page.getByRole('list', {name: 'Sprite tiles'});
+    await expect(page.getByRole('heading', {name: 'Sprite list', exact: true})).toHaveCount(0);
+    const controls = ['Search sprites', 'Pin sprite list', 'Undock sprite list'];
+    const bounds = await Promise.all(controls.map(name => tools.getByRole('button', {name, exact: true}).boundingBox()));
+    assert.ok(bounds.every(bounds => bounds !== null));
+    assert.ok(bounds[0].x < bounds[1].x && bounds[1].x < bounds[2].x);
+    await expect(pin).toHaveAttribute('aria-pressed', 'true');
+    await expect(slash).toHaveCount(0);
+    await expect(reveal).toBeHidden();
+
+    await pin.press('Enter');
+    await reveal.press('Escape');
+    await expect(sprites).toBeHidden();
+    await reveal.hover();
+    await expect(pin).toHaveAttribute('aria-pressed', 'false');
+    await expect(slash).toBeVisible();
+    await expect(sprites).toBeVisible();
+    await pin.click();
+    await page.mouse.move(500, 400);
+    await expect(sprites).toBeVisible();
+    await expect(pin).toHaveAttribute('aria-pressed', 'true');
+    await expect(slash).toHaveCount(0);
+});
+
 test('the sprite layout menu opens above a clipped tab strip and supports keyboard commands', {timeout: 30_000}, async t => {
     const menu = '/example/sprite-layout-menu.html';
     files.set(menu, fileURLToPath(new URL('../example/sprite-layout-menu.html', import.meta.url)));
