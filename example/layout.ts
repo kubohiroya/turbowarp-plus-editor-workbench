@@ -32,7 +32,7 @@ const App = () => {
             enabled, fullscreen: false, rtl: false, stageTools: undefined,
             labels: {columns: 'Editor width', rows: 'Stage height'},
             minimumEditor: 220, minimumStageColumn: 180, minimumStageRow: 180, minimumTargets: 100,
-            defaultStageWidth: 340, defaultStageHeight: 180,
+            defaultStageWidth: 340, defaultStageHeight: Number(params.get('stageHeight')) || 180,
             stageAspect: 4 / 3, horizontalInset: 0, verticalInset: 0,
             storage: localStorage, storageKey: 'layout-example', separatorClassName: 'separator',
             render: (layout: SplitLayoutState) => h('div', {className: 'panes', ref: layout.observe, style: layout.bodyStyle},

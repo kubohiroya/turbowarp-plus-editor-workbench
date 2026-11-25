@@ -1,50 +1,8 @@
 import assert from 'node:assert/strict';
-import {readFile, readdir} from 'node:fs/promises';
-import {createRequire} from 'node:module';
-import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 import {test} from 'node:test';
-import {chromium, expect} from '@playwright/test';
-
-const require = createRequire(import.meta.url);
-const origin = 'http://layout.test';
-const example = '/example/index.html';
-const files = new Map([[example, fileURLToPath(new URL('../example/index.html', import.meta.url))]]);
-files.set('/example/.build/layout.js', fileURLToPath(new URL('../example/.build/layout.js', import.meta.url)));
-const source = fileURLToPath(new URL('../src/', import.meta.url));
-for (const entry of await readdir(source, {withFileTypes: true})) {
-    if (entry.isFile() && /\.css$/.test(entry.name)) {
-        files.set(`/src/${entry.name}`, path.join(source, entry.name));
-    }
-}
-const built = fileURLToPath(new URL('../dist/', import.meta.url));
-for (const entry of await readdir(built, {withFileTypes: true})) {
-    if (entry.isFile() && entry.name.endsWith('.js')) {
-        files.set(`/dist/${entry.name}`, path.join(built, entry.name));
-    }
-}
-const tileTitle = '@kubohiroya/turbowarp-plus-editor-sprite-panes/native-tile-title';
-files.set(`/node_modules/${tileTitle.replace('native-tile-title', 'dist/native-tile-title.js')}`, require.resolve(tileTitle));
-for (const name of ['react', 'react-dom']) {
-    const entry = `/umd/${name}.development.js`;
-    files.set('/node_modules/' + name + entry, path.join(path.dirname(require.resolve(name + '/package.json')), entry));
-}
-
-async function openExample(t) {
-    const browser = await chromium.launch();
-    t.after(() => browser.close());
-    const page = await browser.newPage({viewport: {width: 900, height: 600}});
-    await page.route(origin + '/**', async route => {
-        const pathname = new URL(route.request().url()).pathname;
-        const filename = files.get(pathname);
-        if (!filename) return route.fulfill({status: 404});
-        return route.fulfill({
-            body: await readFile(filename),
-            contentType: pathname.endsWith('.html') ? 'text/html' : pathname.endsWith('.css') ? 'text/css' : 'application/javascript'
-        });
-    });
-    return page;
-}
+import {expect} from '@playwright/test';
+import {openExample, origin, example, files} from './layout-browser-host.ts';
 
 test('the standalone host resizes, restores, and resets its dividers', {timeout: 30_000}, async t => {
     const page = await openExample(t);
