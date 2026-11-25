@@ -360,3 +360,7 @@ Web Editorは `project-open-tabs` の `url` コマンドで別タブのURL入力
 `test/project-size-approval.test.cts` は Editor #741 の確認画面1件を引き継ぎます。サイズ表示、拒否ボタンの初期フォーカス、日英の選択、キャンセルと document がない場合を、ビルド済み `./project-size-approval` で確認します。既存の `npm test` と CI が GUI checkout・VM なしで実行します。Editor には実 VM のサイズゲートの結線確認を残し、この移管と Loader の計測・同意の移管がともに CI 成功・マージするまでは元テストを保持します。切り戻しは追加テスト・テスト用ライセンス・文書を revert し、Editor で削除済みなら元テストを先に復元します。
 
 移管したこのテストは元の GPL-3.0-or-later と `test/LICENSE.GPL-3.0` を保持します。テストとそのライセンスは npm 配布対象外で、ライブラリ本体は MPL-2.0 のままです。
+
+## ステージ操作サービスの移管テスト
+
+`test/stage-controls.test.ts` は Editor #741 の機能テスト3件を引き継ぐ。登録時の非表示、更新・クリック・フォーカス・破棄・通知、古い登録の無効化、作品変更時の消去と VM ごとのサービス共有を、既存の公開 `./stage-controls` から検証する。検証本体と fixture は変更せず、既存の `npm test` と CI が GUI checkout なしで実行する。元の GPL-3.0-or-later（`test/LICENSE.GPL-3.0`）を保持し、テストとそのライセンスは npm 配布対象に含めない。製品コード・依存・版・CI 設定は変更しない。上流 CI 成功とマージ後、Editor は GUI にサービスを渡す接続確認1件だけを残す。切り戻しは Editor の元3件を先に復元してから、追加テストとこの記録を revert する。
