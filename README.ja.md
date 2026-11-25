@@ -258,7 +258,7 @@ Editor のルートから、`site/source.json` の GUI を `npm run build:pages`
 
 日本語・中国語・韓国語の IME がオンのとき、ブラウザーは IME が受け取ったキーを `Process`（または IME が打つかな）と報告し、VM はこれを無視する。`attachStageInput` は `event.code` から元のキーを復元する。本体の document では、`@kubohiroya/turbowarp-plus-editor-workbench/ime-key` の `installImeKeyInput(document)` が capture 段階で `key` と `keyCode` を直し、ステージが読む前に同じ復元を行う。テキスト欄に向かうイベントは IME の報告のまま残す。
 
-スプライト編集タブの中のペイン（素材と変数、メッセージ、設定フォーム、セクション切り替えのツールバー）は `@kubohiroya/turbowarp-plus-editor-sprite-panes` に移った。このパッケージはそれらをタブや分割に並べる。以前の配布アーカイブのソース `b0390c3` から移設したウィンドウ部品は、`@kubohiroya/turbowarp-plus-editor-windows` に移った。Scratch GUI の本家実装はこのパッケージに取り込んでいないため、GPL のコードを含まず、GPL のモジュールも import しない。ライセンスは MPL-2.0 とする。MPL-2.0 は GPL を二次ライセンスとして認めるので、GPL-3.0 の Editor に組み込んで配信できる。ソースに「Incompatible With Secondary Licenses」の表示は付けない。付けると Editor に組み込めなくなる。
+スプライト編集タブの中のペイン（素材と変数、メッセージ、設定フォーム、セクション切り替えのツールバー）は `@kubohiroya/turbowarp-plus-editor-sprite-panes` に移った。このパッケージはそれらをタブや分割に並べる。以前の配布アーカイブのソース `b0390c3` から移設したウィンドウ部品は、`@kubohiroya/turbowarp-plus-editor-windows` に移った。Scratch GUI の本家実装はこのライブラリ本体に取り込んでいないため、ライブラリ本体は GPL のコードを含まず、GPL のモジュールも import しない。ライセンスは MPL-2.0 とする。MPL-2.0 は GPL を二次ライセンスとして認めるので、GPL-3.0 の Editor に組み込んで配信できる。ソースに「Incompatible With Secondary Licenses」の表示は付けない。付けると Editor に組み込めなくなる。
 
 スプライトの「呼び出し関係」では、図の方向を切り替える LR／TD と、関数・メッセージの表示を切り替えるボタンを縦ツールバーの下端に置く。方向と表示の選択はビューごとに管理し、分割した別ビューの選択を変えない。ホストが `renderToolbar` でツールバーを描く場合は、受け取る `actions.sectionControls` を `SpriteEditorToolbar` の `sectionControls` に渡す。図で選んだスクリプトは `openRelationScript` で開き、ホストが対象のスプライトとブロックへ移動する。
 
@@ -354,3 +354,9 @@ Fileメニューの「SB3ファイルを開く…」の直下に「SB3ファイ�
 取得中はキャンセルできる。取得後に未保存変更を確認し、VMの既存の読み込み処理を呼ぶため、作品サイズ・拡張機能の許可確認と進捗表示を再利用できる。読み込み中の中断は既存の確認フローに任せる。成功時だけ以前のフォルダとの接続を解除し、ローカル保存先のない作品として扱う。元のURLへ上書き保存は行わない。配信元はEditorからのCORSアクセスを許可する必要がある。
 
 Web Editorは `project-open-tabs` の `url` コマンドで別タブのURL入力を開き、元の作品を保持する。URLコマンドが渡されないホストのメニューは従来どおり。検証は `npm run build` と `node --test test/project-url.test.ts test/project-file-menu.test.ts test/project-open-tabs.test.cts`。切戻しはEditorのURLコマンド接続を外し、Workbenchの固定版を直前版へ戻す。
+
+## 作品サイズ確認の移管テスト
+
+`test/project-size-approval.test.cts` は Editor #741 の確認画面1件を引き継ぎます。サイズ表示、拒否ボタンの初期フォーカス、日英の選択、キャンセルと document がない場合を、ビルド済み `./project-size-approval` で確認します。既存の `npm test` と CI が GUI checkout・VM なしで実行します。Editor には実 VM のサイズゲートの結線確認を残し、この移管と Loader の計測・同意の移管がともに CI 成功・マージするまでは元テストを保持します。切り戻しは追加テスト・テスト用ライセンス・文書を revert し、Editor で削除済みなら元テストを先に復元します。
+
+移管したこのテストは元の GPL-3.0-or-later と `test/LICENSE.GPL-3.0` を保持します。テストとそのライセンスは npm 配布対象外で、ライブラリ本体は MPL-2.0 のままです。
