@@ -364,3 +364,7 @@ Web Editorは `project-open-tabs` の `url` コマンドで別タブのURL入力
 ## ステージ操作サービスの移管テスト
 
 `test/stage-controls.test.ts` は Editor #741 の機能テスト3件を引き継ぐ。登録時の非表示、更新・クリック・フォーカス・破棄・通知、古い登録の無効化、作品変更時の消去と VM ごとのサービス共有を、既存の公開 `./stage-controls` から検証する。検証本体と fixture は変更せず、既存の `npm test` と CI が GUI checkout なしで実行する。元の GPL-3.0-or-later（`test/LICENSE.GPL-3.0`）を保持し、テストとそのライセンスは npm 配布対象に含めない。製品コード・依存・版・CI 設定は変更しない。上流 CI 成功とマージ後、Editor は GUI にサービスを渡す接続確認1件だけを残す。切り戻しは Editor の元3件を先に復元してから、追加テストとこの記録を revert する。
+
+## 保存ダイアログの action 配置の移管テスト
+
+`test/editor-save-dialog-actions.browser.ts` は Editor #741 のレイアウトテストから action bar の配置・cancel/confirm アイコンの検証13行を内容不変で引き継ぐ。公開 `project-dialogs`・`project-file-dialogs` と windows の公開 CSS を使う単独 host で、GUI checkout・VM・Editor ビルドなしに既存 `npm run test:browser` と CI が skip せず実行する。元の GPL-3.0-or-later（`test/LICENSE.GPL-3.0`）を保持し、テストとそのライセンスは npm 配布対象外。Editor にはメニューからの起動・Cancel・SB3 ダウンロードの接続確認を残し、上流 CI 成功とマージ後に詳細検証を削除する。製品コード・依存・CI 設定は変更しない。切り戻しは Editor の元検証を先に復元し、この追加テスト・文書を revert する。
