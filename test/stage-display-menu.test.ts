@@ -36,6 +36,7 @@ async function openMenu(t, menuItems?: (locale: string) => unknown[], locale = '
     const buttons = [...dom.window.document.querySelectorAll('[role^="menuitem"]')] as HTMLElement[];
     return {
         act,
+        buttons,
         items: buttons.map(button => [button.textContent, button.hasAttribute('data-separator-before')]),
         click: (label: string) => act(() => buttons.find(button => button.textContent === label)!.click())
     };
@@ -66,3 +67,25 @@ test('an empty list adds nothing', async t => {
     const {items} = await openMenu(t, () => []);
     assert.equal(items.length, 3);
 });
+
+
+// The menu presentation and pin-state matrix belong to Workbench. The Editor
+// integration covers the live canvas and restoring the saved choice on reload.
+for (const [pinned, label, slash] of [
+    [true, '引出しを自動的に隠す', true],
+    [false, '引出しを常時表示する', false]
+] as const) {
+    test(`the stage drawer pin menu describes the action when pinned=${pinned}`, async t => {
+        const {stageDrawerPinItem} = await import('../dist/stage-launcher.js');
+        const selected: boolean[] = [];
+        const {buttons, click} = await openMenu(t,
+            locale => [stageDrawerPinItem(locale, pinned, value => selected.push(value))], 'ja');
+        const item = buttons.find(button => button.textContent === label);
+        assert.ok(item);
+        assert.equal(item.getAttribute('aria-disabled'), null);
+        assert.equal(item.getAttribute('aria-current'), null);
+        assert.equal(Boolean(item.querySelector('svg path[d="M2 2l12 12"]')), slash);
+        click(label);
+        assert.deepEqual(selected, [!pinned]);
+    });
+}
