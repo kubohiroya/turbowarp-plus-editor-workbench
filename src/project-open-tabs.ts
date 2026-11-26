@@ -23,6 +23,8 @@ interface TabPorts {
     ready(): boolean;
     subscribe(listener: () => void): () => void;
     isCancelled(error: unknown): boolean;
+    /** Present progress while the receiving tab reads and loads its selected file. */
+    showLoading?(): () => void;
 }
 interface TabVM {
     loadProject(input: unknown): Promise<unknown>;
@@ -100,7 +102,20 @@ function createService(host: object, ports: TabPorts) {
             reviewRequest = request.kind === 'command' ? undefined : request;
             if (request.kind === 'file') {
                 // Only the explicitly selected incoming file crosses tabs; the original VM is untouched.
-                await vm.loadProject(await request.file.arrayBuffer());
+                const close = ports.showLoading?.();
+                let closed = false;
+                const finish = () => {
+                    if (closed) return;
+                    closed = true;
+                    close?.();
+                    pending.delete(finish);
+                };
+                pending.add(finish);
+                try {
+                    await vm.loadProject(await request.file.arrayBuffer());
+                } finally {
+                    finish();
+                }
                 const handle = /\.sb3$/i.test(request.file.name) ? request.handle ?? null : null;
                 actions.storage.finish(handle, request.file.name.replace(/\.sb[23]?$/i, '').substring(0, 100), true);
                 actions.fileOpened?.(request.file);

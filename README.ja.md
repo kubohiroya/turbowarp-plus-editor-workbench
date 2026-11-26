@@ -372,3 +372,9 @@ Web Editorは `project-open-tabs` の `url` コマンドで別タブのURL入力
 ## 未保存マーカーの移管テスト
 
 `test/editor-unsaved-marker.browser.ts` は Editor #741 の未保存マーカーの背景色・hover/Tab フォーカス時の hint・300px 幅での収まりを引き継ぐ。元の操作・期待値を維持し、公開 `ProjectSaveMenu` と `project-file-menu.css` を native input の単独 host で確認する。既存 browser CI が GUI checkout・VM・Editor ビルドなし、skip なしで実行する。GPL-3.0-or-later と `test/LICENSE.GPL-3.0` を保持し、テストとそのライセンスは npm 配布対象外。Editor は VM の変更・タイトル幅と隣接・保存メニューの接続を残し、上流 CI 成功とマージ後に詳細11行を除く。製品・依存・CI 設定は変更しない。切り戻しは Editor の元検証を先に復元し、このテスト・文書を revert する。
+
+## 別タブのファイル読み込みの進捗（Editor #823）
+
+`installProjectOpenTabs` の任意の `showLoading` port は、受信したファイルの読み取りと VM 読み込みの間にだけ表示を開き、完了・失敗・サービス破棄で一度だけ閉じる。`project-load-progress-view` の `showProjectLoadProgress(document, vm, locale)` を渡すと、GUI のロード画面を経由しない別タブでも、同じ VM の進捗・承認待ち・履歴を表示できる。承認ダイアログは背景より上に置き、進捗表示中のキー入力は project-tools の対象とする。port を渡さない既存ホストの動作は維持する。
+
+依存順は本パッケージの CI 成功・公開後に Editor の固定版と結線を更新する。DoD は日英の単独 browser 検証と別タブの lifecycle 検証、実 Editor の完了・取消2件が skip なしで成功すること。切り戻しは Editor の固定版と結線を先に戻す。保存済み作品は変更しない。実施記録は [Editor #823](https://github.com/kubohiroya/turbowarp-plus-editor/issues/823)。

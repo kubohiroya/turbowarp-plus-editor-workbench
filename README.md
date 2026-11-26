@@ -345,3 +345,9 @@ The existing `npm run test:browser` and CI run the two new cases without a GUI c
 The host uses the public `createStandardLayout` factory's `EdgeDrawer`, `StageResizeHandle` from `./stage-surface`, and `editor.css`. A native canvas stands in for the GUI renderer. Existing esbuild bundles the public entries in memory; the existing browser command/CI runs the new case without a GUI checkout, VM, Editor build or environment-variable skip. GPL-3.0-or-later and `test/LICENSE.GPL-3.0` are retained outside the npm archive. Product code, dependencies, version and CI settings stay unchanged.
 
 After successful upstream CI and Squash Merge, Editor reduces case 17 from 149 to 66 lines, retaining its real canvas, palette coexistence, display menu, movement, resize and close/reopen connections. Restore the Editor coverage and case name before reverting the added test and documentation.
+
+## Incoming-file progress (Editor #823)
+
+The optional `showLoading` port of `installProjectOpenTabs` opens a view around reading and loading the incoming file. Its cleanup runs once on completion, failure, or service disposal. Supply `showProjectLoadProgress(document, vm, locale)` from `project-load-progress-view` to show the receiving VM's existing progress, approval phase and history without a GUI loading screen. Permission dialogs remain above the backdrop. Hosts without this port retain their previous behavior.
+
+Validate the standalone English/Japanese view and tab lifecycle first, then publish this package before updating the Editor pin and wiring. The Editor must pass its real incoming-file completion/cancellation checks without skips. Roll back the Editor pin and wiring first; saved projects are unchanged. Tracking: [Editor #823](https://github.com/kubohiroya/turbowarp-plus-editor/issues/823).

@@ -1,3 +1,15 @@
+.tw-project-load-progress__overlay {
+    position: fixed;
+    inset: 0;
+    /* Keep permission dialogs above the loading backdrop. */
+    z-index: var(--project-load-overlay-z-index, 500);
+    display: grid;
+    place-items: center;
+    background: var(--ui-modal-background, Canvas);
+    color: var(--ui-modal-foreground, CanvasText);
+    font: inherit;
+}
+
 .tw-project-load-progress__progress {
     position: relative;
     display: block;

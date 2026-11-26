@@ -152,3 +152,45 @@ test('the URL command runs its input dialog only in the incoming tab', async t =
     assert.equal(source.window.document.querySelector('dialog'), null);
     assert.equal(child.window.document.querySelector('dialog'), null);
 });
+
+for (const outcome of ['complete', 'fail', 'dispose']) test(`incoming file loading closes its progress once after ${outcome}`, async t => {
+    const {installProjectOpenTabs, bindProjectOpenTabActions, openProjectInNewTab} = await import('../dist/project-open-tabs.js');
+    const Channel = channelClass();
+    const source = environment('https://editor.test/editor.html');
+    source.window.BroadcastChannel = Channel;
+    const options = document => ({document, locale: () => 'en', ready: () => true,
+        subscribe: () => () => {}, isCancelled: () => false});
+    const vm = {runtime: new EventEmitter(), loadProject: assert.fail};
+    const stopSource = installProjectOpenTabs(vm, options(source.window.document));
+    const calls = [];
+    let child, stopChild, release, entered;
+    const loading = new Promise(resolve => {entered = resolve;});
+    source.window.open = url => {
+        child = environment(url);
+        child.window.BroadcastChannel = Channel;
+        const target = {runtime: new EventEmitter(), async loadProject() {
+            calls.push('load'); entered();
+            await new Promise(resolve => {release = resolve;});
+            if (outcome === 'fail') throw new Error('Invalid project');
+            target.runtime.emit('PROJECT_LOADED');
+        }};
+        stopChild = installProjectOpenTabs(target, {...options(child.window.document), showLoading() {
+            calls.push('show');
+            return () => {calls.push('close');};
+        }});
+        bindProjectOpenTabActions(target, {storage: {finish() {calls.push('saved');}}, commands: {}});
+        return child.window;
+    };
+    t.after(() => {stopSource(); stopChild?.(); source.window.close(); child?.window.close();});
+    openProjectInNewTab(vm, {kind: 'file', file: new File(['incoming'], 'project.sb3')});
+    await loading;
+    assert.deepEqual(calls, ['show', 'load']);
+    if (outcome === 'dispose') stopChild();
+    release();
+    for (let i = 0; i < 100 && !calls.includes('close'); i++) await new Promise(resolve => setImmediate(resolve));
+    // Let the in-flight load settle too, so disposal and finally cannot close twice.
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(calls.filter(call => call === 'close').length, 1);
+    assert.ok(calls.indexOf('close') > calls.indexOf('load'));
+    if (outcome === 'fail') assert.equal(child.window.document.querySelector('[data-testid="project-load-failure"]').dataset.outcome, 'failed');
+});

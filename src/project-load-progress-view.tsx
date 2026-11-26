@@ -1,6 +1,31 @@
 import React, {useEffect, useMemo, useState} from 'react';
+import {render, unmountComponentAtNode} from 'react-dom';
 import {projectLoadSnapshot, subscribeProjectLoadProgress} from './project-load-progress.js';
 import type {ProjectLoadPhase} from './project-load-progress.js';
+
+/** A direct file load has no GUI loading screen; show the same VM progress in its receiving tab. */
+export function showProjectLoadProgress(document: Document, vm: object, locale: string) {
+    const previous = document.activeElement as HTMLElement | null;
+    const mount = document.createElement('div');
+    mount.className = 'tw-project-load-progress__overlay';
+    mount.setAttribute('aria-busy', 'true');
+    mount.setAttribute('data-project-tools', '');
+    mount.tabIndex = -1;
+    document.body.append(mount);
+    render(<ProjectLoadProgress vm={vm} locale={locale}>
+        <span role="status">{locale.startsWith('ja') ? japanese.opening : english.opening}</span>
+    </ProjectLoadProgress>, mount);
+    mount.focus();
+    let closed = false;
+    return () => {
+        if (closed) return;
+        closed = true;
+        const restore = mount.contains(document.activeElement);
+        unmountComponentAtNode(mount);
+        mount.remove();
+        if (restore && previous?.isConnected) previous.focus();
+    };
+}
 
 const japanese: Record<ProjectLoadPhase, string> = {
     opening: 'プロジェクトの読み込みを準備中…',
