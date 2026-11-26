@@ -7,11 +7,14 @@ import {canReturnToPreviousPage, closeProjectLoadFailure, projectStartURL as sta
 export type ProjectTabCommand = 'folder' | 'browser-folder' | 'remote' | 'catalog' | 'url';
 export type ProjectTabRequest = {kind: 'file'; file: File; handle?: FileSystemFileHandle} |
     {kind: 'command'; command: ProjectTabCommand} |
+    {kind: 'browser-project'; id: string} |
     {kind: 'folder'; directory: FileSystemDirectoryHandle; root?: FileSystemDirectoryHandle};
 interface TabActions {
     storage: ProjectFileStorage;
     commands: Partial<Record<ProjectTabCommand, () => unknown>>;
     openDirectory?: (directory: FileSystemDirectoryHandle, root?: FileSystemDirectoryHandle) => Promise<unknown>;
+    /** Reopen this existing browser project in the receiving tab's own storage. Throw or return false/null on failure. */
+    openBrowserProject?: (id: string) => Promise<unknown>;
     fileOpened?(file: File): void;
 }
 interface TabPorts {
@@ -29,6 +32,14 @@ const parameter = 'twPlusOpenTab';
 const services = new WeakMap<object, ReturnType<typeof createService>>();
 const documents = new WeakMap<Document, ReturnType<typeof createService>>();
 const bindings = new WeakMap<object, Partial<TabActions>>();
+
+function browserProjectRequest({id}: Extract<ProjectTabRequest, {kind: 'browser-project'}>) {
+    // Match the browser project store's established IDs. Never include an OPFS handle in this message.
+    if (typeof id !== 'string' || id.trim() !== id || !/^[a-z0-9-]{1,64}$/u.test(id)) {
+        throw new Error('Invalid browser project ID');
+    }
+    return {kind: 'browser-project', id} as const;
+}
 
 function createService(host: object, ports: TabPorts) {
     const vm = host as TabVM;
@@ -72,12 +83,15 @@ function createService(host: object, ports: TabPorts) {
     };
     vm.runtime.on('PROJECT_LOADED', completed);
 
-    const run = async (request: ProjectTabRequest) => {
+    const run = async (request: ProjectTabRequest | null | undefined) => {
         if (!actions) return;
         // Keep only the explicitly selected incoming request for reconsideration, never the
         // original tab's project. A transferred File cannot be recovered by reloading its URL.
-        reviewRequest = request.kind === 'command' ? undefined : request;
+        reviewRequest = undefined;
         try {
+            if (!request) throw new Error('Missing project opening request');
+            if (request.kind === 'browser-project') request = browserProjectRequest(request);
+            reviewRequest = request.kind === 'command' ? undefined : request;
             if (request.kind === 'file') {
                 // Only the explicitly selected incoming file crosses tabs; the original VM is untouched.
                 await vm.loadProject(await request.file.arrayBuffer());
@@ -88,6 +102,11 @@ function createService(host: object, ports: TabPorts) {
             } else if (request.kind === 'folder') {
                 if (!actions.openDirectory) throw new Error('Folder opening is unavailable');
                 await actions.openDirectory(request.directory, request.root);
+            } else if (request.kind === 'browser-project') {
+                if (!actions.openBrowserProject) throw new Error('Browser project opening is unavailable');
+                const result = await actions.openBrowserProject(request.id);
+                if (result === false || result === null) throw new Error('Browser project could not be opened');
+                reviewRequest = undefined;
             } else {
                 const command = actions.commands[request.command];
                 if (!command) throw new Error('The requested opening command is unavailable');
@@ -174,8 +193,11 @@ function createService(host: object, ports: TabPorts) {
     };
     return {
         open(request: ProjectTabRequest) {
-            if (incoming) return false;
-            try {launch(request);} catch (error) {report(error);}
+            try {
+                const selected = request.kind === 'browser-project' ? browserProjectRequest(request) : request;
+                if (incoming) return false;
+                launch(selected);
+            } catch (error) {report(error);}
             return true;
         },
         bind(value: Partial<TabActions>) {actions = {...actions, ...value} as TabActions; ready();},
