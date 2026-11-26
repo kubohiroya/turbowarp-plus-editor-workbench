@@ -187,3 +187,37 @@ test('nothing is serialized while saving is turned off', () => {
     screen.register('drawer', {capture: () => 'project'});
     assert.equal(screen.serialize(), undefined);
 });
+
+test('external folder changes update only unchanged opted-in slices', () => {
+    const screens = installProjectScreenState(fakeVM(), {Zip});
+    let palette = {groups: ['motion']};
+    let refreshes = 0;
+    let layoutChanges = 0;
+    screens.register('palette', {
+        capture: () => palette,
+        applyFolderUpdate(value) {
+            if (value === null) return false;
+            palette = value as typeof palette;
+            refreshes++;
+        }
+    });
+    screens.register('layout', {capture: () => 'editor', apply: () => {layoutChanges++;}});
+    const before = state(1, {palette, layout: 'disk'});
+    const next = state(2, {palette: {groups: ['looks']}, layout: 'other'});
+    assert.equal(screens.applyFolderUpdate(before, '{'), false);
+    assert.equal(screens.applyFolderUpdate(before, state(2, {palette: null})), false);
+    assert.equal(refreshes, 0);
+    assert.equal(screens.applyFolderUpdate(before, next), true);
+    assert.deepEqual(palette, {groups: ['looks']});
+    assert.equal(refreshes, 1);
+    assert.equal(screens.applyFolderUpdate(next, state(3, {palette, layout: 'third'})), true);
+    assert.equal(refreshes, 1);
+    palette = {groups: ['sound']};
+    assert.equal(screens.applyFolderUpdate(next, state(4, {palette: {groups: ['sensing']}})), true);
+    assert.deepEqual(palette, {groups: ['sound']});
+    assert.equal(refreshes, 1);
+    assert.equal(screens.applyFolderUpdate(state(5, {palette}), state(6, {})), true);
+    assert.equal(palette, undefined);
+    assert.equal(refreshes, 2);
+    assert.equal(layoutChanges, 0);
+});

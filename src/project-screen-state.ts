@@ -27,6 +27,8 @@ export interface ScreenStateSlice {
      * slice is registered after that. The value comes from a file, so check its shape before using it.
      */
     apply?(value: unknown, savedAt: number): void;
+    /** Opt in to changes of this slice on disk while a project folder is open. */
+    applyFolderUpdate?(value: unknown): boolean | void;
 }
 
 interface ZipEntry {
@@ -75,6 +77,8 @@ export interface ProjectScreenState {
      * loaded from an SB3, such as a project folder. Text that is not a screen state opens the default screen.
      */
     prepareLoad(text: string | undefined): void;
+    /** Apply valid external changes to opted-in slices that still match their previous disk values. */
+    applyFolderUpdate(previous: string | undefined, text: string): boolean;
     /** Put the VM methods back. Hooks installed later on the same methods must be removed first. */
     dispose(): void;
 }
@@ -83,6 +87,8 @@ const encoder = new TextEncoder();
 const record = (value: unknown): value is Record<string, unknown> =>
     value !== null && typeof value === 'object' && !Array.isArray(value);
 const validKey = (key: unknown): key is string => typeof key === 'string' && /^[a-z][a-zA-Z0-9-]{0,63}$/.test(key);
+const sliceSnapshot = (value: unknown) => JSON.stringify(value, (_key, item) =>
+    record(item) ? Object.fromEntries(Object.keys(item).sort().map(key => [key, item[key]])) : item);
 
 /** Read the screen state from the text of the ZIP entry, or nothing if it is not one. */
 export function parseScreenState(text: string): SavedScreenState | undefined {
@@ -218,6 +224,25 @@ export function installProjectScreenState(vm: ScreenStateVM, {Zip, save = true, 
         serialize: serialized,
         prepareLoad(text) {
             prepared = {state: text === undefined ? undefined : parseScreenState(text)};
+        },
+        applyFolderUpdate(previous, text) {
+            const next = parseScreenState(text);
+            if (!next) return false;
+            const before = previous === undefined ? undefined : parseScreenState(previous);
+            let accepted = true;
+            for (const [key, slice] of slices) {
+                if (!slice.applyFolderUpdate) continue;
+                const oldValue = before && Object.hasOwn(before.slices, key) ? before.slices[key] : undefined;
+                const newValue = Object.hasOwn(next.slices, key) ? next.slices[key] : undefined;
+                try {
+                    const oldSnapshot = sliceSnapshot(oldValue);
+                    if (oldSnapshot === sliceSnapshot(newValue) || sliceSnapshot(slice.capture()) !== oldSnapshot) continue;
+                    if (slice.applyFolderUpdate(newValue) === false) accepted = false;
+                } catch {
+                    accepted = false;
+                }
+            }
+            return accepted;
         },
         dispose() {
             vm.loadProject = original.loadProject;
