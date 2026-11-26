@@ -53,6 +53,10 @@ input.tw-info-menu__project-title-field:focus {
     height: 1.875rem;
 }
 
+.tw-info-menu > summary img.tw-info-menu__standard-logo {
+    filter: grayscale(1);
+}
+
 .tw-info-menu > nav,
 .tw-info-menu__flyout {
     position: absolute;

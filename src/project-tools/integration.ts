@@ -4,6 +4,7 @@ import {withWaitCursor, withoutWaitCursor} from '../busy-cursor.js';
 import {captureProjectLoad, duringProjectLoadApproval, reportProjectAssets, reportProjectFinishing}
     from '../project-load-progress.js';
 import type {createProjectProperties} from './properties.js';
+import {createProjectFormatSource} from './format-source.js';
 import {createAuthorHistory} from './history.js';
 import type {createProjectDialogService} from './dialog.js';
 import {editProjectURI, getExtensionAuthoringHost, withProjectSerialization} from '@kubohiroya/turbowarp-extension-loader/scratch-vm';
@@ -49,6 +50,17 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
     editorProjectArchives, projectToolsEnabled: PROJECT_TOOLS_ENABLED, manualProjectURIEnabled: MANUAL_PROJECT_URI_ENABLED,
     readStartupFlags: readWebStartupFeatureFlags, projectLoadState, catalogEnvironment}: ProjectToolsPorts) {
     const projects = new WeakMap();
+    const formatSources = new WeakMap<object, ReturnType<typeof createProjectFormatSource>>();
+    const formatSourceFor = (vm: object) => {
+        let format = formatSources.get(vm);
+        if (!format) {
+            format = createProjectFormatSource();
+            formatSources.set(vm, format);
+        }
+        return format;
+    };
+    // The menu may mount before the VM host is installed. Keep its subscription stable across setup.
+    const projectFormatSource = (vm: object) => formatSourceFor(vm).source;
     const screenStates = new WeakMap<object, ProjectScreenState>();
     const storageFor = document => {
         try { return document.defaultView?.localStorage; } catch (error) { return undefined; }
@@ -87,6 +99,9 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
             report: error => showNotice(document, (settings.getLocale?.() ?? settings.locale ?? 'en').startsWith('ja') ?
                 'プロジェクト履歴を保存できませんでした。' : 'The project history could not be saved.',
             {locale: settings.getLocale?.() ?? settings.locale ?? 'en'})});
+        const format = formatSourceFor(vm);
+        const syncFormat = () => format.update(properties.projectFormat());
+        const unsubscribeFormat = properties.subscribe(syncFormat);
         let lastPhase;
         const unsubscribe = properties.subscribe(() => {
             const state = properties.loadState();
@@ -99,13 +114,18 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
             }
         });
         projects.set(vm, tools);
+        syncFormat();
         let disposal;
         return {...host, dispose () {
             disposal ??= (async () => {
                 vm.off?.('ASSET_PROGRESS', reportAssets);
                 vm.runtime?.off?.('PROJECT_LOADED', finishProject);
                 tools.catalog?.dispose();
-                unsubscribe(); dialogs?.dispose(); properties.dispose(); diagnostics.dispose(); projects.delete(vm);
+                unsubscribeFormat(); unsubscribe(); dialogs?.dispose(); properties.dispose(); diagnostics.dispose();
+                if (projects.get(vm) === tools) {
+                    projects.delete(vm);
+                    format.update('unknown');
+                }
                 screenStates.delete(vm);
                 screenState.dispose();
                 await host.dispose();
@@ -381,6 +401,6 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
     const projectCatalog = (vm: object, locale: string, storage: ProjectFileStorage, createProject?: () => void) =>
         projects.get(vm)?.catalog?.show(locale, storage, createProject);
     const projectFileOpened = (vm: object, file: File | null) => projects.get(vm)?.catalog?.fileOpened(file);
-    return {installProjectToolsHost, projectScreenState, loadedProjectTitle, restoreProjectTitle, isProjectLoading, subscribeProjectLoad, projectSaveName, setProjectSaveName, createFolderFromCurrentProject, projectFileActions, projectCreation, renderFileMenu, projectToolsOwnKeyEvent,
+    return {installProjectToolsHost, projectFormatSource, projectScreenState, loadedProjectTitle, restoreProjectTitle, isProjectLoading, subscribeProjectLoad, projectSaveName, setProjectSaveName, createFolderFromCurrentProject, projectFileActions, projectCreation, renderFileMenu, projectToolsOwnKeyEvent,
         bindProjectCatalogFolder, projectCatalog, projectFileOpened};
 }

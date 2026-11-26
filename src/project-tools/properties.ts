@@ -2,6 +2,8 @@
 import JSZip from '@turbowarp/jszip';
 import {beginProjectLoad} from '../project-load-progress.js';
 import {isValidSaveName} from '../project-file-dialogs.js';
+import {readProjectSb3Format} from './format.js';
+import {PROJECT_INFO_KEY} from './project-info-key.js';
 
 export interface ProjectArchive {
     readonly project: Record<string, unknown>;
@@ -11,7 +13,7 @@ export interface ProjectPropertiesPorts {
     beginProjectArchiveRead(vm: object, input: unknown): {read: {original?: ProjectArchive}; invoke<T>(run: () => T): T} | undefined;
     projectSerializationOptions(vm: object): {preview?: boolean; title?: string; deferCommit?(commit: () => void): void} | undefined;
 }
-export const PROJECT_INFO_KEY = 'turboWarpPlusProject';
+export {PROJECT_INFO_KEY};
 // `saveName` names the project's folder or repository where the title cannot (#679); empty means none yet.
 const fields = ['title', 'description', 'author', 'contact', 'saveName'];
 const empty = () => ({schemaVersion: 1, title: '', description: '', author: '', contact: '', saveName: '',
@@ -23,8 +25,8 @@ const projectInfo = project => {
     const value = project?.[PROJECT_INFO_KEY];
     return value && typeof value === 'object' && !Array.isArray(value) ? clone(value) : null;
 };
-const archiveInfo = (archive?: ProjectArchive) =>
-    archive && archive.projectBytes <= maxInfoBytes ? projectInfo(archive.project) : null;
+const archiveProject = (archive?: ProjectArchive) =>
+    archive && archive.projectBytes <= maxInfoBytes ? archive.project : null;
 const normalize = value => ({...empty(), ...value,
     ...Object.fromEntries(fields.map(key => [key, typeof value?.[key] === 'string' ? value[key] : ''])),
     createdAt: validDate(value?.createdAt), updatedAt: validDate(value?.updatedAt)});
@@ -40,8 +42,8 @@ export function withProjectFolderTitle(files: ReadonlyMap<string, Uint8Array>, t
     return new Map(files).set(path, new TextEncoder().encode(JSON.stringify(project, null, 2) + '\n'));
 }
 
-/** Read only this host's metadata. Project validation and extension manifests remain with the VM/Loader. */
-async function readInfo(input) {
+/** Read the original metadata snapshot; the VM and Loader still own admission. */
+async function readPropertiesProject(input) {
     try {
         let project;
         if (typeof input === 'string') project = JSON.parse(input);
@@ -52,14 +54,14 @@ async function readInfo(input) {
             const array = bytes instanceof ArrayBuffer ? new Uint8Array(bytes) :
                 new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength);
             const prefix = new TextDecoder().decode(array.subarray(0, 64)).trimStart();
-            if (prefix.startsWith('{')) return readInfo(JSON.parse(new TextDecoder().decode(array)));
+            if (prefix.startsWith('{')) return readPropertiesProject(JSON.parse(new TextDecoder().decode(array)));
             // Old .sb/.sb2 inputs are left entirely to the VM.
             const zip = await JSZip.loadAsync(bytes);
             const file = zip.file('project.json');
             if (!file || (file as typeof file & {_data?: {uncompressedSize?: number}})._data?.uncompressedSize > maxInfoBytes) return null;
             project = JSON.parse(await file.async('string'));
         }
-        return projectInfo(project);
+        return project;
     } catch (error) { return null; }
 }
 
@@ -91,6 +93,7 @@ return function installProjectProperties(vm, {
     const descriptors = Object.fromEntries(Object.keys(originals).map(name => [name, Object.getOwnPropertyDescriptor(vm, name)]));
     let info = null;
     let baseline = null;
+    let format = readProjectSb3Format(null).format;
     let loading = 0;
     let generation = 0;
     let transaction = null;
@@ -165,27 +168,28 @@ return function installProjectProperties(vm, {
                 const sequence = ++generation;
                 loadState = {phase: 'loading', sequence};
                 notify();
-                let loaded = metadataEnabled && !archive ? await readInfo(input) : null;
+                let loaded = !archive ? await readPropertiesProject(input) : null;
                 try {
                     if (disposed) throw new Error('Project properties were disposed');
                     const outcome = await settled;
-                    if (metadataEnabled && archive) {
-                        if (archive.read.original) loaded = archiveInfo(archive.read.original);
-                        else if (!('failed' in outcome)) loaded = await readInfo(input);
+                    if (archive) {
+                        if (archive.read.original) loaded = archiveProject(archive.read.original);
+                        else if (!('failed' in outcome)) loaded = await readPropertiesProject(input);
                     }
                     if ('failed' in outcome) throw outcome.error;
                     const result = outcome.value;
                     if (disposed) return result;
                     if (metadataEnabled) {
-                        info = loaded || (isNew ? {...empty(), createdAt: now()} : null);
+                        info = projectInfo(loaded) || (isNew ? {...empty(), createdAt: now()} : null);
                         if (info?.schemaVersion === 1 && info.title) projectState.setTitle?.(info.title);
                         baseline = fingerprint();
                     }
+                    format = readProjectSb3Format(loaded).format;
                     loadState = {phase: 'loaded', sequence};
                     notify();
                     return result;
                 } catch (error) {
-                    loadState = {phase: 'failed', sequence, title: loaded?.title,
+                    loadState = {phase: 'failed', sequence, title: projectInfo(loaded)?.title,
                         code: error.code, message: error.message || String(error)};
                     notify();
                     throw error;
@@ -212,6 +216,7 @@ return function installProjectProperties(vm, {
     for (const name of Object.keys(originals)) vm[name] = wrappers[name];
     return {
         snapshot: () => ({...current(), readOnly: Boolean(info && info.schemaVersion !== 1), loading: loading > 0}),
+        projectFormat: () => format,
         loadState: () => ({...loadState}),
         subscribe (listener) { listeners.add(listener); return () => listeners.delete(listener); },
         loadedTitle: () => info?.schemaVersion === 1 && typeof info.title === 'string' && info.title ? info.title : undefined,
