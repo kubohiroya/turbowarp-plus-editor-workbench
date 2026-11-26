@@ -166,6 +166,7 @@ export function createProjectFolderIntegration(services: ProjectFolderIntegratio
             screenState: {
                 serialize: () => projectScreenState(vm)?.serialize(),
                 prepareLoad: text => projectScreenState(vm)?.prepareLoad(text),
+                applyFolderUpdate: (previous, text) => projectScreenState(vm)?.applyFolderUpdate(previous, text) ?? false,
                 register: (key, slice) => projectScreenState(vm)?.register(key, slice) ?? (() => {})
             },
             beforeLoad: environment.clearFileHandle,
