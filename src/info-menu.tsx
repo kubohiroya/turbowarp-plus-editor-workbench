@@ -1,4 +1,5 @@
 import React from 'react';
+import type {ProjectFormatSource} from './project-tools/format-source.js';
 
 export const projectTitleFieldClassName = 'tw-info-menu__project-title-field';
 export const projectTitleGroupClassName = 'tw-info-menu__project-title-group';
@@ -35,6 +36,7 @@ interface ProjectInfoMenuProps extends ProjectSettingsMenuProps {
     locale: string;
     version: string;
     logo: string;
+    projectFormat?: ProjectFormatSource;
     openAbout?(): void;
     openPrivacy?(): void;
     sourceUrl?: string;
@@ -54,8 +56,10 @@ const newTabIcon = (
     </svg>
 );
 
+let formatDescriptionSerial = 0;
+
 export function ProjectInfoMenu({
-    locale, version, logo, leading, displaySettings, renderRuntimeSettings, addons, advanced, githubConnection, aiAgents,
+    locale, version, logo, projectFormat, leading, displaySettings, renderRuntimeSettings, addons, advanced, githubConnection, aiAgents,
     openAbout, openPrivacy, sourceUrl = 'https://github.com/kubohiroya/turbowarp-plus-editor'
 }: ProjectInfoMenuProps) {
     const menu = React.useRef<HTMLDetailsElement>(null);
@@ -67,6 +71,19 @@ export function ProjectInfoMenu({
     const [submenu, setSubmenu] = React.useState<Submenu>(null);
     const japanese = /^ja(?:-|$)/i.test(locale);
     const label = japanese ? 'TurboWarp Plus プロジェクト情報' : 'TurboWarp Plus project information';
+    const format = projectFormat?.getSnapshot() ?? 'unknown';
+    const [, refreshFormat] = React.useReducer((revision: number) => revision + 1, 0);
+    React.useLayoutEffect(() => {
+        if (!projectFormat) return;
+        const refresh = () => { if (projectFormat.getSnapshot() !== format) refreshFormat(); };
+        const unsubscribe = projectFormat.subscribe(refresh);
+        refresh();
+        return unsubscribe;
+    }, [projectFormat, format]);
+    const [formatDescriptionId] = React.useState(() => `tw-info-menu-format-${++formatDescriptionSerial}`);
+    const formatName = format === 'plus' ? 'TurboWarp+' : format === 'standard' ?
+        (japanese ? '標準' : 'Standard') : (japanese ? '未確認' : 'Unknown');
+    const formatDescription = japanese ? `プロジェクト形式：${formatName}` : `Project format: ${formatName}`;
     const product = `TurboWarp Plus Editor ${version}`;
     const displayLabel = japanese ? '表示設定' : 'Display settings';
     const runtimeLabel = japanese ? '動作設定' : 'Runtime settings';
@@ -161,11 +178,15 @@ export function ProjectInfoMenu({
         }
         closeAndFocus();
     }}>
-        <summary ref={trigger} aria-label={label} title={label} onClick={event => {
+        <summary ref={trigger} aria-label={label} aria-describedby={projectFormat ? formatDescriptionId : undefined}
+            title={projectFormat ? formatDescription : label} onClick={event => {
             event.preventDefault();
             if (open) close();
             else setOpen(true);
-        }}><img src={logo} alt="" draggable={false} /></summary>
+        }}>
+            <img src={logo} alt="" draggable={false} className={format === 'standard' ? 'tw-info-menu__standard-logo' : undefined} />
+            {projectFormat && <span id={formatDescriptionId} hidden>{formatDescription}</span>}
+        </summary>
         <nav aria-label={label}>
             {openAbout ? <button className={`tw-info-menu__entry tw-info-menu__indented`} type="button" onClick={() => {
                 close();
