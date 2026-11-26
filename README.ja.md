@@ -374,6 +374,6 @@ Web Editorは `project-open-tabs` の `url` コマンドで別タブのURL入力
 `test/editor-unsaved-marker.browser.ts` は Editor #741 の未保存マーカーの背景色・hover/Tab フォーカス時の hint・300px 幅での収まりを引き継ぐ。元の操作・期待値を維持し、公開 `ProjectSaveMenu` と `project-file-menu.css` を native input の単独 host で確認する。既存 browser CI が GUI checkout・VM・Editor ビルドなし、skip なしで実行する。GPL-3.0-or-later と `test/LICENSE.GPL-3.0` を保持し、テストとそのライセンスは npm 配布対象外。Editor は VM の変更・タイトル幅と隣接・保存メニューの接続を残し、上流 CI 成功とマージ後に詳細11行を除く。製品・依存・CI 設定は変更しない。切り戻しは Editor の元検証を先に復元し、このテスト・文書を revert する。
 
 
-### 作品フォルダ・Git・ワークスペースの調整（次版のAPI）
+### 作品フォルダ・Git・ワークスペースの調整（0.40.4）
 
 `./project-folder-integration` がVMごとの接続、タイトル・タブ・未保存ファイルと各サービスの調整。フォルダ処理とコミット/公開処理はそれぞれの所有者のAPIへ委譲するを担当します。配布元の値とnativeコールバックを渡して使用します。由来・依存順・切り戻しは [移管記録](EDITOR-MIGRATION.md) を参照してください。
