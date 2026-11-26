@@ -8,18 +8,74 @@ function environment(url) {
     dom.window.HTMLDialogElement.prototype.showModal = function () {this.open = true;};
     return dom;
 }
-function channelClass() {
+function channelClass(clone = structuredClone) {
     const groups = new Map();
     return class Channel {
         constructor(name) {this.name=name; if(!groups.has(name))groups.set(name,new Set());groups.get(name).add(this);}
         postMessage(message) {
             for(const peer of groups.get(this.name)) if(peer!==this) {
-                const copy=structuredClone(message);
+                const copy=clone(message);
                 queueMicrotask(()=>peer.onmessage?.({data:copy}));
             }
         }
         close(){groups.get(this.name).delete(this);this.onmessage=null;}
     };
+}
+
+for (const outcome of ['loaded', 'cancelled', 'failed', 'unreadable']) {
+    test(`incoming file loading screen stays visible through the read and VM load, then clears when ${outcome}`, async t => {
+        const {installProjectOpenTabs, bindProjectOpenTabActions, openProjectInNewTab} = await import('../dist/project-open-tabs.js');
+        // Preserve the controlled File's read method; the real cloning protocol has separate browser coverage.
+        const Channel = channelClass(message => message);
+        const source = environment('https://editor.test/editor.html?lang=ja');
+        source.window.BroadcastChannel = Channel;
+        const options = document => ({document, locale: () => 'ja', ready: () => true,
+            subscribe: () => () => {}, isCancelled: error => error.code === 'CANCELLED'});
+        const original = {runtime: new EventEmitter(), loadProject: assert.fail};
+        const events = [];
+        let releaseRead, releaseLoad, target, disposeTarget;
+        const reading = new Promise(resolve => {releaseRead = resolve;});
+        const loading = new Promise(resolve => {releaseLoad = resolve;});
+        const failure = Object.assign(new Error(outcome), {code: outcome === 'cancelled' ? 'CANCELLED' : 'FAILED'});
+        const dispose = installProjectOpenTabs(original, {...options(source.window.document), setLoading: assert.fail});
+        source.window.open = url => {
+            target = environment(url); target.window.BroadcastChannel = Channel;
+            const close = target.window.close.bind(target.window);
+            target.window.close = () => {};
+            t.after(close);
+            const incoming = {runtime: new EventEmitter(), async loadProject(bytes) {
+                assert.equal(new TextDecoder().decode(bytes), 'selected bytes');
+                events.push('load');
+                await loading;
+                if (outcome !== 'loaded') throw failure;
+            }};
+            disposeTarget = installProjectOpenTabs(incoming, {...options(target.window.document),
+                setLoading: visible => events.push(visible)});
+            bindProjectOpenTabActions(incoming, {storage: {finish() {events.push('finish');}}, commands: {}});
+            return target.window;
+        };
+        t.after(() => {dispose(); disposeTarget?.(); source.window.close();});
+        const file = new File(['selected bytes'], 'selected.sb3');
+        file.arrayBuffer = async () => {
+            events.push('read'); await reading;
+            if (outcome === 'unreadable') throw failure;
+            return new TextEncoder().encode('selected bytes').buffer;
+        };
+        openProjectInNewTab(original, {kind: 'file', file});
+        for (let i = 0; i < 100 && !events.includes('read'); i++) await new Promise(resolve => setImmediate(resolve));
+        assert.deepEqual(events, [true, 'read']);
+        releaseRead();
+        if (outcome !== 'unreadable') {
+            for (let i = 0; i < 100 && !events.includes('load'); i++) await new Promise(resolve => setImmediate(resolve));
+            assert.deepEqual(events, [true, 'read', 'load']);
+        }
+        releaseLoad();
+        for (let i = 0; i < 100 && !events.includes(false); i++) await new Promise(resolve => setImmediate(resolve));
+        await new Promise(resolve => setImmediate(resolve));
+        assert.deepEqual(events, outcome === 'unreadable' ? [true, 'read', false] :
+            [true, 'read', 'load', false, ...(outcome === 'loaded' ? ['finish'] : [])]);
+        if (outcome !== 'loaded') assert.ok(target.window.document.querySelector('[data-testid="project-load-failure"]'));
+    });
 }
 
 for (const name of ['new.sb3', 'legacy.sb2']) test(`${name}: only the selected incoming file crosses tabs; the original VM is never saved, stopped or loaded`, async t => {
