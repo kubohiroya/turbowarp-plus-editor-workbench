@@ -212,7 +212,11 @@
       "types": "./dist/project-catalog-host.d.ts",
       "default": "./dist/project-catalog-host.js"
     },
-    "./project-catalog.css": "./src/project-catalog.css"
+    "./project-catalog.css": "./src/project-catalog.css",
+    "./project-folder-integration": {
+      "types": "./dist/project-folder-integration.d.ts",
+      "default": "./dist/project-folder-integration.js"
+    }
   },
   "files": [
     "dist",
@@ -247,7 +251,9 @@
     "@kubohiroya/turbowarp-plus-editor-project-folder": "0.22.1",
     "@kubohiroya/turbowarp-plus-editor-code-views": "0.26.8",
     "@kubohiroya/turbowarp-extension-security-dialog": "0.14.3",
-    "esbuild": "0.25.12"
+    "esbuild": "0.25.12",
+    "@kubohiroya/turbowarp-plus-editor-auth": "0.5.0",
+    "@kubohiroya/turbowarp-plus-editor-host": "0.1.1"
   },
   "repository": {
     "type": "git",
@@ -269,7 +275,9 @@
     "@kubohiroya/turbowarp-extension-loader": ">=0.11.1 <0.12.0 || 0.12.0 || 0.13.0 || 0.13.1 || 0.16.1 || 0.16.2",
     "@kubohiroya/turbowarp-plus-editor-project-folder": ">=0.20.1 <0.21.0 || 0.21.0 || 0.22.0 || 0.22.1",
     "@kubohiroya/turbowarp-plus-editor-code-views": ">=0.22.0 <0.23.0 || 0.23.0 || 0.23.1 || 0.24.0 || 0.25.0 || 0.26.0 || 0.26.1 || 0.26.2 || 0.26.3 || 0.26.4 || 0.26.6 || 0.26.8",
-    "@kubohiroya/turbowarp-extension-security-dialog": ">=0.9.0 <0.10.0 || 0.10.0 || 0.13.0 || 0.13.1 || 0.14.2 || 0.14.3"
+    "@kubohiroya/turbowarp-extension-security-dialog": ">=0.9.0 <0.10.0 || 0.10.0 || 0.13.0 || 0.13.1 || 0.14.2 || 0.14.3",
+    "@kubohiroya/turbowarp-plus-editor-auth": "0.5.0",
+    "@kubohiroya/turbowarp-plus-editor-host": "0.1.1"
   },
   "peerDependenciesMeta": {
     "@kubohiroya/turbowarp-plus-editor-git": {
