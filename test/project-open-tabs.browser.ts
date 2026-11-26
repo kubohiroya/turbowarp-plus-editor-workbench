@@ -10,7 +10,7 @@ import {chromium, expect, webkit} from '@playwright/test';
 
 const projectId = 'existing-project-1';
 const entry = `
-import {installProjectOpenTabs, bindProjectOpenTabActions, openProjectInNewTab} from '/project-open-tabs.js';
+import {installProjectOpenTabs, bindProjectOpenTabActions, openProjectInNewTab, openBrowserProjectInNewTab} from '/project-open-tabs.js';
 const events = new EventTarget();
 const vm = {runtime: {
     on(name, listener) {events.addEventListener(name, listener);},
@@ -33,6 +33,9 @@ bindProjectOpenTabActions(vm, {
     storage: {}, commands: {},
     async openBrowserProject(id) {
         window.browserCalls.push(id);
+        if (id === 'existing-project-1' || id === 'closed-child') {
+            await new Promise(resolve => { window.completeBrowserOpen = resolve; });
+        }
         const root = await navigator.storage.getDirectory();
         let project;
         try {project = await root.getDirectoryHandle(id);}
@@ -49,7 +52,12 @@ bindProjectOpenTabActions(vm, {
     }
 });
 document.querySelector('#open').onclick = () => {
-    window.accepted = openProjectInNewTab(vm, window.selection);
+    if (window.managed) {
+        window.receipt = 'pending';
+        void openBrowserProjectInNewTab(vm, window.selection.id).then(opened => { window.receipt = opened; });
+    } else {
+        window.accepted = openProjectInNewTab(vm, window.selection);
+    }
 };
 document.documentElement.dataset.ready = 'true';
 `;
@@ -109,6 +117,8 @@ test('a browser project crosses a real tab boundary only by ID and reopens local
     const opened = context.waitForEvent('page');
     await page.getByRole('button', {name: 'Open selected project'}).click();
     const child = await opened;
+    await expect.poll(() => child.evaluate(() => typeof (window as any).completeBrowserOpen)).toBe('function');
+    await child.evaluate(() => (window as any).completeBrowserOpen());
     await expect(child.locator('#project')).toHaveText('existing OPFS project');
     assert.deepEqual(await page.evaluate(() => (window as any).requests), [['id', 'kind']]);
     assert.deepEqual(await child.evaluate(() => (window as any).browserCalls), [projectId]);
@@ -147,11 +157,15 @@ test('invalid browser IDs are handled without a popup, and malformed received re
 for (const id of ['missing-null', 'missing-false']) {
     test(`a callback returning ${id.slice(8)} reports failure without opening or creating a folder`, async t => {
         const {context, page} = await browserFixture(t);
-        await page.evaluate(id => {(window as any).selection = {kind: 'browser-project', id};}, id);
+        await page.evaluate(id => {
+            (window as any).managed = true;
+            (window as any).selection = {kind: 'browser-project', id};
+        }, id);
         const opened = context.waitForEvent('page');
         await page.getByRole('button', {name: 'Open selected project'}).click();
         const child = await opened;
         await expect(child.getByTestId('project-load-failure')).toHaveAttribute('data-outcome', 'failed');
+        await expect.poll(() => page.evaluate(() => (window as any).receipt)).toBe(false);
         assert.deepEqual(await child.evaluate(() => (window as any).browserCalls), [id]);
         assert.deepEqual(await child.evaluate(() => (window as any).folderCalls), []);
         assert.equal(await child.evaluate(async id => {
@@ -162,6 +176,71 @@ for (const id of ['missing-null', 'missing-false']) {
         await expect(page.locator('#project')).toHaveText('original project');
     });
 }
+
+test('the managed receipt stays pending until the child finishes opening', async t => {
+    const {context, page} = await browserFixture(t);
+    await page.evaluate(async id => {
+        const root = await navigator.storage.getDirectory();
+        const directory = await root.getDirectoryHandle(id, {create: true});
+        const writable = await (await directory.getFileHandle('content.txt', {create: true})).createWritable();
+        await writable.write('managed OPFS project');
+        await writable.close();
+        (window as any).managed = true;
+        (window as any).selection = {kind: 'browser-project', id};
+    }, projectId);
+    const opened = context.waitForEvent('page');
+    await page.getByRole('button', {name: 'Open selected project'}).click();
+    const child = await opened;
+    await expect.poll(() => child.evaluate(() => typeof (window as any).completeBrowserOpen)).toBe('function');
+    assert.equal(await page.evaluate(() => (window as any).receipt), 'pending');
+    await child.evaluate(() => (window as any).completeBrowserOpen());
+    await expect(child.locator('#project')).toHaveText('managed OPFS project');
+    await expect.poll(() => page.evaluate(() => (window as any).receipt)).toBe(true);
+    assert.deepEqual(await page.evaluate(() => (window as any).requests), [['id', 'kind']]);
+    await expect(page.locator('#project')).toHaveText('original project');
+});
+
+for (const action of ['cancel', 'escape', 'timeout']) {
+    test(`the managed receipt settles false when popup retry ends by ${action}`, async t => {
+        const {context, page} = await browserFixture(t);
+        await page.evaluate(action => {
+            window.open = () => null;
+            if (action === 'timeout') {
+                const set = window.setTimeout.bind(window);
+                window.setTimeout = (callback, delay, ...args) => set(callback, delay === 60000 ? 200 : delay, ...args);
+            }
+            (window as any).managed = true;
+            (window as any).selection = {kind: 'browser-project', id: 'no-popup'};
+        }, action);
+        await page.getByRole('button', {name: 'Open selected project'}).click();
+        const prompt = page.getByRole('dialog');
+        if (action === 'cancel') await prompt.getByRole('button', {name: 'Cancel'}).click();
+        if (action === 'escape') {
+            await expect(prompt).toBeVisible();
+            await page.keyboard.press('Escape');
+        }
+        await expect.poll(() => page.evaluate(() => (window as any).receipt)).toBe(false);
+        await expect(prompt).toHaveCount(0);
+        assert.equal(context.pages().length, 1);
+        await expect(page.locator('#project')).toHaveText('original project');
+    });
+}
+
+test('closing a receiving tab before it opens the project settles the receipt false', async t => {
+    const {context, page} = await browserFixture(t);
+    await page.evaluate(() => {
+        (window as any).managed = true;
+        (window as any).selection = {kind: 'browser-project', id: 'closed-child'};
+    });
+    const opened = context.waitForEvent('page');
+    await page.getByRole('button', {name: 'Open selected project'}).click();
+    const child = await opened;
+    await expect.poll(() => child.evaluate(() => typeof (window as any).completeBrowserOpen)).toBe('function');
+    assert.equal(await page.evaluate(() => (window as any).receipt), 'pending');
+    await child.close();
+    await expect.poll(() => page.evaluate(() => (window as any).receipt)).toBe(false);
+    await expect(page.locator('#project')).toHaveText('original project');
+});
 
 test('a native-folder request still uses the existing handle transport', async t => {
     const {context, page} = await browserFixture(t);
