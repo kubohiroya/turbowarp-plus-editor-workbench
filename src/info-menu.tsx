@@ -42,6 +42,7 @@ interface ProjectInfoMenuProps extends ProjectSettingsMenuProps {
     beforeLayoutChange?(enabled: boolean): Promise<boolean>;
     openAbout?(): void;
     openPrivacy?(): void;
+    coursesUrl?: string;
     sourceUrl?: string;
     githubConnection?: MenuAction;
 }
@@ -63,7 +64,7 @@ let formatDescriptionSerial = 0;
 
 export function ProjectInfoMenu({
     locale, version, logo, projectFormat, layoutPreference, beforeLayoutChange, leading, displaySettings, renderRuntimeSettings, addons, advanced, githubConnection, aiAgents,
-    openAbout, openPrivacy, sourceUrl = 'https://github.com/kubohiroya/turbowarp-plus-editor'
+    openAbout, openPrivacy, coursesUrl, sourceUrl = 'https://github.com/kubohiroya/turbowarp-plus-editor'
 }: ProjectInfoMenuProps) {
     const newLayoutEnabled = useLayoutPreference(layoutPreference);
     const [changingLayout, setChangingLayout] = React.useState(false);
@@ -222,6 +223,11 @@ export function ProjectInfoMenu({
                 close();
                 openPrivacy();
             }}>{japanese ? 'プライバシー' : 'Privacy'}</button>}
+            {coursesUrl && <a className="tw-info-menu__entry tw-info-menu__indented" href={coursesUrl}
+                target="_blank" rel="noopener noreferrer" title={newTabLabel} onClick={closeAndFocus}>
+                {japanese ? 'プラとモコの講座' : 'Pura & Moko Courses'}
+                {newTabIcon}
+            </a>}
             {displaySettings && <div className="tw-info-menu__branch">
                 <button className={`tw-info-menu__entry tw-info-menu__indented`} type="button" ref={displayTrigger}
                     aria-expanded={submenu === 'display'} onClick={() => toggleSubmenu('display')}>
