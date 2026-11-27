@@ -4,11 +4,12 @@ import {build} from 'esbuild';
 import {readFile} from 'node:fs/promises';
 import {chromium, expect} from '@playwright/test';
 
-test('the logo follows loaded project format, not save state', {timeout: 30000}, async t => {
+test('the logo follows the format of loaded and newly created projects', {timeout: 30000}, async t => {
     const bundled = await build({stdin: {resolveDir: process.cwd(), contents: `
         export {default as React} from 'react';
         export {createRoot} from 'react-dom/client';
         export {ProjectInfoMenu} from './dist/info-menu.js';
+        export {openNewProjectDialog} from './dist/project-file-dialogs.js';
         export {createProjectTools} from './dist/project-tools/integration.js';
         export {createProjectDialogService} from './dist/project-tools/dialog.js';
         export {createProjectProperties} from './dist/project-tools/properties.js';`},
@@ -36,14 +37,19 @@ test('the logo follows loaded project format, not save state', {timeout: 30000},
             toJSON: () => JSON.stringify({targets: []}),
             runtime: {}
         };
+        let projectState = 'shown';
+        const listeners = new Set<() => void>();
         const tools = createProjectTools({
             installEditorExtensionHost: () => ({dispose() {}}),
             installProjectProperties: createProjectProperties({
                 beginProjectArchiveRead: () => undefined, projectSerializationOptions: () => undefined
             }),
             createProjectDialogs, editorProjectArchives: {}, projectToolsEnabled: true,
-            manualProjectURIEnabled: false, readStartupFlags: () => ({saveWorkspace: false}),
-            projectLoadState: () => undefined
+            manualProjectURIEnabled: false,
+            readStartupFlags: (search: string) => ({saveWorkspace: false,
+                newProjectSb3Format: new URLSearchParams(search).get('twPlusNewProjectSb3Format') === '1'}),
+            projectLoadState: () => ({current: () => projectState, isShown: () => projectState === 'shown',
+                subscribe(listener) {listeners.add(listener); return () => {listeners.delete(listener);};}})
         });
         const root = createRoot(document.querySelector('header'));
         const source = tools.projectFormatSource(vm);
@@ -52,9 +58,23 @@ test('the logo follows loaded project format, not save state', {timeout: 30000},
             logo: 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 30 30"%3E%3Ccircle cx="15" cy="15" r="15" fill="%230067cc"/%3E%3C/svg%3E'
         }));
         w.renderLocale('en');
-        w.install = () => w.host = tools.installProjectToolsHost(vm, {document, locale: 'en'});
+        w.install = () => w.host = tools.installProjectToolsHost(vm, {document, locale: 'en', search: '?twPlusNewProjectSb3Format=1'});
         w.open = project => vm.loadProject(project);
         w.save = () => vm.saveProjectSb3();
+        w.serialize = () => JSON.parse(vm.toJSON());
+        w.showProperties = () => tools.projectFileActions(vm, 'en', {canSave: true}, () => {}).properties();
+        w.newProject = () => {
+            const create = () => {
+                if (w.keepCurrent) return;
+                projectState = 'loading';
+                void vm.loadProject({targets: []}).then(() => {
+                    projectState = 'shown';
+                    for (const listener of listeners) listener();
+                });
+            };
+            const {newProject, createIn} = tools.projectCreation(vm, 'en', create);
+            void w.projectFormatTest.openNewProjectDialog(document, 'en', {...newProject, create, createIn});
+        };
     });
     const trigger = page.locator('header summary');
     const logo = trigger.locator('img');
@@ -92,6 +112,83 @@ test('the logo follows loaded project format, not save state', {timeout: 30000},
     await check('プロジェクト形式：TurboWarp+', 'none');
     await page.evaluate(() => (window as any).open({targets: []}));
     await check('プロジェクト形式：標準', 'grayscale(1)');
+    await page.evaluate(() => {
+        const w = window as any;
+        w.keepCurrent = true;
+        w.newProject();
+    });
+    const dialog = page.getByRole('dialog', {name: 'Create New Project'});
+    await expect(dialog.getByRole('radio', {name: 'Standard Scratch / TurboWarp'})).toBeChecked();
+    await dialog.getByRole('radio', {name: 'TurboWarp Plus'}).check();
+    const create = dialog.getByRole('button', {name: 'Create', exact: true});
+    await create.click();
+    await expect(dialog).toBeVisible();
+    await check('プロジェクト形式：標準', 'grayscale(1)');
+    await page.evaluate(() => { (window as any).keepCurrent = false; });
+    await create.click();
+    await expect(dialog).toBeHidden();
+    await check('プロジェクト形式：TurboWarp+', 'none');
+    await page.evaluate(async () => {
+        const w = window as any;
+        const saved = w.serialize();
+        if (saved.turboWarpPlusProject.sb3Format !== 'plus') throw new Error('Missing chosen format');
+        await w.open({targets: []});
+        await w.open(saved);
+    });
+    await check('プロジェクト形式：TurboWarp+', 'none');
+    await page.evaluate(async () => {
+        const w = window as any;
+        await w.open(w.originalProject);
+        w.showProperties();
+    });
+    const properties = page.getByRole('dialog', {name: 'Project Properties'});
+    const format = properties.getByRole('combobox', {name: 'SB3 save format'});
+    const apply = properties.getByRole('button', {name: 'Apply', exact: true});
+    const confirmation = page.getByRole('dialog', {name: 'Change to Standard format?'});
+    const chooseStandard = async () => {
+        await format.selectOption('standard');
+        await apply.click();
+        await expect(confirmation).toBeVisible();
+    };
+    await expect(format).toHaveValue('plus');
+    await properties.getByRole('textbox', {name: 'Project title'}).fill('Keep this draft');
+    await chooseStandard();
+    await expect(confirmation.getByRole('button', {name: 'Cancel'})).toBeFocused();
+    await expect(confirmation).toContainText('verification information');
+    await expect(confirmation).toContainText('Save a Copy of the Project');
+    await confirmation.getByRole('button', {name: 'Cancel'}).click();
+    await expect(format).toHaveValue('plus');
+    await expect(properties.getByRole('textbox', {name: 'Project title'})).toHaveValue('Keep this draft');
+    await chooseStandard();
+    await page.keyboard.press('Escape');
+    await expect(confirmation).toBeHidden();
+    await expect(format).toBeFocused();
+    await chooseStandard();
+    await confirmation.evaluate((dialog: HTMLDialogElement) => dialog.close());
+    await expect(format).toHaveValue('plus');
+    await check('プロジェクト形式：TurboWarp+', 'none');
+    const before = await page.evaluate(() => (window as any).serialize());
+    if (before.turboWarpPlusProject) throw new Error('Dismissing the confirmation applied the draft');
+    await chooseStandard();
+    await confirmation.getByRole('button', {name: 'Change to Standard', exact: true}).click();
+    await expect(properties).toBeHidden();
+    await check('プロジェクト形式：標準', 'grayscale(1)');
+    await page.evaluate(async () => {
+        const w = window as any;
+        const saved = w.serialize();
+        if (saved.turboWarpPlusProject.sb3Format !== 'standard' ||
+            saved.turboWarpPlusProject.title !== 'Keep this draft' || !w.originalProject.turboWarpPlus) {
+            throw new Error('The confirmed draft changed the wrong data');
+        }
+        await w.open(saved);
+        w.showProperties();
+    });
+    await expect(format).toHaveValue('standard');
+    await format.selectOption('plus');
+    await apply.click();
+    await expect(properties).toBeHidden();
+    await expect(confirmation).toBeHidden();
+    await check('プロジェクト形式：TurboWarp+', 'none');
     await page.evaluate(() => (window as any).host.dispose());
     await check('プロジェクト形式：未確認', 'none');
 });
