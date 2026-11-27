@@ -32,10 +32,10 @@ for (const locale of ['en', 'ja'] as const) {
         const calls: string[] = [];
         const record = (name: string) => () => { calls.push(name); };
         const action = (name: string) => ({icon: '/icon.svg', onClick: record(name)});
-        const Host = () => {
+        const Host = ({coursesUrl}: {coursesUrl?: string} = {}) => {
             const [open, setOpen] = React.useState(false);
             return h(ProjectInfoMenu, {
-                locale, version: '0.4.1', logo: '/logo.svg', leading: true,
+                locale, version: '0.4.1', logo: '/logo.svg', leading: true, coursesUrl,
                 displaySettings: {
                     open,
                     onOpen() { calls.push('display-open'); setOpen(true); },
@@ -90,5 +90,18 @@ for (const locale of ['en', 'ja'] as const) {
             assert.equal(calls.at(-1), name);
             assert.equal(details.open, false);
         }
+
+        const coursesUrl = 'https://example.org/dashboard/#category-courses';
+        act(() => root.render(h(Host, {coursesUrl})));
+        click(summary);
+        const courses = Array.from(nav.querySelectorAll('a')).find(link => link.href === coursesUrl);
+        assert.ok(courses);
+        assert.equal(courses.textContent, locale === 'ja' ? 'プラとモコの講座' : 'Pura & Moko Courses');
+        assert.equal(courses.target, '_blank');
+        assert.equal(courses.rel, 'noopener noreferrer');
+        courses.addEventListener('click', event => event.preventDefault(), {once: true});
+        click(courses);
+        assert.equal(details.open, false);
+        assert.equal(document.activeElement, summary);
     });
 }
