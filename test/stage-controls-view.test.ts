@@ -20,7 +20,7 @@ const mountView = (t: import('node:test').TestContext) => {
         for (const key of Object.keys(globals)) Reflect.deleteProperty(globalThis, key);
     });
     const service = createStageControlsService();
-    const render = (options: {isSmall?: boolean; menuLocale?: string} = {}) => React.act(() => {
+    const render = (options: {isSmall?: boolean; menuLocale?: string; children?: React.ReactNode} = {}) => React.act(() => {
         root.render(React.createElement(StageControlsView, {service, ...options}));
     });
     return {document, host, service, render};
@@ -52,6 +52,24 @@ test('standalone extension control renders its visibility, focus, label and comp
     assert.equal(button()?.title, 'Hide details');
     React.act(() => control.update({visible: false}));
     assert.equal(button(), null);
+});
+
+test('menu places host controls after debugger and recorder, before the extension tray', t => {
+    const {document, host, service, render} = mountView(t);
+    const debuggerElement = document.createElement('div');
+    debuggerElement.innerHTML = '<button data-tw-stage-button>Debug</button>';
+    service.setDebuggerButton(debuggerElement);
+    const recorderElement = document.createElement('span'); recorderElement.textContent = 'Record';
+    service.setRecordButton(recorderElement, 'Record');
+    service.api.addButton({id: 'details', label: 'Details', text: 'Details', icon: '+', onClick() {}}).update({visible: true});
+    const pair = React.createElement('button', {'data-pair-control': true}, 'Pair');
+    render({menuLocale: 'ja', children: pair});
+    assert.deepEqual([...host.querySelectorAll('button')].map(element => element.textContent), ['Debug', '🎥', 'Pair', '+']);
+    render({children: pair});
+    assert.equal(host.querySelector('[data-pair-control]'), null);
+    React.act(() => {service.setDebuggerButton(null); service.setRecordButton(null);});
+    render({menuLocale: 'ja', children: pair});
+    assert.ok(host.querySelector('[data-pair-control]'));
 });
 
 test('standalone recorder mirrors a detached add-on element and forwards activation', async t => {

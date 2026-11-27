@@ -7,6 +7,7 @@ interface StageControlsProps {
     service: Service;
     isSmall?: boolean;
     menuLocale?: string;
+    children?: React.ReactNode;
 }
 interface StageControlsState {
     controls: ReturnType<Service['snapshot']>;
@@ -129,7 +130,7 @@ class StageControlsView extends React.PureComponent<StageControlsProps, StageCon
         if (node && panel && panel.parentNode !== node) node.appendChild(panel);
     }
     render () {
-        const {isSmall, menuLocale} = this.props;
+        const {isSmall, menuLocale, children} = this.props;
         const {panel, debuggerButton, recordButton} = this.state;
         // On the menu bar a control is its icon alone, to keep the tray narrow; its label is the
         // tooltip and the accessible name. Beside the stage, where there is room, the text shows too.
@@ -156,11 +157,12 @@ class StageControlsView extends React.PureComponent<StageControlsProps, StageCon
             {buttons}
             {panel && <div className="tw-stage-controls__panel" ref={this.mountPanel} />}
         </>;
-        if (!buttons.length && !debuggerButton && !recordButton && !panel) return null;
+        if (!buttons.length && !debuggerButton && !recordButton && !panel && !children) return null;
         const japanese = /^ja(?:-|$)/i.test(menuLocale);
         return <>
-            {recordButton && <RecordButton element={recordButton.element} idleText={recordButton.idleText} />}
             {debuggerButton && <DebuggerButton element={debuggerButton} label={japanese ? 'デバッグ' : 'Debugger'} />}
+            {recordButton && <RecordButton element={recordButton.element} idleText={recordButton.idleText} />}
+            {children}
             {(buttons.length > 0 || panel) && <div className="tw-stage-controls__menu-dock">
                 {buttons.length > 0 && <div
                     className="tw-stage-controls__control-group"

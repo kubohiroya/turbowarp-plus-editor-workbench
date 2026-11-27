@@ -1,6 +1,6 @@
 {
   "name": "@kubohiroya/turbowarp-plus-editor-workbench",
-  "version": "0.42.1",
+  "version": "0.43.0",
   "description": "The TurboWarp Plus Editor workbench: layout, dockable sprite tabs, stage, debugger tab and file menu",
   "type": "module",
   "license": "MPL-2.0",
@@ -239,7 +239,7 @@
     "test:browser": "npm run build && node --test test/*.browser.ts"
   },
   "devDependencies": {
-    "@kubohiroya/turbowarp-plus-editor-git": "0.32.2",
+    "@kubohiroya/turbowarp-plus-editor-git": "0.33.0",
     "@kubohiroya/turbowarp-plus-editor-windows": "0.2.3",
     "@playwright/test": "1.65.1",
     "@types/react": "18.3.32",
@@ -253,11 +253,12 @@
     "@turbowarp/jszip": "3.12.0",
     "@kubohiroya/turbowarp-extension-loader": "0.16.3",
     "@kubohiroya/turbowarp-plus-editor-project-folder": "0.22.3",
-    "@kubohiroya/turbowarp-plus-editor-code-views": "0.26.10",
+    "@kubohiroya/turbowarp-plus-editor-code-views": "0.26.13",
     "@kubohiroya/turbowarp-extension-security-dialog": "0.14.3",
     "esbuild": "0.25.12",
-    "@kubohiroya/turbowarp-plus-editor-auth": "0.5.0",
-    "@kubohiroya/turbowarp-plus-editor-host": "0.1.1"
+    "@kubohiroya/turbowarp-plus-editor-auth": "0.5.1",
+    "@kubohiroya/turbowarp-plus-editor-host": "0.1.1",
+    "@kubohiroya/turbowarp-plus-editor-pair-programming": "0.1.0"
   },
   "repository": {
     "type": "git",
@@ -270,7 +271,7 @@
     "dockview": "8.10.0"
   },
   "peerDependencies": {
-    "@kubohiroya/turbowarp-plus-editor-git": ">=0.32.2 <0.33.0",
+    "@kubohiroya/turbowarp-plus-editor-git": ">=0.33.0 <0.34.0",
     "@kubohiroya/turbowarp-plus-editor-windows": ">=0.2.1 <0.3.0",
     "react": ">=16.14",
     "react-dom": ">=16.14",
@@ -278,10 +279,11 @@
     "@turbowarp/jszip": ">=3.12.0 <4",
     "@kubohiroya/turbowarp-extension-loader": ">=0.11.1 <0.12.0 || 0.12.0 || 0.13.0 || 0.13.1 || 0.16.1 || 0.16.2 || 0.16.3",
     "@kubohiroya/turbowarp-plus-editor-project-folder": ">=0.22.3 <0.23.0",
-    "@kubohiroya/turbowarp-plus-editor-code-views": ">=0.22.0 <0.23.0 || 0.23.0 || 0.23.1 || 0.24.0 || 0.25.0 || 0.26.0 || 0.26.1 || 0.26.2 || 0.26.3 || 0.26.4 || 0.26.6 || 0.26.8 || 0.26.9 || 0.26.10",
-    "@kubohiroya/turbowarp-extension-security-dialog": ">=0.9.0 <0.10.0 || 0.10.0 || 0.13.0 || 0.13.1 || 0.14.2 || 0.14.3",
-    "@kubohiroya/turbowarp-plus-editor-auth": "0.5.0",
-    "@kubohiroya/turbowarp-plus-editor-host": "0.1.1"
+    "@kubohiroya/turbowarp-plus-editor-code-views": ">=0.22.0 <0.23.0 || 0.23.0 || 0.23.1 || 0.24.0 || 0.25.0 || 0.26.0 || 0.26.1 || 0.26.2 || 0.26.3 || 0.26.4 || 0.26.6 || 0.26.8 || 0.26.9 || 0.26.10 || 0.26.11 || 0.26.12 || 0.26.13",
+    "@kubohiroya/turbowarp-extension-security-dialog": ">=0.9.0 <0.10.0 || 0.10.0 || 0.13.0 || 0.13.1 || 0.14.2 || 0.14.3 || 0.15.0",
+    "@kubohiroya/turbowarp-plus-editor-auth": "0.5.1",
+    "@kubohiroya/turbowarp-plus-editor-host": "0.1.1",
+    "@kubohiroya/turbowarp-plus-editor-pair-programming": ">=0.1.0 <0.2.0"
   },
   "peerDependenciesMeta": {
     "@kubohiroya/turbowarp-plus-editor-git": {

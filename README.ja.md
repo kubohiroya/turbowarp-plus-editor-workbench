@@ -1,5 +1,7 @@
 # TurboWarp Plus Editor Workbench
 
+ペア作業の役割・代表者・タイムラインは独立した `@kubohiroya/turbowarp-plus-editor-pair-programming` が所有します。本パッケージの作品フォルダー連携は、そのパッケージを保存・Git操作・アカウント別認証・履歴の接続口へ渡します。実装の追跡は [Editor #883](https://github.com/kubohiroya/turbowarp-plus-editor/issues/883) です。
+
 TurboWarp Plus Editor の作業画面。分割レイアウト、Plus 標準配置、Dockview のスプライトタブとワークスペース、ステージ、デバッガーのタブ、ファイルメニューを担う。スプライトタブの中のペインは `@kubohiroya/turbowarp-plus-editor-sprite-panes`、ページ内の窓は `@kubohiroya/turbowarp-plus-editor-windows`、作品データの読み取りは `@kubohiroya/turbowarp-plus-editor-project-model` から使う。
 
 このパッケージは 0.3.0 まで `@kubohiroya/turbowarp-plus-editor-layout` として公開していた。
