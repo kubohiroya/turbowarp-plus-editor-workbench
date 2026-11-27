@@ -216,6 +216,10 @@
     "./project-folder-integration": {
       "types": "./dist/project-folder-integration.d.ts",
       "default": "./dist/project-folder-integration.js"
+    },
+    "./layout-preference": {
+      "types": "./dist/layout-preference.d.ts",
+      "default": "./dist/layout-preference.js"
     }
   },
   "files": [

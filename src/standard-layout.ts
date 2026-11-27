@@ -5,8 +5,6 @@ import {availableDrawerViews, createDrawerViewBar, drawerLabel, drawerPinIcon, d
 import type {DrawerViewId} from './drawer-views.ts';
 import type {ProjectScreenState} from './project-screen-state.ts';
 import {attachStageDrawerDrag} from './stage-drawer-drag.ts';
-export {createLayoutPreference, readNewLayoutPreference, useLayoutPreference, newLayoutStorageKey, prepareLayoutChange} from './layout-preference.ts';
-export type {LayoutPreference} from './layout-preference.ts';
 import type {StageDrawerLayout, StageDrawerPosition} from './workspace-layout.ts';
 
 export type {DrawerMenu, DrawerMenuRenderProps, DrawerRenderProps, DrawerView, DrawerViewId, DrawerViews,

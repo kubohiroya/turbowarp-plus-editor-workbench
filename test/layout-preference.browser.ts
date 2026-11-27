@@ -10,7 +10,8 @@ const bundle = await build({stdin: {resolveDir: root, contents: `
     import React from 'react';
     import {createRoot} from 'react-dom/client';
     import {ProjectInfoMenu} from './dist/info-menu.js';
-    import {createLayoutPreference, useLayoutPreference, createStandardLayout} from './dist/standard-layout.js';
+    import {createStandardLayout} from './dist/standard-layout.js';
+    import {createLayoutPreference, useLayoutPreference} from './dist/layout-preference.js';
     const h = React.createElement;
     const choice = createLayoutPreference({search: location.search});
     const styles = new Proxy({}, {get: (_, key) => String(key).replace(/[A-Z]/g, x => '-' + x.toLowerCase())});
