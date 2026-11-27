@@ -35,3 +35,22 @@ test('navigation adds nothing when neither zoom nor the minimap is wanted', () =
     assert.equal(frame.outerHTML, before);
     navigation.dispose();
 });
+
+
+test('navigation follows the layout preference and disconnects its subscription on dispose', async () => {
+    const {createLayoutPreference} = await import('../dist/layout-preference.js');
+    const choice = createLayoutPreference({storage: () => undefined});
+    const {window} = new JSDOM('<!doctype html><body></body>');
+    const {frame, workspace: ws} = workspace(window.document);
+    const navigation = attachReviewNavigation(ws, {}, undefined,
+        {horizontalZoom: false, minimap: false, layoutPreference: choice});
+    assert.equal(frame.hasAttribute('data-code-hover-surface'), false);
+    choice.setEnabled(true);
+    assert.equal(frame.hasAttribute('data-code-hover-surface'), true);
+    choice.setEnabled(false);
+    assert.equal(frame.hasAttribute('data-code-hover-surface'), false);
+    navigation.dispose();
+    choice.setEnabled(true);
+    assert.equal(frame.hasAttribute('data-code-hover-surface'), false);
+    window.close();
+});

@@ -1,5 +1,6 @@
 import React from 'react';
 import type {ProjectFormatSource} from './project-tools/format-source.js';
+import {useLayoutPreference, type LayoutPreference} from './layout-preference.js';
 
 export const projectTitleFieldClassName = 'tw-info-menu__project-title-field';
 export const projectTitleGroupClassName = 'tw-info-menu__project-title-group';
@@ -37,6 +38,8 @@ interface ProjectInfoMenuProps extends ProjectSettingsMenuProps {
     version: string;
     logo: string;
     projectFormat?: ProjectFormatSource;
+    layoutPreference?: LayoutPreference;
+    beforeLayoutChange?(enabled: boolean): Promise<boolean>;
     openAbout?(): void;
     openPrivacy?(): void;
     sourceUrl?: string;
@@ -59,9 +62,11 @@ const newTabIcon = (
 let formatDescriptionSerial = 0;
 
 export function ProjectInfoMenu({
-    locale, version, logo, projectFormat, leading, displaySettings, renderRuntimeSettings, addons, advanced, githubConnection, aiAgents,
+    locale, version, logo, projectFormat, layoutPreference, beforeLayoutChange, leading, displaySettings, renderRuntimeSettings, addons, advanced, githubConnection, aiAgents,
     openAbout, openPrivacy, sourceUrl = 'https://github.com/kubohiroya/turbowarp-plus-editor'
 }: ProjectInfoMenuProps) {
+    const newLayoutEnabled = useLayoutPreference(layoutPreference);
+    const [changingLayout, setChangingLayout] = React.useState(false);
     const menu = React.useRef<HTMLDetailsElement>(null);
     const trigger = React.useRef<HTMLElement>(null);
     const displayTrigger = React.useRef<HTMLButtonElement>(null);
@@ -197,6 +202,22 @@ export function ProjectInfoMenu({
                     {aboutLabel}
                     {newTabIcon}
                 </a>}
+            {layoutPreference && <button className="tw-info-menu__entry" type="button" role="menuitemcheckbox"
+                aria-checked={newLayoutEnabled} disabled={changingLayout} onClick={async () => {
+                    if (changingLayout) return;
+                    setChangingLayout(true);
+                    try {
+                        if (!beforeLayoutChange || await beforeLayoutChange(!newLayoutEnabled)) {
+                            layoutPreference.setEnabled(!newLayoutEnabled);
+                        }
+                        closeAndFocus();
+                    } finally {
+                        setChangingLayout(false);
+                    }
+                }}>
+                <span className="tw-info-menu__check" aria-hidden="true">{newLayoutEnabled ? '✓' : ''}</span>
+                {japanese ? '新レイアウトを有効化' : 'Enable new layout'}
+            </button>}
             {openPrivacy && <button className={`tw-info-menu__entry tw-info-menu__indented`} type="button" onClick={() => {
                 close();
                 openPrivacy();

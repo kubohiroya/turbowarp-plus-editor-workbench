@@ -14,7 +14,7 @@ export interface DockviewStagePane {
     };
 }
 
-export function useDockviewStage(enabled: boolean, locale: string) {
+export function useDockviewStage(enabled: boolean, locale: string, active = true) {
     const [surface] = React.useState(() => {
         if (!enabled) return null;
         const node = document.createElement('div');
@@ -78,7 +78,7 @@ export function useDockviewStage(enabled: boolean, locale: string) {
         }
     }), [japanese, move, restoreDrawer, drawerListeners]);
     return surface && {
-        surface, pane, docked, commands, inlineRef, suspend, drawerLayout, updateDrawer, resetDrawerPresentation,
+        surface, pane, docked, commands, inlineRef, suspend, drawerLayout, updateDrawer, resetDrawerPresentation, active,
         openLabel: japanese ? '実行画面をタブで開く' : 'Open run view in workspace',
         closeLabel: japanese ? '実行画面を元の位置に戻す' : 'Return run view from workspace'
     };
