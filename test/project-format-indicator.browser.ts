@@ -62,6 +62,7 @@ test('the logo follows the format of loaded and newly created projects', {timeou
         w.open = project => vm.loadProject(project);
         w.save = () => vm.saveProjectSb3();
         w.serialize = () => JSON.parse(vm.toJSON());
+        w.showProperties = () => tools.projectFileActions(vm, 'en', {canSave: true}, () => {}).properties();
         w.newProject = () => {
             const create = () => {
                 if (w.keepCurrent) return;
@@ -134,6 +135,59 @@ test('the logo follows the format of loaded and newly created projects', {timeou
         await w.open({targets: []});
         await w.open(saved);
     });
+    await check('プロジェクト形式：TurboWarp+', 'none');
+    await page.evaluate(async () => {
+        const w = window as any;
+        await w.open(w.originalProject);
+        w.showProperties();
+    });
+    const properties = page.getByRole('dialog', {name: 'Project Properties'});
+    const format = properties.getByRole('combobox', {name: 'SB3 save format'});
+    const apply = properties.getByRole('button', {name: 'Apply', exact: true});
+    const confirmation = page.getByRole('dialog', {name: 'Change to Standard format?'});
+    const chooseStandard = async () => {
+        await format.selectOption('standard');
+        await apply.click();
+        await expect(confirmation).toBeVisible();
+    };
+    await expect(format).toHaveValue('plus');
+    await properties.getByRole('textbox', {name: 'Project title'}).fill('Keep this draft');
+    await chooseStandard();
+    await expect(confirmation.getByRole('button', {name: 'Cancel'})).toBeFocused();
+    await expect(confirmation).toContainText('verification information');
+    await expect(confirmation).toContainText('Save a Copy of the Project');
+    await confirmation.getByRole('button', {name: 'Cancel'}).click();
+    await expect(format).toHaveValue('plus');
+    await expect(properties.getByRole('textbox', {name: 'Project title'})).toHaveValue('Keep this draft');
+    await chooseStandard();
+    await page.keyboard.press('Escape');
+    await expect(confirmation).toBeHidden();
+    await expect(format).toBeFocused();
+    await chooseStandard();
+    await confirmation.evaluate((dialog: HTMLDialogElement) => dialog.close());
+    await expect(format).toHaveValue('plus');
+    await check('プロジェクト形式：TurboWarp+', 'none');
+    const before = await page.evaluate(() => (window as any).serialize());
+    if (before.turboWarpPlusProject) throw new Error('Dismissing the confirmation applied the draft');
+    await chooseStandard();
+    await confirmation.getByRole('button', {name: 'Change to Standard', exact: true}).click();
+    await expect(properties).toBeHidden();
+    await check('プロジェクト形式：標準', 'grayscale(1)');
+    await page.evaluate(async () => {
+        const w = window as any;
+        const saved = w.serialize();
+        if (saved.turboWarpPlusProject.sb3Format !== 'standard' ||
+            saved.turboWarpPlusProject.title !== 'Keep this draft' || !w.originalProject.turboWarpPlus) {
+            throw new Error('The confirmed draft changed the wrong data');
+        }
+        await w.open(saved);
+        w.showProperties();
+    });
+    await expect(format).toHaveValue('standard');
+    await format.selectOption('plus');
+    await apply.click();
+    await expect(properties).toBeHidden();
+    await expect(confirmation).toBeHidden();
     await check('プロジェクト形式：TurboWarp+', 'none');
     await page.evaluate(() => (window as any).host.dispose());
     await check('プロジェクト形式：未確認', 'none');

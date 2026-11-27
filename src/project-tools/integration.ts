@@ -352,12 +352,13 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
             });
         });
         const hasProperties = tools.propertiesEnabled || tools.projectURIEnabled;
+        const formatOptions = {offerSb3Formats: tools.offerSb3Formats};
         return {
             saveAs: () => showSaveForm('copy'),
             saveNew: () => showSaveForm('save'),
             saveCommit: showCommit,
             properties: hasProperties ?
-                () => dialogs.showProperties(locale, tools.projectURIEnabled ? editProjectURI(vm) : undefined) : undefined,
+                () => dialogs.showProperties(locale, tools.projectURIEnabled ? editProjectURI(vm) : undefined, formatOptions) : undefined,
             diagnostics: hasProperties ? undefined : () => dialogs.showDiagnostics(locale),
             payloads: payloads?.canEdit ? openPayloads : undefined,
             extensions: add || authoring ? openExtensions : undefined,
@@ -448,7 +449,8 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
         const open = type => {
             onRequestClose();
             if (type === 'properties') {
-                tools.dialogs.showProperties(locale, tools.projectURIEnabled ? editProjectURI(vm) : undefined);
+                tools.dialogs.showProperties(locale, tools.projectURIEnabled ? editProjectURI(vm) : undefined,
+                    {offerSb3Formats: tools.offerSb3Formats});
             } else if (type === 'payloads') {
                 tools.dialogs.showPayloadFormats(tools.payloads.edit(), locale);
             } else if (type === 'bundle-assets') {
