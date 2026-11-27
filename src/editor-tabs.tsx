@@ -203,7 +203,7 @@ export function createEditorTabLayout({welcomeBrand, desktopCodeEnabled, openDes
         const stage = React.useContext(StageDisplayMenuContext)?.stage;
         const targetSwitch = React.useContext(TargetSwitchContext);
         // The stage uses the native fullscreen surface while Dockview keeps its panel and layout.
-        const workspaceEnabled = plusLayout || Boolean(stage);
+        const workspaceEnabled = plusLayout || Boolean(stage && stage.active !== false);
         const multiView = workspaceEnabled && dockviewMultiViewEnabled && typeof onActivateEditorTab === 'function';
         const workspaceLayout = React.useMemo(() => multiView ? {
             store: desktopWorkspaceLayoutStore,
@@ -269,7 +269,7 @@ export function createEditorTabLayout({welcomeBrand, desktopCodeEnabled, openDes
             openPalette: () => openDetachedBlockPalette({locale, categoryIcons, decorate: decorateSurface})
         }), [locale]);
         const code = useCodeWindows({vm, host, locale,
-            enabled: !multiView && (layoutFlags.spriteCodeWindows || layoutFlags.standardLayout) && !desktopCodeEnabled});
+            enabled: !multiView && (layoutFlags.spriteCodeWindows || plusLayout) && !desktopCodeEnabled});
         const [states, setStates] = React.useState([]);
         const action = React.useRef(null);
         const previousActive = React.useRef(null);

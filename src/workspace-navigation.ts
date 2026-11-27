@@ -5,6 +5,7 @@
  * Moved from the Plus Editor's `site/workspace-minimap` (kubohiroya/turbowarp-plus-editor#741). The
  * minimap itself is Code Views' `attachWorkspaceOverview`; this places it with the zoom controls.
  */
+import type {LayoutPreference} from './layout-preference.ts';
 import {attachHorizontalWorkspaceZoom, workspaceControlsCorner} from './workspace-zoom.ts';
 import {attachWorkspaceOverview} from '@kubohiroya/turbowarp-plus-editor-code-views/sprite-code-windows';
 
@@ -20,7 +21,26 @@ function navigationCorner(workspace, ScratchBlocks, metrics) {
     return {right: right + CONTROLS_OFFSET, bottom: bottom + CONTROLS_OFFSET};
 }
 
-export function attachWorkspaceNavigation(workspace, ScratchBlocks, {horizontalZoom, minimap}) {
+type NavigationOptions = {horizontalZoom: boolean; minimap: boolean; layoutPreference?: LayoutPreference};
+
+function followLayout(preference: LayoutPreference, attach: () => {dispose(): void}) {
+    let navigation: {dispose(): void} | undefined;
+    const update = () => {
+        navigation?.dispose();
+        navigation = preference.read() ? attach() : undefined;
+    };
+    const unsubscribe = preference.subscribe(update);
+    update();
+    return {dispose() {
+        unsubscribe();
+        navigation?.dispose();
+        navigation = undefined;
+    }};
+}
+
+export function attachWorkspaceNavigation(workspace, ScratchBlocks, {horizontalZoom, minimap, layoutPreference}: NavigationOptions) {
+    if (layoutPreference) return followLayout(layoutPreference,
+        () => attachWorkspaceNavigation(workspace, ScratchBlocks, {horizontalZoom, minimap}));
     const container = workspace.getInjectionDiv();
     const getCorner = metrics => {
         const corner = navigationCorner(workspace, ScratchBlocks, metrics);
@@ -50,7 +70,10 @@ export function attachWorkspaceNavigation(workspace, ScratchBlocks, {horizontalZ
 }
 
 /** Arranges a Git review preview like the code area: costume thumbnail, minimap, then the zoom buttons. */
-export function attachReviewNavigation(workspace, ScratchBlocks, watermark: HTMLElement | undefined, {horizontalZoom, minimap}) {
+export function attachReviewNavigation(workspace, ScratchBlocks, watermark: HTMLElement | undefined,
+    {horizontalZoom, minimap, layoutPreference}: NavigationOptions) {
+    if (layoutPreference) return followLayout(layoutPreference,
+        () => attachReviewNavigation(workspace, ScratchBlocks, watermark, {horizontalZoom, minimap}));
     const container = workspace.getInjectionDiv();
     const frame = container.parentElement?.parentElement ?? container;
     frame.toggleAttribute('data-code-hover-surface', true);

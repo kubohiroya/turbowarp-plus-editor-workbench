@@ -6,6 +6,14 @@ The workbench of TurboWarp Plus Editor: the resizable layout, the Plus standard 
 
 This package was published as `@kubohiroya/turbowarp-plus-editor-layout` up to 0.3.0.
 
+## Layout preference
+
+The second item in the upper-left Plus menu, **Enable new layout**, switches between the Scratch-derived layout and the Plus layout. It defaults to off. The choice is saved separately from projects and workspace layouts in localStorage under `twPlusNewLayoutEnabled` (`1` or `0`). Denied storage still allows switching for the current session.
+
+Create one `createLayoutPreference({search})` from `layout-preference`, pass it to the information menu as `layoutPreference`, and use `useLayoutPreference` to supply `StandardLayout.enabled`. Keep both layouts' GUI hooks registered. Pass the same value as the third argument of `useDockviewStage` so the stage canvas stays mounted while the native tabs and Dockview alternate. Explicit `twPlusStandardLayout=0/1` startup parameters override storage; selecting the menu item updates that parameter too.
+
+Run the build, `test/layout-preference.test.ts`, `test/project-info-menu-host-ports.test.ts` and `test/layout-preference.browser.ts`. For the pinned GUI integration, set `TW_PLUS_LAYOUT_EDITOR_URL` to the local build and run `test/layout-preference-editor.browser.ts`. All browser checks are headless. Pending edits in detached views are collected first; dirty file tabs prevent switching back until saved or closed. Uncheck the item to return to the old layout; revert the host connection and dependency pin to roll back the implementation while keeping project and workspace data.
+
 ## Project catalog
 
 The `project-catalog`, `project-catalog-dialog`, `project-catalog-host` exports and `project-catalog.css` provide one catalog for SB3 files, device folders, browser storage and remote Git worktrees. The Editor supplies file handles, location subscriptions, folder operations and the remote opener through `createProjectTools`, `bindProjectCatalogFolder` and the successful-upload callback `projectFileOpened`.
@@ -35,7 +43,7 @@ Dividers are enabled by default in the Scratch layout. Selecting a stage size pr
 
 ## Plus standard layout
 
-`createStandardLayout(React, {styles, targetStyles, context})` handles layout switching via the anchor control (⚓️), stage visibility and measurement, and the two-column sprite list. Pass `editor.css` and `targets.css` as class-name maps. The host provides startup settings, storage, window controls, and the callback and mount point for the palette. Pass an optional `LayoutMenu` component to the factory to customize the layout menu. The stage keeps the same mount point while hidden.
+`createStandardLayout(React, {styles, targetStyles, context})` handles the selected layout, stage visibility and measurement, and the sprite list. Pass `editor.css` and `targets.css` as class-name maps. The host provides startup settings, storage, window controls, and the callback and mount point for the palette. Pass an optional `LayoutMenu` component to the factory to customize the layout menu. The stage keeps the same mount point while hidden.
 
 Use `/example/?standard=1` in the test host to try the Plus layout. Use `standard=0` to try the startup fallback to the Scratch layout.
 

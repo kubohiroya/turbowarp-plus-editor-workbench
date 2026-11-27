@@ -129,8 +129,10 @@ export function createStandardLayout(React, {styles, targetStyles, context, Layo
         const stageResize = plusLayout && maximumStageWidth > minimumStageWidth ?
             {minimum: minimumStageWidth, maximum: maximumStageWidth, resize: resizeStage} : null;
 
+        const previousEnabled = useRef(false);
         useLayoutEffect(() => {
-            if (enabled) onPaletteModeChange?.(true);
+            if (enabled || previousEnabled.current) onPaletteModeChange?.(Boolean(enabled));
+            previousEnabled.current = Boolean(enabled);
         }, [enabled, onPaletteModeChange]);
 
         useLayoutEffect(() => {
