@@ -1654,6 +1654,13 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
     const hasToolbar = Boolean(props.renderToolbar) || hasVariables;
     const hasAssetPreview = Boolean(props.getAssetPreview) || hasVariables || hasMessages || hasFunctions;
     React.useLayoutEffect(() => {
+        // Style the menu bar without watching for descendants across the whole editor.
+        const page = root.current?.closest('[class*="gui_page-wrapper_"]');
+        if (!page) return;
+        page.setAttribute('data-plus-sprite-tabs', '');
+        return () => page.removeAttribute('data-plus-sprite-tabs');
+    }, []);
+    React.useLayoutEffect(() => {
         sections.current.append(...props.slots);
         parking.current.appendChild(content);
         latest.current.onAttach();

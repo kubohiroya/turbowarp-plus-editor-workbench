@@ -14,7 +14,7 @@
     pointer-events: auto;
 }
 
-:global([class*="stage-header_fullscreen-buttons-row_"]):has(> .fullscreen-layout-menu)
+:global([data-plus-fullscreen-menu])
     > :global([class*="stage-header_unselect-wrapper_"]:not([class*="stage-header_settings-button_"])) {
     display: none;
 }

@@ -132,7 +132,9 @@
     position: relative;
 }
 
-.backpack-panel:has(> .backpack-actions) :global([class*="backpack_backpack-header_"]) {
+/* The launch controls precede the docked backpack. */
+.backpack-panel > .backpack-actions ~ :global([class*="backpack_backpack-header_"]),
+.backpack-panel > .backpack-actions ~ * :global([class*="backpack_backpack-header_"]) {
     padding-inline: 2rem;
 }
 
@@ -1061,17 +1063,17 @@ details.layout-menu button {
     opacity: 1;
 }
 
-:global([class*="gui_page-wrapper_"]):has(.sprite-tabs),
+:global([data-plus-sprite-tabs]),
 .sprite-tabs {
     --plus-sprite-tab-strip-background: light-dark(var(--ui-primary, #f3f3f3), #333333);
 }
 
-:global([class*="gui_page-wrapper_"]):has(.sprite-tabs) > :global([class*="gui_menu-bar-position_"]) {
+:global([data-plus-sprite-tabs]) > :global([class*="gui_menu-bar-position_"]) {
     --menu-bar-foreground: var(--text-primary, #333);
     background: var(--plus-sprite-tab-strip-background);
 }
 
-:global([class*="gui_page-wrapper_"]):has(.sprite-tabs) > :global([class*="gui_menu-bar-position_"])
+:global([data-plus-sprite-tabs]) > :global([class*="gui_menu-bar-position_"])
     :global([class*="menu-bar_file-group_"] [class*="menu-bar_menu-bar-item_"] > img) {
     filter: brightness(.42) var(--filter-icon-gray, grayscale(100%));
 }
