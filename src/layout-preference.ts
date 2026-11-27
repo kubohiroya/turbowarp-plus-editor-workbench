@@ -60,7 +60,7 @@ export function createLayoutPreference({search = '', storage = browserStorage, u
     };
 }
 
-/** React 16 hosts also use this store, so avoid useSyncExternalStore. */
+/** Use subscription APIs supported by React 16 hosts. */
 export function useLayoutPreference(preference?: LayoutPreference): boolean {
     const [enabled, setEnabled] = React.useState(() => preference?.read() ?? false);
     React.useLayoutEffect(() => {
