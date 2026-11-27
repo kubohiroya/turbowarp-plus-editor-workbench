@@ -1,6 +1,6 @@
 {
   "name": "@kubohiroya/turbowarp-plus-editor-workbench",
-  "version": "0.40.5",
+  "version": "0.40.6",
   "description": "The TurboWarp Plus Editor workbench: layout, dockable sprite tabs, stage, debugger tab and file menu",
   "type": "module",
   "license": "MPL-2.0",
@@ -237,10 +237,10 @@
   "devDependencies": {
     "@kubohiroya/turbowarp-plus-editor-git": "0.32.2",
     "@kubohiroya/turbowarp-plus-editor-windows": "0.2.3",
-    "@playwright/test": "1.64.1",
-    "@types/react": "18.3.31",
+    "@playwright/test": "1.65.1",
+    "@types/react": "18.3.32",
     "@types/react-dom": "18.3.7",
-    "fake-indexeddb": "6.2.6",
+    "fake-indexeddb": "6.2.8",
     "jsdom": "26.1.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",
@@ -263,7 +263,7 @@
     "@kubohiroya/turbowarp-plus-editor-project-model": "0.2.0",
     "@kubohiroya/turbowarp-plus-editor-sprite-panes": "0.11.3",
     "@kubohiroya/turbowarp-script-transfer": "0.1.5",
-    "dockview": "8.8.3"
+    "dockview": "8.10.0"
   },
   "peerDependencies": {
     "@kubohiroya/turbowarp-plus-editor-git": ">=0.32.2 <0.33.0",

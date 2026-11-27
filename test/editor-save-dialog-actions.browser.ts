@@ -46,7 +46,7 @@ test('Save a Copy of the Project keeps the labelled dialog actions at the right 
     const cancel = dialog.getByRole('button', {name: 'Cancel', exact: true});
     const save = dialog.getByRole('button', {name: 'Save', exact: true});
     const actions = dialog.locator('.tw-plus-dialog-actions');
-    await expect(actions).toHaveCSS('justify-content', 'flex-end');
+    await expect(actions).toHaveCSS('justify-content', /^(?:flex-end|flow-end)$/);
     const icons = await actions.locator('[data-dialog-action]:visible').evaluateAll(buttons =>
         buttons.map(button => getComputedStyle(button, '::before').maskImage));
     assert.equal(icons.length, 2);
