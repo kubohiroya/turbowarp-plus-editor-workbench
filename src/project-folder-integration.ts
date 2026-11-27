@@ -13,8 +13,10 @@ import type {EditorHost, EditorTarget} from '@kubohiroya/turbowarp-plus-editor-h
 import {refreshExternalBlockViews} from '@kubohiroya/turbowarp-plus-editor-code-views';
 import {createScratchBlocksDiffRenderer, mountGitPanel, openProjectComparison, openRemoteRepositoryDialog, readProjectRemote}
     from '@kubohiroya/turbowarp-plus-editor-git';
-import {createGitConnectionSettings} from '@kubohiroya/turbowarp-plus-editor-auth';
-import type {DesktopGitPreload} from '@kubohiroya/turbowarp-plus-editor-auth';
+import {createGitConnectionSettings, createGitAccountConnections} from '@kubohiroya/turbowarp-plus-editor-auth';
+import type {DesktopGitPreload, DesktopGitAccounts} from '@kubohiroya/turbowarp-plus-editor-auth';
+import {createPairProgrammingIntegration, createPairConnectionSettings, openPairPanel} from '@kubohiroya/turbowarp-plus-editor-pair-programming';
+import {inspectPairRepository, readOutgoingCommits, hasPairCommit} from '@kubohiroya/turbowarp-plus-editor-git';
 import type {GitAuthor, ScratchBlockDiffRendererOptions} from '@kubohiroya/turbowarp-plus-editor-git';
 import {createSaveCommitWorkflows, createPullRequestPublication, hasGitDirectory, type SaveCommitWorkflowOptions} from '@kubohiroya/turbowarp-plus-editor-git/save-commit-workflows';
 import type {PublicationBridge}
@@ -53,7 +55,7 @@ export interface ProjectFolderEnvironment {
     clearFileHandle(): void;
     setTitle(title: string): void;
     getTitle(): string;
-    desktop?: {auth?: DesktopGitPreload | null; creation?: DesktopRepositoryCreation | null;
+    desktop?: {auth?: DesktopGitPreload | null; accounts?: DesktopGitAccounts | null; creation?: DesktopRepositoryCreation | null;
         publication?: PublicationBridge | null; author?(): Promise<GitAuthor | null>; mergePlanShare?: MergePlanSharePort};
     captureHost?(host: EditorHost): void;
 }
@@ -106,10 +108,15 @@ export function createProjectFolderIntegration(services: ProjectFolderIntegratio
         const environment = services.environment(vm, document);
         if (!view || !environment || isProjectVersionEditor(view) || isObservedProjectVersion(view)) return null;
         const cloudflare = services.cloudflare;
-        const connectionSettings = localGit ? createGitConnectionSettings({
+        let pair: ReturnType<typeof createPairProgrammingIntegration>;
+        const baseConnectionSettings = localGit ? createGitConnectionSettings({
             desktop: environment.desktop?.auth,
             cloudflare
         }) : undefined;
+        const accountConnections = localGit ? createGitAccountConnections({desktop: environment.desktop?.accounts, cloudflare,
+            primary: baseConnectionSettings}) : undefined;
+        const connectionSettings = baseConnectionSettings && createPairConnectionSettings(baseConnectionSettings, () => pair?.controller, accountConnections!,
+            language => {if (pair) void openPairPanel(document, pair.controller, language, undefined, true);});
         const desktopBridge = environment.desktop?.publication;
         const cloudflareBridge = cloudflare && connectionSettings && createCloudflarePublicationBridge({
             ...cloudflare, view, getSession: connectionSettings.getSession
@@ -244,6 +251,11 @@ export function createProjectFolderIntegration(services: ProjectFolderIntegratio
         const saveCommitWorkflows = createSaveCommitWorkflows({
             view, folder, getRepository: () => gitPanel?.getCommitRepository?.(), isCurrent: environment.isCurrent,
             connectionSettings, cloudflare, publicationBridge: environment.desktop?.publication,
+            collaboration: {
+                prepareCommit: (root, message) => pair?.collaboration.prepareCommit(root, message) ?? Promise.resolve(undefined),
+                committed: async (root, oid, record) => {await pair?.collaboration.committed(root, oid, record);},
+                runPush: async (root, execute) => pair ? pair.collaboration.runPush(root, execute) : execute(connectionSettings!.getSession)
+            },
             createCommitQueue: services.createCommitQueue, createCommitJournal: services.createCommitJournal,
             saveWithLock, flushEdits: flushPendingSurfaceEdits, readAuthor, refresh: () => {void gitPanel?.refresh();}
         });
@@ -319,8 +331,33 @@ export function createProjectFolderIntegration(services: ProjectFolderIntegratio
         }};
         const workspace = getDocumentWorkspace(vm);
         const dirtyFiles = () => workspace.fileEdits().filter(file => file.directory === folder.directory);
+        pair = connectionSettings && createPairProgrammingIntegration({
+            vm, document, locale,
+            accounts: accountConnections!,
+            getRepository: () => gitPanel?.getCommitRepository?.(),
+            inspect: inspectPairRepository, outgoing: readOutgoingCommits, hasCommit: hasPairCommit,
+            showCommit: oid => gitPanel?.showCommit(oid, document.documentElement.lang || locale),
+            getSession: connectionSettings.getSession,
+            async commitForHandoff(attribution) {
+                const port = saveCommitWorkflows().commit;
+                if (!port) throw new Error('GIT_UNAVAILABLE');
+                const prepared = await port.prepare(environment.isCurrent, attribution);
+                if (!prepared) throw new Error('cancelled');
+                const job = await prepared.enqueue(attribution.message), result = await port.run(job.id);
+                if (result.status !== 'completed') throw new Error(result.error ?? 'commit');
+            },
+            async switchBranch(name) {
+                const repository = gitPanel?.getCommitRepository?.();
+                if (!repository || host.isProjectDirty() || host.isRunning() || dirtyFiles().length) throw new Error('changed');
+                const guard = () => {if (!repository.current()) throw new Error('changed');};
+                guard();
+                const result = await gitPanel?.switchBranch(name);
+                if (!result?.done) throw new Error('changed');
+            }
+        });
         gitPanel = mountGitPanel({vm: host.vm, document, host: {
             connectionSettings,
+            collaboration: pair?.collaboration,
             pullRequestPublication: () => connectionSettings?.getView().mode === 'desktop' ?
                 desktopPublication : cloudflarePublication,
             // Stage and commit with the repository's own Git identity (#318).
@@ -408,6 +445,7 @@ export function createProjectFolderIntegration(services: ProjectFolderIntegratio
                 return () => {unfollow(); unsubscribe(); stopFiles(); vm.runtime.off('PROJECT_LOADED', loaded);};
             }
         }});
+        const stopPairWatch = pair?.controller.subscribe(() => {void gitPanel?.refresh();});
         // One repository holds one project: an opened folder with `.git` binds the Git panel to that repository, any other
         // folder unbinds it. `root` is the folder the user chose, which may hold the project in `project/`.
         let boundDirectory: FileSystemDirectoryHandle | null | undefined;
@@ -420,6 +458,7 @@ export function createProjectFolderIntegration(services: ProjectFolderIntegratio
                 if (boundDirectory !== directory) return;
                 if (repository && directory) await gitPanel?.selectRepository?.(repository, directory);
                 else gitPanel?.clearRepository?.();
+                if (repository) await pair?.restore();
             })();
         });
         let disposed = false;
@@ -441,6 +480,8 @@ export function createProjectFolderIntegration(services: ProjectFolderIntegratio
             if (folders.get(vm)?.folder === folder) folders.delete(vm);
             unfollowBinding();
             gitPanel?.dispose();
+            stopPairWatch?.();
+            pair?.dispose();
             folder.dispose();
         }};
     }
