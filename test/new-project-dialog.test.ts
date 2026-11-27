@@ -110,6 +110,7 @@ function fixture(t: TestContext, options: Partial<NewProjectFormOptions> = {}, l
 test('the default in-memory project calls create, as Create New Project always did', async t => {
     const dialog = fixture(t, {browserFolders: true, deviceFolders: true});
     assert.equal(dialog.radio('destination', 'memory').checked, true);
+    assert.equal(dialog.radio('sb3-format', 'standard'), null);
     assert.equal(dialog.field('title').closest('label').hidden, true);
     assert.equal(dialog.submit.textContent, 'Create');
     await dialog.next();
@@ -124,6 +125,22 @@ test('without create, the in-memory project goes to createIn', async t => {
     const dialog = fixture(t, {create: undefined});
     await dialog.next();
     assert.deepEqual(dialog.requests, [{destination: 'memory'}]);
+    assert.deepEqual(dialog.closed, ['created']);
+});
+
+test('the optional format control applies only to in-memory SB3 creation', async t => {
+    const dialog = fixture(t, {offerSb3Formats: true, browserFolders: true}, 'ja');
+    const standard = dialog.radio('sb3-format', 'standard');
+    const plus = dialog.radio('sb3-format', 'plus');
+    assert.equal(standard.checked, true);
+    assert.equal(standard.closest('fieldset').hidden, false);
+    dialog.choose('browser');
+    assert.equal(standard.closest('fieldset').hidden, true);
+    dialog.choose('memory');
+    plus.checked = true;
+    await dialog.next();
+    assert.deepEqual(dialog.calls, []);
+    assert.deepEqual(dialog.requests, [{destination: 'memory', format: 'plus'}]);
     assert.deepEqual(dialog.closed, ['created']);
 });
 

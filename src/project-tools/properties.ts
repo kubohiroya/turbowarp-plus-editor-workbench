@@ -3,6 +3,7 @@ import JSZip from '@turbowarp/jszip';
 import {beginProjectLoad} from '../project-load-progress.js';
 import {isValidSaveName} from '../project-file-dialogs.js';
 import {readProjectSb3Format} from './format.js';
+import type {ProjectSb3Format} from './format.js';
 import {PROJECT_INFO_KEY} from './project-info-key.js';
 
 export interface ProjectArchive {
@@ -93,7 +94,7 @@ return function installProjectProperties(vm, {
     const descriptors = Object.fromEntries(Object.keys(originals).map(name => [name, Object.getOwnPropertyDescriptor(vm, name)]));
     let info = null;
     let baseline = null;
-    let format = readProjectSb3Format(null).format;
+    let format = readProjectSb3Format(null);
     let loading = 0;
     let generation = 0;
     let transaction = null;
@@ -117,7 +118,7 @@ return function installProjectProperties(vm, {
         delete json[PROJECT_INFO_KEY];
         delete json.meta;
         const value = current();
-        return JSON.stringify([json, fields.map(key => value[key])]);
+        return JSON.stringify([json, fields.map(key => value[key]), value.sb3Format]);
     };
     const commit = receipt => {
         if (disposed || receipt.generation !== generation || receipt.serial < lastCommittedSave) return;
@@ -184,7 +185,7 @@ return function installProjectProperties(vm, {
                         if (info?.schemaVersion === 1 && info.title) projectState.setTitle?.(info.title);
                         baseline = fingerprint();
                     }
-                    format = readProjectSb3Format(loaded).format;
+                    format = readProjectSb3Format(loaded);
                     loadState = {phase: 'loaded', sequence};
                     notify();
                     return result;
@@ -214,32 +215,46 @@ return function installProjectProperties(vm, {
         saveProjectSb3DontZip(...args) { return save(originals.saveProjectSb3DontZip, args); }
     };
     for (const name of Object.keys(originals)) vm[name] = wrappers[name];
+    const apply = (draft, sb3Format?: ProjectSb3Format) => {
+        if (!metadataEnabled || disposed || loading || (info && info.schemaVersion !== 1)) {
+            throw new Error('Project properties are not editable');
+        }
+        const previous = current();
+        const next = {...previous, ...Object.fromEntries(fields.map(key =>
+            [key, String(draft[key] ?? previous[key])]))};
+        next.title = next.title.slice(0, 100);
+        next.author = next.author.trim(); next.contact = next.contact.trim(); next.saveName = next.saveName.trim();
+        if (next.saveName && !isValidSaveName(next.saveName)) {
+            throw Object.assign(new Error('The save name is not valid'), {code: 'INVALID_SAVE_NAME'});
+        }
+        const formatChanged = sb3Format !== undefined && sb3Format !== previous.sb3Format;
+        const metadataChanged = fields.some(key => next[key] !== previous[key]);
+        if (!formatChanged && !metadataChanged) return false;
+        if (formatChanged) {
+            next.sb3Format = sb3Format;
+            format = {...format, format: sb3Format, source: 'explicit'};
+        }
+        info = next;
+        if (metadataChanged) projectState.setTitle?.(next.title);
+        vm.runtime?.emitProjectChanged?.();
+        notify();
+        return true;
+    };
     return {
         snapshot: () => ({...current(), readOnly: Boolean(info && info.schemaVersion !== 1), loading: loading > 0}),
-        projectFormat: () => format,
+        projectFormat: () => format.format,
+        projectFormatStatus: () => format,
+        explicitProjectFormat(): ProjectSb3Format | undefined {
+            const value = info?.schemaVersion === 1 ? info.sb3Format : undefined;
+            return value === 'standard' || value === 'plus' ? value : undefined;
+        },
+        captureFileSave<T>(createArchive: () => T): T { return save(createArchive, []); },
+        setNewProjectFormat: (sb3Format: ProjectSb3Format) => { apply({}, sb3Format); },
         loadState: () => ({...loadState}),
         subscribe (listener) { listeners.add(listener); return () => listeners.delete(listener); },
         loadedTitle: () => info?.schemaVersion === 1 && typeof info.title === 'string' && info.title ? info.title : undefined,
         restoreTitle () { const title = this.loadedTitle(); if (title !== undefined) projectState.setTitle?.(title); },
-        apply (draft) {
-            if (!metadataEnabled || disposed || loading || (info && info.schemaVersion !== 1)) {
-                throw new Error('Project properties are not editable');
-            }
-            const previous = current();
-            const next = {...previous, ...Object.fromEntries(fields.map(key =>
-                [key, String(draft[key] ?? previous[key])]))};
-            next.title = next.title.slice(0, 100);
-            next.author = next.author.trim(); next.contact = next.contact.trim(); next.saveName = next.saveName.trim();
-            if (next.saveName && !isValidSaveName(next.saveName)) {
-                throw Object.assign(new Error('The save name is not valid'), {code: 'INVALID_SAVE_NAME'});
-            }
-            if (fields.every(key => next[key] === previous[key])) return false;
-            info = next;
-            projectState.setTitle?.(next.title);
-            vm.runtime?.emitProjectChanged?.();
-            notify();
-            return true;
-        },
+        apply,
         dispose () {
             disposed = true;
             generation++;

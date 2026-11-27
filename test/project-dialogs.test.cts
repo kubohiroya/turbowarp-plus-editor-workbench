@@ -9,7 +9,7 @@ const {createAuthorHistory} = require('../dist/project-tools/history.js');
 const {createProjectDiagnostics} = require('../dist/project-tools/diagnostics.js');
 const {showProjectLoadFailure, projectStartURL} = require('../dist/project-load-failure.js');
 
-const fixture = (options?: {locale?: string}) => {
+const fixture = (options?: {locale?: string; format?: {format: string; source: string; manifest: {status: string}}}) => {
     const dom = new JSDOM('<button id="origin">File</button>', {url: 'https://example.test/'});
     const document = dom.window.document;
     dom.window.HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
@@ -19,7 +19,8 @@ const fixture = (options?: {locale?: string}) => {
     const properties = {snapshot: () => ({title: 'Title', description: '<img onerror=bad> https://example.test/',
         author: '', contact: 'mailto:a@example.test', createdAt: null, updatedAt: null}),
         subscribe(fn) { listener = fn; return () => { listener = null; }; }, loadState: () => ({phase}),
-        apply(value) { changes.push(value); }};
+        projectFormatStatus: () => options?.format,
+        apply(value, format) { changes.push(format ? {...value, sb3Format: format} : value); }};
     const history = createAuthorHistory(dom.window.localStorage);
     history.remember('Recent author', 'https://contact.test');
     document.querySelector('button').focus();
@@ -132,6 +133,47 @@ test('apply submits new values and remembers them; project loading discards a st
     f.dialogs.showProperties('en'); f.load();
     assert.equal(f.document.querySelector('dialog'), null);
     f.dialogs.dispose();
+});
+
+test('only an offered, editable format change is applied; invalid manifests cannot be changed here', () => {
+    const f = fixture({format: {format: 'standard', source: 'legacy', manifest: {status: 'absent'}}});
+    const form = () => f.document.querySelector('[data-testid="project-properties"] form');
+    const submit = () => form().dispatchEvent(new f.dom.window.Event('submit', {cancelable: true}));
+    f.dialogs.showProperties('en');
+    assert.equal(form().querySelector('select'), null);
+    f.dialogs.showProperties('en', undefined, {offerSb3Formats: true});
+    assert.equal(form().querySelector('select').value, 'standard');
+    submit();
+    assert.equal(f.changes.at(-1).sb3Format, undefined);
+    f.dialogs.showProperties('en', undefined, {offerSb3Formats: true});
+    form().querySelector('select').value = 'plus';
+    submit();
+    assert.equal(f.changes.at(-1).sb3Format, 'plus');
+    f.dialogs.dispose(); f.dom.window.close();
+    const invalid = fixture({format: {format: 'plus', source: 'explicit', manifest: {status: 'invalid'}}});
+    invalid.dialogs.showProperties('en', undefined, {offerSb3Formats: true});
+    const select = invalid.document.querySelector('select');
+    assert.equal(select.value, 'plus');
+    assert.equal(select.disabled, true);
+    invalid.dialogs.dispose(); invalid.dom.window.close();
+});
+
+test('switching projects dismisses the format confirmation and discards the metadata and URI draft', async () => {
+    const f = fixture({format: {format: 'plus', source: 'manifest', manifest: {status: 'valid'}}});
+    const addresses = [];
+    f.dialogs.showProperties('ja', {uri: 'https://example.test/old', apply: value => { addresses.push(value); }},
+        {offerSb3Formats: true});
+    const form = f.document.querySelector('[data-testid="project-properties"] form');
+    form.querySelector('[name="sb3Format"]').value = 'standard';
+    form.querySelector('[name="uri"]').value = 'https://example.test/new';
+    form.dispatchEvent(new f.dom.window.Event('submit', {cancelable: true}));
+    assert.equal(f.document.querySelectorAll('dialog').length, 2);
+    f.load();
+    await Promise.resolve();
+    assert.equal(f.document.querySelectorAll('dialog').length, 0);
+    assert.deepEqual(f.changes, []);
+    assert.deepEqual(addresses, []);
+    f.dialogs.dispose(); f.dom.window.close();
 });
 
 test('a directly opened result disables Back and a real preceding page enables it', () => {

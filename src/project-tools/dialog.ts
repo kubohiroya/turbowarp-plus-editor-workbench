@@ -3,8 +3,9 @@ import {dialogAction, dialogActions} from '@kubohiroya/turbowarp-plus-editor-win
 import {contactLink, descriptionParts} from './links.js';
 import {diagnosticText} from './diagnostics.js';
 import {renderBundleAssetForm, renderPayloadForm} from '../project-payload-forms.js';
-import {isValidSaveName} from '../project-file-dialogs.js';
+import {isValidSaveName, projectFileDialogTitle} from '../project-file-dialogs.js';
 import {closeProjectLoadFailure, showProjectLoadFailure} from '../project-load-failure.js';
+import type {ProjectFormatStatus, ProjectSb3Format} from './format.js';
 
 /** Presentation is supplied by the host's CSS Modules build. */
 export function createProjectDialogService({styles, snackbarStyles, isCancelled = () => false}: {
@@ -47,6 +48,40 @@ export function createProjectDialogService({styles, snackbarStyles, isCancelled 
             active = dialog;
             return {dialog, label: (ja, en) => locale.startsWith('ja') ? ja : en};
         };
+        const confirmStandardFormat = (locale: string, label: (ja: string, en: string) => string) =>
+            new Promise<boolean>(resolve => {
+                const title = label('標準形式に変更しますか？', 'Change to Standard format?');
+                const messageId = `project-format-confirmation-message-${identity}`;
+                const confirmation = element(document, 'dialog', undefined, {class: styles.dialog,
+                    'data-project-tools': '', 'aria-label': title, 'aria-describedby': messageId});
+                const message = element(document, 'p', label(
+                    '標準形式で保存した SB3 には、Plus マニフェストの拡張機能の取得元、キャッシュ方針、実行モード、検証情報、作品の URI は引き継がれません。',
+                    'An SB3 saved in Standard format will omit the Plus manifest, including extension sources, cache policies, execution modes, verification information and the project URI.'), {id: messageId});
+                const copyLabel = projectFileDialogTitle('save-as', locale);
+                const advice = element(document, 'p', label(
+                    `変更は次回の保存時に反映されます。元のファイルを残すには、適用後に「${copyLabel}…」を選んでください。`,
+                    `The change takes effect on the next save. To keep the original file, choose “${copyLabel}…” after applying it.`));
+                const cancel = element(document, 'button', label('キャンセル', 'Cancel'), {type: 'button'});
+                const confirm = element(document, 'button', label('標準形式に変更', 'Change to Standard'), {type: 'button'});
+                const finish = (confirmed: boolean) => {
+                    if (disposeView !== dismiss) return;
+                    disposeView = null;
+                    confirmation.remove();
+                    resolve(confirmed);
+                };
+                const dismiss = () => finish(false);
+                cancel.addEventListener('click', dismiss);
+                confirm.addEventListener('click', () => finish(true));
+                confirmation.addEventListener('cancel', event => {event.preventDefault(); dismiss();});
+                confirmation.addEventListener('close', dismiss);
+                confirmation.append(element(document, 'h2', title), message, advice,
+                    dialogActions(document, dialogAction(cancel, 'cancel'), dialogAction(confirm, 'confirm')));
+                disposeView = dismiss;
+                document.body.append(confirmation);
+                try { confirmation.showModal(); }
+                catch (error) { dismiss(); return; }
+                cancel.focus();
+            });
         const unsubscribe = properties.subscribe(() => {
             // A form must never apply an old project's draft to the newly opened project.
             if (properties.loadState().phase === 'loading') {close(); closeProjectLoadFailure(document);}
@@ -98,7 +133,7 @@ export function createProjectDialogService({styles, snackbarStyles, isCancelled 
                 } else dialog.append(view);
                 dialog.showModal();
             },
-            showProperties(locale = 'en', editURI) {
+            showProperties(locale = 'en', editURI, {offerSb3Formats = false} = {}) {
                 const {dialog, label} = open(locale.startsWith('ja') ? '作品のプロパティ' : 'Project Properties', locale);
                 dialog.setAttribute('data-testid', 'project-properties');
                 const value = properties.snapshot();
@@ -123,6 +158,24 @@ export function createProjectDialogService({styles, snackbarStyles, isCancelled 
                     return input;
                 };
                 if (history) field('title', label('作品タイトル', 'Project title'));
+                const format: ProjectFormatStatus | undefined = offerSb3Formats ? properties.projectFormatStatus() : undefined;
+                let formatInput: HTMLSelectElement | undefined;
+                if (format) {
+                    const id = `project-format-${identity}`;
+                    const row = element(document, 'label', label('SB3 の保存形式', 'SB3 save format'), {for: id});
+                    formatInput = element(document, 'select', undefined, {id, name: 'sb3Format'});
+                    if (format.format === 'unknown') {
+                        formatInput.append(element(document, 'option', label('未確認', 'Unknown'), {value: 'unknown'}));
+                    }
+                    formatInput.append(
+                        element(document, 'option', label('Scratch / TurboWarp 標準', 'Standard Scratch / TurboWarp'), {value: 'standard'}),
+                        element(document, 'option', 'TurboWarp Plus', {value: 'plus'}));
+                    formatInput.value = format.format;
+                    formatInput.disabled = !history || value.readOnly || value.loading ||
+                        format.format === 'unknown' || format.manifest.status === 'invalid';
+                    row.append(formatInput);
+                    form.append(row);
+                }
                 let saveNameInput: HTMLInputElement | undefined;
                 const saveNameError = element(document, 'p', '', {'aria-live': 'polite'});
                 const checkSaveName = () => {
@@ -226,12 +279,26 @@ export function createProjectDialogService({styles, snackbarStyles, isCancelled 
                     apply.disabled = true;
                     error.textContent = '';
                     const draft = Object.fromEntries(Object.entries(inputs).map(([key, input]) => [key, input.value]));
+                    const selected = formatInput?.disabled ? undefined : formatInput?.value;
+                    const sb3Format: ProjectSb3Format | undefined =
+                        (selected === 'plus' || selected === 'standard') && selected !== format?.format ? selected : undefined;
+                    const uri = uriInput?.value;
                     try {
+                        if (format?.format === 'plus' && sb3Format === 'standard') {
+                            const confirmed = await confirmStandardFormat(locale, label);
+                            if (active !== dialog) return;
+                            if (!confirmed) {
+                                formatInput.value = format.format;
+                                apply.disabled = false;
+                                formatInput.focus();
+                                return;
+                            }
+                        }
                         // Validate and apply the URI first so a rejected URI cannot commit the metadata draft.
-                        if (uriInput && uriInput.value.trim() !== editURI.uri) await editURI.apply(uriInput.value);
+                        if (uri !== undefined && uri.trim() !== editURI.uri) await editURI.apply(uri);
                         if (active !== dialog) return;
                         if (canApplyMetadata) {
-                            properties.apply(draft);
+                            properties.apply(draft, sb3Format);
                             history.remember(draft.author, draft.contact);
                         }
                         close();
