@@ -1,6 +1,7 @@
 import type {CreationInteraction, GitHubCreationAccount, GitHubRepositoryDraft, RepositoryCreationControls,
     RepositoryCreationProgress} from '@kubohiroya/turbowarp-plus-editor-git/project-repository-creation';
 import type {NewProjectChoices, NewProjectRequest, NewProjectResult} from './project-file-dialogs.ts';
+import type {ProjectSb3Format} from './project-tools/format.js';
 
 /** Where a new project folder goes: a new folder in the browser's storage, or an empty folder picked on the device. */
 export type NewProjectFolderDestination = 'browser' | FileSystemDirectoryHandle;
@@ -29,7 +30,9 @@ export interface NewProjectHost {
      * once it is shown and the GUI has reset its title. Resolves `false` when the person kept the current project at
      * the unsaved-changes question, and rejects when it fails to load or `signal` aborts.
      */
-    openDefaultProject(signal: AbortSignal): Promise<boolean>;
+    openDefaultProject(signal: AbortSignal, format?: ProjectSb3Format): Promise<boolean>;
+    /** Offers a format choice when opening a new in-memory SB3. */
+    offerSb3Formats?: boolean;
     /** Names the new default project: its title and save name, applied together. */
     nameProject(title: string, saveName: string): void;
     /**
@@ -110,6 +113,10 @@ export function createNewProjectHandler(host: NewProjectHost): {
     };
     const createIn = async (request: NewProjectRequest, signal: AbortSignal): Promise<NewProjectResult> => {
         if (request.destination === 'memory') {
+            if (request.format) {
+                return host.offerSb3Formats && await host.openDefaultProject(signal, request.format) ?
+                    'created' : 'cancelled';
+            }
             host.create();
             return 'created';
         }
@@ -140,6 +147,7 @@ export function createNewProjectHandler(host: NewProjectHost): {
         return await host.createFolder(target, title, signal) ? 'created' : 'cancelled';
     };
     return {createIn, newProject: {
+        ...(host.offerSb3Formats ? {offerSb3Formats: true} : {}),
         defaultTitle: host.defaultTitle,
         browserFolders: host.browserFolders,
         deviceFolders: host.deviceFolders,

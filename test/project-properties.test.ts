@@ -52,6 +52,22 @@ test('properties round trip through an SB3 and preserve the title across a renam
     assert.equal(next.service.snapshot().updatedAt, '2026-11-04T01:00:00Z');
     assert.equal(next.service.snapshot().createdAt, data().createdAt);
 });
+test('an explicitly chosen format updates the display and survives SB3 export and reopen', async () => {
+    for (const format of ['standard', 'plus'] as const) {
+        const f = fixture(true);
+        await f.vm.loadProject({targets: []});
+        assert.equal(JSON.parse(f.vm.toJSON())[key].sb3Format, undefined);
+        f.service.setNewProjectFormat(format);
+        f.service.setNewProjectFormat(format);
+        assert.equal(f.vm.changes, 1);
+        assert.equal(f.service.projectFormat(), format);
+        const next = fixture();
+        await next.vm.loadProject(await f.vm.saveProjectSb3());
+        assert.equal(JSON.parse(next.vm.toJSON())[key].sb3Format, format);
+        assert.equal(next.service.projectFormat(), format);
+        assert.equal(next.service.snapshot().updatedAt, '2026-11-04T01:00:00Z');
+    }
+});
 test('viewing or serializing does not change dates; unchanged saves retain the modification date', async () => {
     const f = fixture(); await f.vm.loadProject({targets: [], [key]: data()});
     f.service.snapshot(); f.vm.toJSON(); await f.vm.saveProjectSb3();

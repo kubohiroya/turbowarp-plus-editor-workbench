@@ -5,6 +5,7 @@ import {captureProjectLoad, duringProjectLoadApproval, reportProjectAssets, repo
     from '../project-load-progress.js';
 import type {createProjectProperties} from './properties.js';
 import {createProjectFormatSource} from './format-source.js';
+import type {ProjectSb3Format} from './format.js';
 import {createAuthorHistory} from './history.js';
 import type {createProjectDialogService} from './dialog.js';
 import {editProjectURI, getExtensionAuthoringHost, withProjectSerialization} from '@kubohiroya/turbowarp-extension-loader/scratch-vm';
@@ -35,7 +36,7 @@ export interface ProjectToolsPorts {
     editorProjectArchives: unknown;
     projectToolsEnabled: boolean;
     manualProjectURIEnabled: boolean;
-    readStartupFlags(search?: string): {saveWorkspace: boolean};
+    readStartupFlags(search?: string): {saveWorkspace: boolean; newProjectSb3Format?: boolean};
     projectLoadState(document: Document | undefined): {
         current(): string; isShown(): boolean; subscribe(listener: () => void): () => void;
     } | undefined;
@@ -79,8 +80,8 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
             diagnostics: event => { diagnostics.record(event); settings.diagnostics?.(event); },
             onProjectManifest: manifest => { diagnostics.describe(manifest); settings.onProjectManifest?.(manifest); }});
         // After the extension loader's bridge, so a save replaces the screen state the loaded file carried.
-        const screenState = installProjectScreenState(vm, {Zip: JSZip,
-            save: readWebStartupFeatureFlags(settings.search ?? globalThis.location?.search).saveWorkspace});
+        const startup = readWebStartupFeatureFlags(settings.search ?? globalThis.location?.search);
+        const screenState = installProjectScreenState(vm, {Zip: JSZip, save: startup.saveWorkspace});
         screenStates.set(vm, screenState);
         const shareArchives = 'projectIO' in host && 'supportsSharedArchive' in host.projectIO && host.projectIO.supportsSharedArchive === true;
         const properties = installProjectProperties(vm, {...settings, metadataEnabled: enabled, runProjectLoad, shareArchives});
@@ -92,6 +93,7 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
         const dialogs = document?.body ? createProjectDialogs(document, properties, history, diagnostics,
             {locale: settings.locale, getLocale: settings.getLocale}) : null;
         const tools = {dialogs, payloads: 'payloads' in host ? host.payloads : undefined, propertiesEnabled: enabled,
+            offerSb3Formats: enabled && startup.newProjectSb3Format === true,
             projectURIEnabled: MANUAL_PROJECT_URI_ENABLED && host.enabled, properties, projectState: settings.projectState,
             catalog: undefined as ReturnType<typeof createProjectCatalogRuntime> | undefined};
         const environment = document && catalogEnvironment?.(document);
@@ -306,18 +308,19 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
         const document = globalThis.document;
         const store = tools?.dialogs && projectLoadState(document);
         const createFolder = folderWorkflows?.createFolder;
-        if (!tools || !store || !createFolder) return {};
-        const {properties, payloads} = tools;
-        const locations = folderWorkflows.locations ?? {browser: folderWorkflows.folderLocation === 'browser', device: false};
+        if (!tools || !store || (!createFolder && !tools.offerSb3Formats)) return {};
+        const {properties, payloads, offerSb3Formats} = tools;
+        const locations = folderWorkflows?.locations ?? {browser: folderWorkflows?.folderLocation === 'browser', device: false};
         // Replaces the project with the GUI's default project, as Create New Project does, and waits until it is shown.
         // `false` when the person kept the current project at the unsaved-changes question.
-        const openDefaultProject = async (signal: AbortSignal) => {
+        const openDefaultProject = async (signal: AbortSignal, format?: ProjectSb3Format) => {
+            if (format) signal.throwIfAborted();
             const loadingState = () => store.current();
             const before = loadingState();
             const sequence = properties.loadState().sequence;
             create();
             if (loadingState() === before) return false;
-            await new Promise<void>((resolve, reject) => {
+            const loadedSequence = await new Promise<number>((resolve, reject) => {
                 let done = false;
                 const check = () => {
                     if (done) return;
@@ -329,7 +332,7 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
                     stopStore(); stopLoad?.(); signal.removeEventListener('abort', check);
                     if (signal.aborted) reject(signal.reason);
                     else if (failed) reject(new Error(locale.startsWith('ja') ? '新しい作品を開けませんでした。' : 'Could not open the new project.'));
-                    else resolve();
+                    else resolve(load.sequence);
                 };
                 const stopStore = store.subscribe(check);
                 const stopLoad = properties.subscribe(check);
@@ -338,12 +341,16 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
             });
             // The GUI resets a new project's title right after showing it; name the project after that.
             await new Promise(resolve => globalThis.setTimeout(resolve, 0));
+            if (format) {
+                if (signal.aborted || properties.loadState().sequence !== loadedSequence || !store.isShown()) return false;
+                properties.setNewProjectFormat(format);
+            }
             return true;
         };
         return createNewProjectHandler({
-            locale, defaultTitle, create, openDefaultProject,
-            browserFolders: locations.browser,
-            deviceFolders: locations.device,
+            locale, defaultTitle, create, openDefaultProject, offerSb3Formats,
+            browserFolders: Boolean(createFolder && locations.browser),
+            deviceFolders: createFolder ? locations.device : undefined,
             nameProject(title, saveName) {
                 try {
                     properties.apply({title, saveName});
@@ -351,16 +358,16 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
                     tools.projectState?.setTitle?.(title);
                 }
             },
-            pickDeviceFolder: folderWorkflows.pickEmptyFolder && (() => folderWorkflows.pickEmptyFolder(locale)),
-            createFolder: (destination, title) => createFolderFromCurrentProject(vm, (serialize, current) =>
-                createFolder(serialize, current, title, destination)),
-            repositoryCreation: folderWorkflows.repositoryCreation,
+            pickDeviceFolder: folderWorkflows?.pickEmptyFolder && (() => folderWorkflows.pickEmptyFolder(locale)),
+            createFolder: async (destination, title) => Boolean(createFolder && await createFolderFromCurrentProject(vm,
+                (serialize, current) => createFolder(serialize, current, title, destination))),
+            repositoryCreation: folderWorkflows?.repositoryCreation,
             serialize: title => serializeProjectFolder(vm, payloads, title),
             trackProject() {
                 const sequence = properties.loadState().sequence;
                 return () => projects.get(vm) === tools && properties.loadState().sequence === sequence;
             },
-            markSaved: folderWorkflows.markSaved,
+            markSaved: folderWorkflows?.markSaved,
             notify: text => showNotice(document, text, {locale})
         });
     }

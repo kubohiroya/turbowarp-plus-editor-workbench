@@ -2,6 +2,7 @@ import {dialogAction, dialogActions} from '@kubohiroya/turbowarp-plus-editor-win
 import type {CreationInteraction, GitHubCreationAccount, GitHubRepositoryDraft, RepositoryCreationControls,
     RepositoryCreationProgress, RepositoryReceipt} from '@kubohiroya/turbowarp-plus-editor-git/project-repository-creation';
 import {checkSaveNameInput, isValidSaveName, saveNameTexts, suggestSaveName} from './save-name.js';
+import type {ProjectSb3Format} from './project-tools/format.js';
 
 export {askSaveName, isValidSaveName, suggestSaveName} from './save-name.js';
 
@@ -724,7 +725,7 @@ export type NewProjectDestination = 'memory' | 'browser' | 'device' | 'github';
  * ({@link isValidSaveName}). For GitHub, `workingCopy` says where the working copy is kept.
  */
 export type NewProjectRequest =
-    | {destination: 'memory'}
+    | {destination: 'memory'; format?: ProjectSb3Format}
     | {destination: 'browser' | 'device'; title: string; saveName: string}
     | {destination: 'github'; title: string; saveName: string; draft: GitHubRepositoryDraft; workingCopy: 'browser' | 'device'};
 
@@ -739,6 +740,8 @@ export interface NewProjectGitHub {
 
 /** What the host offers in the new project dialog. Only the in-memory project is always offered. */
 export interface NewProjectChoices {
+    /** Lets the author choose a format when creating an SB3 in memory. */
+    offerSb3Formats?: boolean;
     /** The localized title of a new project, the initial value of the title field. */
     defaultTitle?: string;
     /** Offers a project folder kept in the browser (OPFS). */
@@ -754,8 +757,8 @@ export interface NewProjectChoices {
 
 export interface NewProjectFormOptions extends NewProjectChoices {
     /**
-     * Creates the default project in memory, as Create New Project always did. Without it, the in-memory choice
-     * calls `createIn({destination: 'memory'})`.
+     * Creates the default project in memory when format selection is unavailable. Format selections go through
+     * `createIn` so the host can wait for the new project before recording the choice.
      */
     create?: Action;
     /**
@@ -818,6 +821,14 @@ export function renderNewProjectForm(document: Document, locale: string, options
     if (githubProvider && workingCopies.length) radio(destinations, 'destination', 'github',
         label('Git のリモートリポジトリ', 'Git remote repository (GitHub)'));
     fields.append(destinations);
+
+    const formats = document.createElement('fieldset');
+    const formatLegend = document.createElement('legend');
+    formatLegend.textContent = label('作品の形式', 'Project format');
+    formats.append(formatLegend);
+    radio(formats, 'sb3-format', 'standard', label('Scratch / TurboWarp 標準', 'Standard Scratch / TurboWarp')).checked = true;
+    const plusFormat = radio(formats, 'sb3-format', 'plus', 'TurboWarp Plus');
+    if (options.offerSb3Formats) fields.append(formats);
 
     const title = document.createElement('input');
     title.name = 'title';
@@ -924,6 +935,8 @@ export function renderNewProjectForm(document: Document, locale: string, options
         back.hidden = !reviewing;
         back.disabled = busy;
         destinations.disabled = busy || reviewing;
+        formats.hidden = selected !== 'memory';
+        formats.disabled = busy || formats.hidden;
         titleField.hidden = selected === 'memory';
         title.disabled = busy || reviewing || selected === 'memory';
         // Only a folder takes the save name here; for GitHub the repository name is the save name.
@@ -981,7 +994,7 @@ export function renderNewProjectForm(document: Document, locale: string, options
         if (!open() || busy) return;
         const selected = destination();
         report('');
-        if (selected === 'memory' && options.create) {
+        if (selected === 'memory' && options.create && !options.offerSb3Formats) {
             options.create();
             finish('created');
             return;
@@ -990,7 +1003,11 @@ export function renderNewProjectForm(document: Document, locale: string, options
         refresh();
         let focus: HTMLElement | null = null;
         try {
-            if (selected === 'memory') {await run({destination: 'memory'}); return;}
+            if (selected === 'memory') {
+                const format = plusFormat.checked ? 'plus' : 'standard';
+                await run(options.offerSb3Formats ? {destination: 'memory', format} : {destination: 'memory'});
+                return;
+            }
             const projectTitle = titleValue();
             if (!projectTitle) {
                 report(label('作品名を入力してください。', 'Enter a project title.'));

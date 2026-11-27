@@ -3,6 +3,7 @@ import JSZip from '@turbowarp/jszip';
 import {beginProjectLoad} from '../project-load-progress.js';
 import {isValidSaveName} from '../project-file-dialogs.js';
 import {readProjectSb3Format} from './format.js';
+import type {ProjectSb3Format} from './format.js';
 import {PROJECT_INFO_KEY} from './project-info-key.js';
 
 export interface ProjectArchive {
@@ -117,7 +118,7 @@ return function installProjectProperties(vm, {
         delete json[PROJECT_INFO_KEY];
         delete json.meta;
         const value = current();
-        return JSON.stringify([json, fields.map(key => value[key])]);
+        return JSON.stringify([json, fields.map(key => value[key]), value.sb3Format]);
     };
     const commit = receipt => {
         if (disposed || receipt.generation !== generation || receipt.serial < lastCommittedSave) return;
@@ -217,6 +218,16 @@ return function installProjectProperties(vm, {
     return {
         snapshot: () => ({...current(), readOnly: Boolean(info && info.schemaVersion !== 1), loading: loading > 0}),
         projectFormat: () => format,
+        setNewProjectFormat (sb3Format: ProjectSb3Format) {
+            if (!metadataEnabled || disposed || loading || (info && info.schemaVersion !== 1)) {
+                throw new Error('Project properties are not editable');
+            }
+            if (info?.sb3Format === sb3Format) return;
+            info = {...current(), sb3Format};
+            format = sb3Format;
+            vm.runtime?.emitProjectChanged?.();
+            notify();
+        },
         loadState: () => ({...loadState}),
         subscribe (listener) { listeners.add(listener); return () => listeners.delete(listener); },
         loadedTitle: () => info?.schemaVersion === 1 && typeof info.title === 'string' && info.title ? info.title : undefined,
