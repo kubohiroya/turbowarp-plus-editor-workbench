@@ -12,7 +12,7 @@ export type FolderActions = {open: Action; openBrowser?: Action;
     /** Whether Open can pick a folder on the device; `false` in browsers without the folder picker (Safari, Firefox). */
     deviceFolders?: boolean; save?: Action; detach: Action};
 export type SaveFormat = 'current' | 'embedded' | 'folder';
-type Serialize = <T>(run: () => T) => T;
+export type Serialize = <T>(run: () => T) => T;
 
 export type SaveAsRequest =
     | {name: string; format: 'current' | 'embedded'}
@@ -42,8 +42,8 @@ export interface ProjectFileStorage {
     filename: string;
     overwrite?: Action;
     pick?: (filename: string) => Promise<FileSystemFileHandle>;
-    write(handle: FileSystemFileHandle, serialize: Serialize, current: () => boolean): Promise<void>;
-    download(filename: string, serialize: Serialize, current: () => boolean): Promise<void>;
+    write(handle: FileSystemFileHandle, serialize: Serialize, current: () => boolean, useProjectFormat?: boolean): Promise<void>;
+    download(filename: string, serialize: Serialize, current: () => boolean, useProjectFormat?: boolean): Promise<void>;
     /**
      * Called after a copy was written by {@link saveProjectAs} in the `copy` mode, with the file it was written to
      * (`null` for a download) and the title stored in the copy. The host ends its save indicator here. It must not
@@ -113,12 +113,13 @@ export function projectSaveShortcut(storage: ProjectFileStorage, folder?: Folder
  *   `storage.finish(handle, title, unchanged())`.
  */
 export async function saveProjectAs(storage: ProjectFileStorage, name: string, {
-    current, unchanged, serialize, committed, collect, mode = 'copy'
+    current, unchanged, serialize, committed, collect, mode = 'copy', useProjectFormat
 }: {
     current(): boolean;
     /** Whether the project was not edited while saving; used by the `save` mode only. */
     unchanged?(): boolean;
     mode?: 'copy' | 'save';
+    useProjectFormat?: boolean;
     serialize<T>(title: string, run: () => T): T;
     committed(): void;
     // Collects edits still held by other windows. A failure leaves them there for a retry.
@@ -136,8 +137,8 @@ export async function saveProjectAs(storage: ProjectFileStorage, name: string, {
             if (!current()) throw new DOMException('The project changed', 'AbortError');
             return serialize(title, run);
         };
-        if (handle) await storage.write(handle, output, current);
-        else await storage.download(filename, output, current);
+        if (handle) await storage.write(handle, output, current, useProjectFormat);
+        else await storage.download(filename, output, current, useProjectFormat);
         if (!current()) return false;
         committed();
         if (mode === 'save') storage.finish(handle, title, unchanged ? unchanged() : true);

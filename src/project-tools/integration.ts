@@ -6,14 +6,16 @@ import {captureProjectLoad, duringProjectLoadApproval, reportProjectAssets, repo
 import type {createProjectProperties} from './properties.js';
 import {createProjectFormatSource} from './format-source.js';
 import type {ProjectSb3Format} from './format.js';
+import {applyProjectFormatToArchive} from './save-format.js';
 import {createAuthorHistory} from './history.js';
 import type {createProjectDialogService} from './dialog.js';
-import {editProjectURI, getExtensionAuthoringHost, withProjectSerialization} from '@kubohiroya/turbowarp-extension-loader/scratch-vm';
+import {editProjectURI, getExtensionAuthoringHost, projectSerializationOptions, withProjectSerialization}
+    from '@kubohiroya/turbowarp-extension-loader/scratch-vm';
 import {createProjectDiagnostics} from './diagnostics.js';
 import {flushPendingSurfaceEdits} from '@kubohiroya/turbowarp-plus-editor-windows/surfaces';
 import {isValidSaveName, projectFileDialogTitle, renderExportView, renderExtensionsForm, renderSaveAsForm, saveProjectAs,
     suggestSaveName} from '../project-file-dialogs.js';
-import type {NewProjectChoices, NewProjectRequest, NewProjectResult, ProjectFileStorage, ExtensionStorage}
+import type {NewProjectChoices, NewProjectRequest, NewProjectResult, ProjectFileStorage, ExtensionStorage, Serialize}
     from '../project-file-dialogs.js';
 import {createNewProjectHandler} from '../new-project.js';
 import {showNotice} from '../project-notice.js';
@@ -51,6 +53,7 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
     editorProjectArchives, projectToolsEnabled: PROJECT_TOOLS_ENABLED, manualProjectURIEnabled: MANUAL_PROJECT_URI_ENABLED,
     readStartupFlags: readWebStartupFeatureFlags, projectLoadState, catalogEnvironment}: ProjectToolsPorts) {
     const projects = new WeakMap();
+    const fileSaves = new WeakMap<object, AbortController>();
     const formatSources = new WeakMap<object, ReturnType<typeof createProjectFormatSource>>();
     const formatSourceFor = (vm: object) => {
         let format = formatSources.get(vm);
@@ -95,6 +98,15 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
         const tools = {dialogs, payloads: 'payloads' in host ? host.payloads : undefined, propertiesEnabled: enabled,
             offerSb3Formats: enabled && startup.newProjectSb3Format === true,
             projectURIEnabled: MANUAL_PROJECT_URI_ENABLED && host.enabled, properties, projectState: settings.projectState,
+            fetchImpl: settings.fetchImpl, loaderOptions: settings.loaderOptions,
+            reportSaveFailure(error: unknown) {
+                if (!document?.body) return;
+                const locale = settings.getLocale?.() ?? settings.locale ?? 'en';
+                const message = error instanceof Error ? error.message : String(error);
+                const prefix = locale.startsWith('ja') ?
+                    '選択した形式でプロジェクトを保存できませんでした。' : 'The project could not be saved in its selected format.';
+                showNotice(document, `${prefix} ${message}`, {locale});
+            },
             catalog: undefined as ReturnType<typeof createProjectCatalogRuntime> | undefined};
         const environment = document && catalogEnvironment?.(document);
         if (environment) tools.catalog = createProjectCatalogRuntime({document, vm, properties, ...environment,
@@ -126,6 +138,8 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
                 unsubscribeFormat(); unsubscribe(); dialogs?.dispose(); properties.dispose(); diagnostics.dispose();
                 if (projects.get(vm) === tools) {
                     projects.delete(vm);
+                    fileSaves.get(vm)?.abort();
+                    fileSaves.delete(vm);
                     format.update('unknown');
                 }
                 screenStates.delete(vm);
@@ -165,6 +179,60 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
             const save = () => vm.saveProjectSb3('uint8array');
             return payloads?.withEmbedded(save) ?? save();
         });
+
+    async function prepareProjectSb3Save(vm: {_saveProjectZip(): JSZip}, serialize: Serialize, current: () => boolean) {
+        const tools = projects.get(vm);
+        if (!tools?.offerSb3Formats) return;
+        const properties: ReturnType<ReturnType<typeof createProjectProperties>> = tools.properties;
+        const format = properties.explicitProjectFormat();
+        if (!format) return;
+        const sequence = properties.loadState().sequence;
+        const controller = new AbortController();
+        fileSaves.get(vm)?.abort();
+        fileSaves.set(vm, controller);
+        const isCurrent = () => current() && !controller.signal.aborted &&
+            projects.get(vm) === tools && properties.loadState().sequence === sequence;
+        const assertCurrent = () => {
+            if (!isCurrent()) throw new DOMException('The project changed or a newer save started', 'AbortError');
+        };
+        let commitMetadata: (() => void) | undefined;
+        let outerDeferCommit: ((commit: () => void) => void) | undefined;
+        const unsubscribe = properties.subscribe(() => { if (!isCurrent()) controller.abort(); });
+        let archive: JSZip;
+        try {
+            assertCurrent();
+            archive = serialize(() => {
+                outerDeferCommit = projectSerializationOptions(vm)?.deferCommit;
+                return withProjectSerialization(vm, {deferCommit: commit => { commitMetadata = commit; }}, () =>
+                    properties.captureFileSave(() => withProjectSerialization(vm, {preview: true}, () => vm._saveProjectZip())));
+            });
+            await applyProjectFormatToArchive(archive, format, {fetchImpl: tools.fetchImpl, loaderOptions: tools.loaderOptions,
+                signal: controller.signal});
+            assertCurrent();
+        } catch (error) {
+            assertCurrent();
+            tools.reportSaveFailure(error);
+            throw error;
+        } finally {
+            unsubscribe();
+        }
+        if (commitMetadata) outerDeferCommit?.(commitMetadata);
+        return {
+            assertCurrent,
+            serialize<T>(run: () => T): T {
+                assertCurrent();
+                // The native zip and stream methods take the archive synchronously, before compression starts.
+                const original = vm._saveProjectZip;
+                try {
+                    vm._saveProjectZip = () => archive;
+                    return withProjectSerialization(vm, {preview: true}, run);
+                } finally { vm._saveProjectZip = original; }
+            },
+            commit() {
+                if (!outerDeferCommit && isCurrent()) commitMetadata?.();
+            }
+        };
+    }
 
     async function createFolderFromCurrentProject(vm, createFolder: ProjectFolderWorkflows['createFolder']) {
         const tools = projects.get(vm);
@@ -219,6 +287,7 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
                         let commitMetadata: (() => void) | undefined;
                         return await saveProjectAs(storage, name, {
                             mode,
+                            useProjectFormat: format === 'current',
                             current,
                             collect: () => flushPendingSurfaceEdits(),
                             unchanged: () => !edited,
@@ -408,6 +477,6 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
     const projectCatalog = (vm: object, locale: string, storage: ProjectFileStorage, createProject?: () => void) =>
         projects.get(vm)?.catalog?.show(locale, storage, createProject);
     const projectFileOpened = (vm: object, file: File | null) => projects.get(vm)?.catalog?.fileOpened(file);
-    return {installProjectToolsHost, projectFormatSource, projectScreenState, loadedProjectTitle, restoreProjectTitle, isProjectLoading, subscribeProjectLoad, projectSaveName, setProjectSaveName, createFolderFromCurrentProject, projectFileActions, projectCreation, renderFileMenu, projectToolsOwnKeyEvent,
+    return {installProjectToolsHost, projectFormatSource, prepareProjectSb3Save, projectScreenState, loadedProjectTitle, restoreProjectTitle, isProjectLoading, subscribeProjectLoad, projectSaveName, setProjectSaveName, createFolderFromCurrentProject, projectFileActions, projectCreation, renderFileMenu, projectToolsOwnKeyEvent,
         bindProjectCatalogFolder, projectCatalog, projectFileOpened};
 }

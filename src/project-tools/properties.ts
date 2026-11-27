@@ -218,6 +218,11 @@ return function installProjectProperties(vm, {
     return {
         snapshot: () => ({...current(), readOnly: Boolean(info && info.schemaVersion !== 1), loading: loading > 0}),
         projectFormat: () => format,
+        explicitProjectFormat(): ProjectSb3Format | undefined {
+            const value = info?.schemaVersion === 1 ? info.sb3Format : undefined;
+            return value === 'standard' || value === 'plus' ? value : undefined;
+        },
+        captureFileSave<T>(createArchive: () => T): T { return save(createArchive, []); },
         setNewProjectFormat (sb3Format: ProjectSb3Format) {
             if (!metadataEnabled || disposed || loading || (info && info.schemaVersion !== 1)) {
                 throw new Error('Project properties are not editable');
