@@ -1,6 +1,6 @@
 {
   "name": "@kubohiroya/turbowarp-plus-editor-workbench",
-  "version": "0.43.1",
+  "version": "0.44.0",
   "description": "The TurboWarp Plus Editor workbench: layout, dockable sprite tabs, stage, debugger tab and file menu",
   "type": "module",
   "license": "MPL-2.0",
@@ -253,7 +253,7 @@
     "@turbowarp/jszip": "3.12.0",
     "@kubohiroya/turbowarp-extension-loader": "0.16.3",
     "@kubohiroya/turbowarp-plus-editor-project-folder": "0.22.3",
-    "@kubohiroya/turbowarp-plus-editor-code-views": "0.26.13",
+    "@kubohiroya/turbowarp-plus-editor-code-views": "0.27.0",
     "@kubohiroya/turbowarp-extension-security-dialog": "0.14.3",
     "esbuild": "0.25.12",
     "@kubohiroya/turbowarp-plus-editor-auth": "0.5.1",
@@ -266,7 +266,7 @@
   },
   "dependencies": {
     "@kubohiroya/turbowarp-plus-editor-project-model": "0.2.0",
-    "@kubohiroya/turbowarp-plus-editor-sprite-panes": "0.11.3",
+    "@kubohiroya/turbowarp-plus-editor-sprite-panes": "0.12.0",
     "@kubohiroya/turbowarp-script-transfer": "0.1.5",
     "dockview": "8.10.0"
   },
@@ -279,7 +279,7 @@
     "@turbowarp/jszip": ">=3.12.0 <4",
     "@kubohiroya/turbowarp-extension-loader": ">=0.11.1 <0.12.0 || 0.12.0 || 0.13.0 || 0.13.1 || 0.16.1 || 0.16.2 || 0.16.3",
     "@kubohiroya/turbowarp-plus-editor-project-folder": ">=0.22.3 <0.23.0",
-    "@kubohiroya/turbowarp-plus-editor-code-views": ">=0.22.0 <0.23.0 || 0.23.0 || 0.23.1 || 0.24.0 || 0.25.0 || 0.26.0 || 0.26.1 || 0.26.2 || 0.26.3 || 0.26.4 || 0.26.6 || 0.26.8 || 0.26.9 || 0.26.10 || 0.26.11 || 0.26.12 || 0.26.13",
+    "@kubohiroya/turbowarp-plus-editor-code-views": ">=0.22.0 <0.23.0 || 0.23.0 || 0.23.1 || 0.24.0 || 0.25.0 || 0.26.0 || 0.26.1 || 0.26.2 || 0.26.3 || 0.26.4 || 0.26.6 || 0.26.8 || 0.26.9 || 0.26.10 || 0.26.11 || 0.26.12 || 0.26.13 || 0.27.0",
     "@kubohiroya/turbowarp-extension-security-dialog": ">=0.9.0 <0.10.0 || 0.10.0 || 0.13.0 || 0.13.1 || 0.14.2 || 0.14.3 || 0.15.0",
     "@kubohiroya/turbowarp-plus-editor-auth": "0.5.1",
     "@kubohiroya/turbowarp-plus-editor-host": "0.1.1",
