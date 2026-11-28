@@ -8,7 +8,7 @@ This package was published as `@kubohiroya/turbowarp-plus-editor-layout` up to 0
 
 ## Layout preference
 
-The second item in the upper-left Plus menu, **Enable new layout**, switches between the Scratch-derived layout and the Plus layout. It defaults to off. The choice is saved separately from projects and workspace layouts in localStorage under `twPlusNewLayoutEnabled` (`1` or `0`). Denied storage still allows switching for the current session.
+The first item in the upper-left Plus menu, **Enable new layout**, switches between the Scratch-derived layout and the Plus layout after a confirmation dialog explains what enabling or disabling does; nothing changes unless the person presses **Enable** or **Disable**. **About TurboWarp Plus Editor** sits below the divider, above the source code link, with the Editor icon. It defaults to off. The choice is saved separately from projects and workspace layouts in localStorage under `twPlusNewLayoutEnabled` (`1` or `0`). Denied storage still allows switching for the current session.
 
 Create one `createLayoutPreference({search})` from `layout-preference`, pass it to the information menu as `layoutPreference`, and use `useLayoutPreference` to supply `StandardLayout.enabled`. Keep both layouts' GUI hooks registered. Pass the same value as the third argument of `useDockviewStage` so the stage canvas stays mounted while the native tabs and Dockview alternate. Explicit `twPlusStandardLayout=0/1` startup parameters override storage; selecting the menu item updates that parameter too.
 

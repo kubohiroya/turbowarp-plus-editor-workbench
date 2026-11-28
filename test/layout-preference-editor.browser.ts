@@ -23,7 +23,7 @@ test('Editor switches the saved layout without losing the project, active tab, w
         await expect(page.locator('.dv-tab')).toHaveCount(0);
         await menu.click();
         await expect(item).toHaveAttribute('aria-checked', 'false');
-        assert.equal(await item.evaluate(node => node.parentElement.children[1] === node), true);
+        assert.equal(await item.evaluate(node => node.parentElement.children[0] === node), true);
         await menu.press('Escape');
         await page.getByRole('tab', {name: 'コスチューム', exact: true}).click();
         const saved = await page.evaluate(() => {
@@ -40,6 +40,7 @@ test('Editor switches the saved layout without losing the project, active tab, w
         await menu.click();
         for (const enabled of [true, false, true, false]) {
             await item.click();
+            await page.getByRole('dialog').getByRole('button', {name: enabled ? '有効化する' : '無効化する', exact: true}).click();
             if (enabled) {
                 await expect(layout).toBeVisible();
                 await expect(page.locator('.dv-tab').first()).toBeVisible();
@@ -66,6 +67,7 @@ test('Editor switches the saved layout without losing the project, active tab, w
         await menu.click();
         await expect(item).toHaveAttribute('aria-checked', 'false');
         await item.click();
+        await page.getByRole('dialog').getByRole('button', {name: '有効化する', exact: true}).click();
         await page.reload();
         await expect(page.locator('.dv-tab').first()).toBeVisible();
         await menu.click();

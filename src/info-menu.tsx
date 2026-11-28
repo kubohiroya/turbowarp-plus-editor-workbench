@@ -77,6 +77,10 @@ export function ProjectInfoMenu({
 }: ProjectInfoMenuProps) {
     const newLayoutEnabled = useLayoutPreference(layoutPreference);
     const [changingLayout, setChangingLayout] = React.useState(false);
+    // The layout the person is asked to switch to, while the confirmation is open.
+    const [layoutQuestion, setLayoutQuestion] = React.useState<boolean | null>(null);
+    const layoutDialog = React.useRef<HTMLDialogElement>(null);
+    const layoutCancel = React.useRef<HTMLButtonElement>(null);
     const menu = React.useRef<HTMLDetailsElement>(null);
     const trigger = React.useRef<HTMLElement>(null);
     const displayTrigger = React.useRef<HTMLButtonElement>(null);
@@ -104,6 +108,23 @@ export function ProjectInfoMenu({
     const runtimeLabel = japanese ? '動作設定' : 'Runtime settings';
     const newTabLabel = japanese ? '別のタブで開きます' : 'Opens in a new tab';
     const aboutLabel = japanese ? `${product}について` : `About ${product}`;
+    const layoutText = layoutQuestion === null ? null : layoutQuestion ? (japanese ? {
+        title: 'TurboWarp Plus Editorレイアウトの有効化',
+        message: 'TurboWarp Editorの標準的なレイアウトではなく、TurboWarp Plus Editorの使いやすく再編されたレイアウトと便利な機能を実現するアドオンを有効化します。もしも気に入らなかったら、いつでも元に戻すことができます。',
+        confirm: '有効化する'
+    } : {
+        title: 'Enable the TurboWarp Plus Editor Layout',
+        message: 'Instead of the standard TurboWarp Editor layout, this enables the addons that give TurboWarp Plus Editor its reorganized, easier-to-use layout and handy features. If you don’t like it, you can switch back at any time.',
+        confirm: 'Enable'
+    }) : (japanese ? {
+        title: 'TurboWarp Plus Editorレイアウトの無効化',
+        message: 'TurboWarp Plus Editorの使いやすく再編されたレイアウトと便利な機能を実現するアドオンを無効化し、TurboWarp Editorの標準的なレイアウトに戻します。なお、もしあなたが望むならば、いつでも再び有効化することができます。',
+        confirm: '無効化する'
+    } : {
+        title: 'Disable the TurboWarp Plus Editor Layout',
+        message: 'This disables the addons that give TurboWarp Plus Editor its reorganized, easier-to-use layout and handy features, and returns to the standard TurboWarp Editor layout. You can enable it again at any time if you wish.',
+        confirm: 'Disable'
+    });
 
     const closeDisplay = displaySettings?.onClose;
     const close = React.useCallback(() => {
@@ -130,6 +151,30 @@ export function ProjectInfoMenu({
     React.useEffect(() => {
         if (submenu === 'display' && !displaySettings?.open) closeAndFocus();
     }, [submenu, displaySettings?.open, closeAndFocus]);
+
+    React.useLayoutEffect(() => {
+        const dialog = layoutDialog.current;
+        if (layoutQuestion === null || !dialog || dialog.open) return;
+        dialog.showModal?.();
+        // The safe answer has the focus, so Enter alone does not change the layout.
+        layoutCancel.current?.focus();
+    }, [layoutQuestion]);
+
+    const answerLayoutQuestion = async (confirmed: boolean) => {
+        const enabled = layoutQuestion;
+        if (enabled === null || changingLayout) return;
+        layoutDialog.current?.close();
+        setLayoutQuestion(null);
+        if (confirmed) {
+            setChangingLayout(true);
+            try {
+                if (!beforeLayoutChange || await beforeLayoutChange(enabled)) layoutPreference.setEnabled(enabled);
+            } finally {
+                setChangingLayout(false);
+            }
+        }
+        trigger.current?.focus({preventScroll: true});
+    };
 
     React.useLayoutEffect(() => {
         if (!displayList.current) return;
@@ -174,7 +219,7 @@ export function ProjectInfoMenu({
     };
 
     const className = leading ? `tw-info-menu tw-info-menu__leading` : 'tw-info-menu';
-    return <details className={className} ref={menu} open={open} onKeyDown={event => {
+    return <><details className={className} ref={menu} open={open} onKeyDown={event => {
         if (event.key === ' ' &&
                 (event.target instanceof HTMLButtonElement || event.target === trigger.current)) {
             event.preventDefault();
@@ -203,29 +248,13 @@ export function ProjectInfoMenu({
             {projectFormat && <span id={formatDescriptionId} hidden>{formatDescription}</span>}
         </summary>
         <nav aria-label={label}>
-            {openAbout ? <button className={`tw-info-menu__entry tw-info-menu__indented`} type="button" onClick={() => {
-                close();
-                openAbout();
-            }}>{aboutLabel}</button> :
-                <a className={`tw-info-menu__entry tw-info-menu__indented`} href="./" target="_blank" rel="noreferrer"
-                    title={newTabLabel} onClick={close}>
-                    {aboutLabel}
-                    {newTabIcon}
-                </a>}
             {layoutPreference && <button className="tw-info-menu__entry" type="button" role="menuitemcheckbox"
-                aria-checked={newLayoutEnabled} disabled={changingLayout} onClick={async () => {
+                aria-checked={newLayoutEnabled} disabled={changingLayout} onClick={() => {
                     if (changingLayout) return;
-                    setChangingLayout(true);
-                    try {
-                        if (!beforeLayoutChange || await beforeLayoutChange(!newLayoutEnabled)) {
-                            layoutPreference.setEnabled(!newLayoutEnabled);
-                        }
-                        closeAndFocus();
-                    } finally {
-                        setChangingLayout(false);
-                    }
+                    close();
+                    setLayoutQuestion(!newLayoutEnabled);
                 }}>
-                <span className="tw-info-menu__check" aria-hidden="true">{newLayoutEnabled ? '✓' : ''}</span>
+                <span className="tw-info-menu__check" aria-hidden="true">{newLayoutEnabled ? '✅' : ''}</span>
                 {japanese ? '新レイアウトを有効化' : 'Enable new layout'}
             </button>}
             {openPrivacy && <button className={`tw-info-menu__entry tw-info-menu__indented`} type="button" onClick={() => {
@@ -262,10 +291,20 @@ export function ProjectInfoMenu({
             {action(japanese ? 'AI エージェント設定…' : 'AI agent settings…', aiAgents)}
             {action(japanese ? 'キャッシュ管理…' : 'Cache management…', cacheManager && {icon: cacheIcon, onClick: cacheManager.onClick})}
             <hr className="tw-info-menu__divider" />
+            {openAbout ? <button className="tw-info-menu__entry" type="button" onClick={() => {
+                close();
+                openAbout();
+            }}><img src={logo} alt="" draggable={false} />{aboutLabel}</button> :
+                <a className="tw-info-menu__entry" href="./" target="_blank" rel="noreferrer"
+                    title={newTabLabel} onClick={close}>
+                    <img src={logo} alt="" draggable={false} />
+                    {aboutLabel}
+                    {newTabIcon}
+                </a>}
             <a className="tw-info-menu__entry" href={sourceUrl}
                 target="_blank" rel="noreferrer" title={newTabLabel} onClick={close}>
                 <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d={githubPath} /></svg>
-                {japanese ? 'TurboWarp-Plusのソースコード' : 'TurboWarp-Plus source code'}
+                {japanese ? 'TurboWarp Plus Editorのソースコード' : 'TurboWarp Plus Editor source code'}
                 {newTabIcon}
             </a>
             <a className="tw-info-menu__entry" href="credits.html" target="_blank" rel="noreferrer"
@@ -275,5 +314,17 @@ export function ProjectInfoMenu({
                 {newTabIcon}
             </a>
         </nav>
-    </details>;
+    </details>
+    {layoutText && <dialog className="tw-info-menu__layout-dialog" ref={layoutDialog} aria-labelledby={`${formatDescriptionId}-layout`}
+        onCancel={event => { event.preventDefault(); void answerLayoutQuestion(false); }}>
+        <h2 id={`${formatDescriptionId}-layout`}>{layoutText.title}</h2>
+        <p>{layoutText.message}</p>
+        <div className="tw-plus-dialog-actions">
+            <button type="button" data-dialog-action="cancel" ref={layoutCancel}
+                onClick={() => void answerLayoutQuestion(false)}>{japanese ? 'キャンセル' : 'Cancel'}</button>
+            <button type="button" data-dialog-action="confirm"
+                onClick={() => void answerLayoutQuestion(true)}>{layoutText.confirm}</button>
+        </div>
+    </dialog>}
+    </>;
 }
