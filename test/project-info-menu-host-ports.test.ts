@@ -46,7 +46,8 @@ for (const locale of ['en', 'ja'] as const) {
                     h(Item, {onClick: record('runtime')}, 'Host runtime'),
                     h(Item, {closeOnSelect: true, onClick: record('runtime-dialog')}, 'Host dialog')),
                 addons: action('addons'), advanced: action('advanced'),
-                githubConnection: action('github'), aiAgents: action('ai-agents')
+                githubConnection: action('github'), aiAgents: action('ai-agents'),
+                cacheManager: {onClick: record('cache')}
             });
         };
 
@@ -57,11 +58,11 @@ for (const locale of ['en', 'ja'] as const) {
         const entries = [...nav.querySelectorAll(':scope > a, :scope > button, :scope > div > button')];
         assert.deepEqual(entries.map(entry => entry.textContent), locale === 'en' ? [
             'About TurboWarp Plus Editor 0.4.1', 'Display settings', 'Runtime settings', 'Addons',
-            'Advanced Settings', 'GitHub Connection Settings…', 'AI agent settings…',
+            'Advanced Settings', 'GitHub Connection Settings…', 'AI agent settings…', 'Cache management…',
             'TurboWarp-Plus source code', 'TurboWarp licenses and credits'
         ] : [
             'TurboWarp Plus Editor 0.4.1について', '表示設定', '動作設定', 'アドオン',
-            '高度な設定', 'GitHub 接続設定…', 'AI エージェント設定…',
+            '高度な設定', 'GitHub 接続設定…', 'AI エージェント設定…', 'キャッシュ管理…',
             'TurboWarp-Plusのソースコード', 'TurboWarpのライセンスとクレジット'
         ]);
         const click = (element: Element) => act(() => (element as HTMLElement).click());
@@ -84,7 +85,7 @@ for (const locale of ['en', 'ja'] as const) {
         click(dialog);
         assert.equal(calls.at(-1), 'runtime-dialog');
         assert.equal(details.open, false);
-        for (const [index, name] of [[3, 'addons'], [4, 'advanced'], [5, 'github'], [6, 'ai-agents']] as const) {
+        for (const [index, name] of [[3, 'addons'], [4, 'advanced'], [5, 'github'], [6, 'ai-agents'], [7, 'cache']] as const) {
             click(summary);
             click(entries[index]);
             assert.equal(calls.at(-1), name);
