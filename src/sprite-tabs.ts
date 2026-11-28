@@ -1669,6 +1669,24 @@ function SpriteTabs<Snapshot>(props: SpriteTabsProps<Snapshot>) {
         return () => observer.disconnect();
     }, [content, props.slots]);
     React.useLayoutEffect(() => {
+        if (props.enabled) return;
+        // The native tab panels are empty shells while their editors live in the portal slots.
+        // Keep the tab label on the actual panel so extensions can return to a hidden section.
+        const tabs = content.querySelector('[role="tablist"]')?.querySelectorAll<HTMLElement>(':scope > [role="tab"]');
+        props.slots.forEach((slot, index) => {
+            const label = tabs?.[index]?.id;
+            if (!label) return;
+            slot.setAttribute('role', 'tabpanel');
+            slot.setAttribute('aria-labelledby', label);
+        });
+        return () => {
+            props.slots.forEach(slot => {
+                slot.removeAttribute('role');
+                slot.removeAttribute('aria-labelledby');
+            });
+        };
+    }, [content, props.children, props.enabled, props.slots]);
+    React.useLayoutEffect(() => {
         if (!props.enabled) {
             setToolbarSlots([]);
             setAssetPreviewSlots([]);
