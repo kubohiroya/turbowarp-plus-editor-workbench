@@ -157,3 +157,53 @@ test('relationship controls update their own split view and survive a section ch
     assert.equal(flow(second).dataset.direction, 'LR');
     assert.equal(filter(second, 'Messages').getAttribute('aria-pressed'), 'true');
 });
+
+test('standard layout labels each portaled section with its native tab', async t => {
+    const dom = new JSDOM('<main></main>', {pretendToBeVisual: true});
+    const resize = class {observe() {} unobserve() {} disconnect() {}};
+    const globals = {window: dom.window, document: dom.window.document, Node: dom.window.Node,
+        HTMLElement: dom.window.HTMLElement, Element: dom.window.Element,
+        requestAnimationFrame: dom.window.requestAnimationFrame.bind(dom.window),
+        cancelAnimationFrame: dom.window.cancelAnimationFrame.bind(dom.window), ResizeObserver: resize};
+    Object.assign(globalThis, globals);
+    Object.assign(dom.window, {ResizeObserver: resize});
+    const mount = dom.window.document.querySelector('main');
+    t.after(() => {
+        act(() => {ReactDOM.unmountComponentAtNode(mount);});
+        dom.window.close();
+        for (const key of Object.keys(globals)) Reflect.deleteProperty(globalThis, key);
+    });
+    const target = {id: 'hero', isOriginal: true, isStage: false, getName: () => 'Hero'};
+    const vm = Object.assign(new EventEmitter(), {editingTarget: target, runtime: {targets: [target]}, setEditingTarget() {}});
+    const sections = ['code', 'costumes', 'sounds'];
+    function Host({enabled}: {enabled: boolean}) {
+        const [activeSection, setActiveSection] = React.useState(1);
+        const tabs = useSpriteTabs({available: true, enabled, vm, locale: 'en', activeSection,
+            className: 'fixture-tabs', resize() {}});
+        const row = React.createElement('div', {role: 'tablist'}, sections.map((section, index) =>
+            React.createElement('button', {key: section, id: section, role: 'tab',
+                'aria-selected': index === activeSection, onClick: () => setActiveSection(index)}, section)));
+        return React.createElement(React.Fragment, null, tabs.renderEditorTabRow(row),
+            ...sections.map((section, index) => tabs.renderEditorPanel(index,
+                React.createElement('input', {'data-section': section}))));
+    }
+    const render = (enabled: boolean) => act(async () => {ReactDOM.render(React.createElement(Host, {enabled}), mount);});
+    const editor = (section: string) => mount.querySelector<HTMLInputElement>(`[data-section="${section}"]`);
+    const panel = (section: string) => editor(section).closest<HTMLElement>('[role="tabpanel"]');
+    await render(false);
+    for (const section of sections) {
+        const tab = document.getElementById(section);
+        assert.equal(panel(section)?.getAttribute('aria-labelledby'), tab.id,
+            `The ${section} editor resolves its native tab while portaled`);
+        await act(async () => {document.getElementById(panel(section).getAttribute('aria-labelledby')).click();});
+        assert.equal(panel(section).hidden, false);
+        assert.equal(tab.getAttribute('aria-selected'), 'true');
+    }
+    const code = editor('code');
+    code.value = 'Retain the editor element across layout changes';
+    await render(true);
+    await render(false);
+    assert.equal(editor('code'), code);
+    assert.equal(code.value, 'Retain the editor element across layout changes');
+    assert.equal(panel('code').getAttribute('aria-labelledby'), 'code');
+});
