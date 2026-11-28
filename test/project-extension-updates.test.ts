@@ -194,6 +194,43 @@ test('the screen applies only the plan its last check showed', async t => {
     view.dispose();
 });
 
+test('the reload that applying starts closes the screen without cancelling the change', async t => {
+    const dom = new JSDOM('<!doctype html><body></body>', {url: 'https://workbench.test'});
+    t.after(() => dom.window.close());
+    const {document} = dom.window;
+    const updates = createExtensionUpdates({zip: JSZip as any, snapshot: async () => current, projectKey: () => 1,
+        authoring: {
+            async apply(_request, options, prepare, snapshot) {
+                const prepared = await prepare(await snapshot());
+                // The Editor closes its project dialogs as soon as a project starts loading.
+                view.dispose();
+                await new Promise(resolve => setTimeout(resolve, 5));
+                if (options.signal?.aborted) throw Object.assign(new Error('cancelled during the load'), {code: 'PROJECT_CHANGED'});
+                current = prepared.projectBytes;
+                loads++;
+            }
+        }});
+    let current = await legacySb3();
+    let loads = 0;
+    const view = renderExtensionUpdateForm(document as any, 'en', () => {}, updates);
+    document.body.append(view.element);
+    const until = async (condition: () => boolean) => {
+        for (let attempt = 0; attempt < 200 && !condition(); attempt++) await new Promise(resolve => setTimeout(resolve, 5));
+        assert.ok(condition());
+    };
+    await until(() => document.querySelector(`[data-extension-id="${id}"]`) !== null);
+    const format = document.getElementById(`extension-format-${id}`) as HTMLSelectElement;
+    format.value = 'embedded-file';
+    format.dispatchEvent(new dom.window.Event('change'));
+    const apply = [...document.querySelectorAll('button')].find(item => item.textContent === 'Apply')!;
+    [...document.querySelectorAll('button')].find(item => item.textContent === 'Check Changes')!.click();
+    await until(() => !apply.disabled);
+    (view.element as HTMLFormElement).requestSubmit();
+    await until(() => loads === 1);
+    const {archive, project} = await readBack(current);
+    assert.equal((await listProjectExtensions(archive, project))[0].format, 'embedded-file');
+});
+
 test('Project Properties opens the extensions screen when the host offers it', async t => {
     const dom = new JSDOM('<!doctype html><body></body>', {url: 'https://workbench.test'});
     t.after(() => dom.window.close());

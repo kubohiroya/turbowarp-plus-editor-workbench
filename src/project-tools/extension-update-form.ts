@@ -267,10 +267,14 @@ export function renderExtensionUpdateForm(document: Document, locale: string, cl
         setBusy(true);
         status.textContent = label('適用中…', 'Applying…');
         try {
-            await updates.apply(current, controller.signal);
+            // Applying reloads the project, and a reload closes this dialog. Closing it must not
+            // cancel the Loader half way through its own load: the original could then not be
+            // restored either. So the change runs to the end once it starts, whatever the dialog does.
+            await updates.apply(current);
             if (form.isConnected) close();
         } catch (error) {
-            if (controller.signal.aborted) return;
+            // A failure after the dialog closed is reported by the project load's own outcome.
+            if (controller.signal.aborted || !form.isConnected) return;
             invalidate();
             status.textContent = (error as {code?: string}).code === 'PLAN_CHANGED' ? label(
                 '作品か公開版が確認後に変わりました。もう一度確認してください。',
