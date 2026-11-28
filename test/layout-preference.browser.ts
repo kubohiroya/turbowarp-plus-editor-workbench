@@ -59,27 +59,50 @@ async function open(t: TestContext, query = '', denied = false) {
     return {page, trigger, item};
 }
 
-test('second menu item switches both layouts live and restores both saved choices', async t => {
+/** Answer the confirmation shown after the layout item, which asks before switching. */
+async function answer(page: import('@playwright/test').Page, enabled: boolean, confirm = true, ja = true) {
+    const title = ja ? `TurboWarp Plus Editorレイアウトの${enabled ? '有効化' : '無効化'}` :
+        `${enabled ? 'Enable' : 'Disable'} the TurboWarp Plus Editor Layout`;
+    const dialog = page.getByRole('dialog', {name: title});
+    await expect(dialog).toBeVisible();
+    const cancel = dialog.getByRole('button', {name: ja ? 'キャンセル' : 'Cancel', exact: true});
+    await expect(cancel).toBeFocused();
+    if (confirm) await dialog.getByRole('button', {name: ja ? (enabled ? '有効化する' : '無効化する') :
+        (enabled ? 'Enable' : 'Disable'), exact: true}).click();
+    else await cancel.click();
+    await expect(dialog).toHaveCount(0);
+}
+
+test('first menu item asks before it switches both layouts live and restores both saved choices', async t => {
     const {page, trigger, item} = await open(t);
     await trigger.click();
     await expect(item).toHaveText('新レイアウトを有効化');
     await expect(item).toHaveAttribute('aria-checked', 'false');
-    assert.equal(await item.evaluate(node => node.parentElement.children[1] === node), true);
+    assert.equal(await item.evaluate(node => node.parentElement.children[0] === node), true);
+    await expect(item.locator('.tw-info-menu__check')).toHaveText('');
     await page.getByLabel('Project code').fill('unsaved code');
+    await item.click();
+    await answer(page, true, false);
+    await expect(page.locator('#layout')).toHaveClass('');
+    await expect(trigger).toBeFocused();
+    await trigger.click();
     await page.evaluate(() => { (window as any).originalCanvas = document.querySelector('canvas'); });
     for (const enabled of [true, false, true]) {
         await item.click();
+        await answer(page, enabled);
         await expect(page.locator('#layout')).toHaveClass(enabled ? 'standard-body' : '');
         await expect(page.getByLabel('Project code')).toHaveValue('unsaved code');
         assert.equal(await page.evaluate(() => (window as any).originalCanvas === document.querySelector('canvas')), true);
         assert.equal(await page.evaluate(() => localStorage.getItem('twPlusNewLayoutEnabled')), enabled ? '1' : '0');
         await trigger.click();
         await expect(item).toHaveAttribute('aria-checked', String(enabled));
+        await expect(item.locator('.tw-info-menu__check')).toHaveText(enabled ? '✅' : '');
     }
     await page.reload();
     await expect(page.locator('#layout')).toHaveClass('standard-body');
     await trigger.click();
     await item.press('Space');
+    await answer(page, false);
     await expect(page.locator('#layout')).toHaveClass('');
     await expect(page.locator('html')).toHaveAttribute('data-palette', 'side');
     await page.reload();
@@ -93,6 +116,7 @@ test('English item toggles despite denied storage and defaults off again on relo
     await trigger.click();
     await expect(item).toHaveText('Enable new layout');
     await item.press('Enter');
+    await answer(page, true, true, false);
     await expect(page.locator('#layout')).toHaveClass('standard-body');
     await page.reload();
     await trigger.click();
@@ -104,6 +128,7 @@ test('a menu choice updates an explicit URL override so reload uses the chosen l
     await expect(page.locator('#layout')).toHaveClass('standard-body');
     await trigger.click();
     await item.click();
+    await answer(page, false);
     assert.equal(new URL(page.url()).searchParams.get('twPlusStandardLayout'), '0');
     await page.reload();
     await expect(page.locator('#layout')).toHaveClass('');
@@ -114,13 +139,15 @@ test('a pending layout transition disables repeated activation and a refusal kee
     const {page, trigger, item} = await open(t, '?defer=1');
     await trigger.click();
     await item.click();
+    await answer(page, true);
+    await trigger.click();
     await expect(item).toBeDisabled();
     await expect(item).toHaveAttribute('aria-checked', 'false');
     await page.evaluate(() => (window as any).finishLayoutChange(false));
-    await trigger.click();
     await expect(item).toBeEnabled();
     assert.equal(await page.evaluate(() => localStorage.getItem('twPlusNewLayoutEnabled')), null);
     await item.click();
+    await answer(page, true);
     await page.evaluate(() => (window as any).finishLayoutChange(true));
     await expect(page.locator('#layout')).toHaveClass('standard-body');
 });

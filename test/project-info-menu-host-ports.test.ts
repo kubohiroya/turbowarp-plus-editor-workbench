@@ -57,25 +57,25 @@ for (const locale of ['en', 'ja'] as const) {
         const nav = document.querySelector('nav')!;
         const entries = [...nav.querySelectorAll(':scope > a, :scope > button, :scope > div > button')];
         assert.deepEqual(entries.map(entry => entry.textContent), locale === 'en' ? [
-            'About TurboWarp Plus Editor 0.4.1', 'Display settings', 'Runtime settings', 'Addons',
+            'Display settings', 'Runtime settings', 'Addons',
             'Advanced Settings', 'GitHub Connection Settings…', 'AI agent settings…', 'Cache management…',
-            'TurboWarp-Plus source code', 'TurboWarp licenses and credits'
+            'About TurboWarp Plus Editor 0.4.1', 'TurboWarp Plus Editor source code', 'TurboWarp licenses and credits'
         ] : [
-            'TurboWarp Plus Editor 0.4.1について', '表示設定', '動作設定', 'アドオン',
+            '表示設定', '動作設定', 'アドオン',
             '高度な設定', 'GitHub 接続設定…', 'AI エージェント設定…', 'キャッシュ管理…',
-            'TurboWarp-Plusのソースコード', 'TurboWarpのライセンスとクレジット'
+            'TurboWarp Plus Editor 0.4.1について', 'TurboWarp Plus Editorのソースコード', 'TurboWarpのライセンスとクレジット'
         ]);
         const click = (element: Element) => act(() => (element as HTMLElement).click());
         const key = (element: Element, value: string) => act(() => {
             element.dispatchEvent(new dom.window.KeyboardEvent('keydown', {key: value, bubbles: true, cancelable: true}));
         });
         click(summary);
-        click(entries[1]);
+        click(entries[0]);
         const displayItem = nav.querySelector('li')!;
         assert.equal(displayItem.tabIndex, 0);
         key(displayItem, 'Enter');
         assert.deepEqual(calls, ['display-open', 'display-item']);
-        click(entries[2]);
+        click(entries[1]);
         assert.equal(nav.querySelector('ul'), null);
         assert.equal(calls.at(-1), 'display-close');
         const [runtime, dialog] = nav.querySelectorAll('[role="group"] button');
@@ -85,7 +85,7 @@ for (const locale of ['en', 'ja'] as const) {
         click(dialog);
         assert.equal(calls.at(-1), 'runtime-dialog');
         assert.equal(details.open, false);
-        for (const [index, name] of [[3, 'addons'], [4, 'advanced'], [5, 'github'], [6, 'ai-agents'], [7, 'cache']] as const) {
+        for (const [index, name] of [[2, 'addons'], [3, 'advanced'], [4, 'github'], [5, 'ai-agents'], [6, 'cache']] as const) {
             click(summary);
             click(entries[index]);
             assert.equal(calls.at(-1), name);

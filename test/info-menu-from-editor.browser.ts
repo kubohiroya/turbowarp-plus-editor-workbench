@@ -50,7 +50,7 @@ test('the standalone project logo opens links and no pin action', async t => {
     await expect(menu.getByRole('separator')).toBeVisible();
     await expect(menu.getByRole('link').first()).toHaveText('TurboWarp Plus Editor 0.4.1について');
     const links = [
-        ['TurboWarp-Plusのソースコード', 'https://github.com/kubohiroya/turbowarp-plus-editor'],
+        ['TurboWarp Plus Editorのソースコード', 'https://github.com/kubohiroya/turbowarp-plus-editor'],
         ['TurboWarpのライセンスとクレジット', 'credits.html']
     ];
     for (const [name, href] of links) {
@@ -58,7 +58,10 @@ test('the standalone project logo opens links and no pin action', async t => {
         await expect(link).toHaveAttribute('href', href);
         await expect(link.locator('svg[aria-hidden="true"][fill="currentColor"]')).toBeVisible();
     }
-    await expect(menu.locator('hr + a')).toHaveText(links[0][0]);
+    const about = menu.locator('hr + a');
+    await expect(about).toHaveText('TurboWarp Plus Editor 0.4.1について');
+    await expect(about.locator('img')).toBeVisible();
+    await expect(about.locator('+ a')).toHaveText(links[0][0]);
     await expect(menu.getByRole('button', {name: /ピン留め/})).toHaveCount(0);
     await trigger.press('Escape');
     await expect(menu).toBeHidden();

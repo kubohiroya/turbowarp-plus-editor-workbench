@@ -180,3 +180,48 @@ button.tw-info-menu__entry {
     flex: 0 0 1.25rem;
     text-align: center;
 }
+
+.tw-info-menu__layout-dialog {
+    box-sizing: border-box;
+    width: min(32rem, 94vw);
+    border: 1px solid var(--ui-black-transparent, #64748b);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    color: var(--text-primary, #172033);
+    background: var(--ui-white, white);
+    font: 0.875rem/1.6 system-ui, sans-serif;
+}
+
+.tw-info-menu__layout-dialog::backdrop {
+    background: #111827a6;
+}
+
+.tw-info-menu__layout-dialog h2 {
+    margin: 0 0 0.75rem;
+    font-size: 1.125rem;
+}
+
+.tw-info-menu__layout-dialog p {
+    margin: 0;
+}
+
+.tw-info-menu__layout-dialog button {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--ui-black-transparent, #64748b);
+    border-radius: 0.3rem;
+    color: inherit;
+    background: var(--ui-secondary, #f7f8fa);
+    font: inherit;
+    cursor: pointer;
+}
+
+.tw-info-menu__layout-dialog button[data-dialog-action="confirm"] {
+    border-color: var(--looks-secondary, #4c97ff);
+    color: white;
+    background: var(--looks-secondary, #4c97ff);
+}
+
+.tw-info-menu__layout-dialog :focus-visible {
+    outline: 3px solid var(--looks-secondary, #4c97ff);
+    outline-offset: 2px;
+}
