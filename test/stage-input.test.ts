@@ -51,3 +51,28 @@ test('external input routes pointer events and releases held input on blur and d
     assert.deepEqual([moves, ups, messages.length], [1, 1, 5]);
     window.close();
 });
+
+test('keys pressed on the focused frame around the canvas reach the project', () => {
+    const {window} = new JSDOM('<div tabindex="-1" id="frame"><button>Go</button><canvas></canvas></div>');
+    const {document} = window;
+    const canvas = document.querySelector('canvas');
+    const messages = [];
+    const detach = attachStageInput({
+        document, canvas, onMove: () => {}, onUp: () => {}, releasePointer: () => false,
+        postIO: (device, data) => messages.push([device, data])
+    });
+    const key = (element, type) => element.dispatchEvent(new window.KeyboardEvent(type, {
+        key: 'a', code: 'KeyA', keyCode: 65, bubbles: true, cancelable: true
+    }));
+    key(document.querySelector('button'), 'keydown');
+    key(document.querySelector('button'), 'keyup');
+    assert.deepEqual(messages, []);
+    key(document.getElementById('frame'), 'keydown');
+    key(document.getElementById('frame'), 'keyup');
+    assert.deepEqual(messages, [
+        ['keyboard', {key: 'a', keyCode: 65, isDown: true}],
+        ['keyboard', {key: 'a', keyCode: 65, isDown: false}]
+    ]);
+    detach();
+    window.close();
+});

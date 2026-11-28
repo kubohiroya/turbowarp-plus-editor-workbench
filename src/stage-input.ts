@@ -21,7 +21,10 @@ export function attachStageInput({document, canvas, onMove, onUp, releasePointer
     const keys = new Map<string | number, Key>();
 
     function keyDown(event: KeyboardEvent) {
-        if (event.target !== document && event.target !== document.body && event.target !== canvas) return;
+        // The stage's own focusable frame takes focus when the stage is clicked in a separate window.
+        // Keys pressed there belong to the project; keys in controls beside the canvas do not.
+        const target = event.target as Node | null;
+        if (!target?.contains?.(canvas)) return;
         if (event.ctrlKey || event.metaKey || event.altKey) return;
         const {code} = event;
         const {key, keyCode} = imeScratchKey(event) ?? event;
