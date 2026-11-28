@@ -102,6 +102,9 @@ export function ProjectInfoMenu({
     const [formatDescriptionId] = React.useState(() => `tw-info-menu-format-${++formatDescriptionSerial}`);
     const formatName = format === 'plus' ? 'TurboWarp+' : format === 'standard' ?
         (japanese ? '標準' : 'Standard') : (japanese ? '未確認' : 'Unknown');
+    // With a layout choice, the logo is in color while the Plus layout is on and gray while it is off.
+    // Without one, it shows the project format as before: gray for a standard project.
+    const grayLogo = layoutPreference ? !newLayoutEnabled : format === 'standard';
     const formatDescription = japanese ? `プロジェクト形式：${formatName}` : `Project format: ${formatName}`;
     const product = `TurboWarp Plus Editor ${version}`;
     const displayLabel = japanese ? '表示設定' : 'Display settings';
@@ -244,7 +247,7 @@ export function ProjectInfoMenu({
             if (open) close();
             else setOpen(true);
         }}>
-            <img src={logo} alt="" draggable={false} className={format === 'standard' ? 'tw-info-menu__standard-logo' : undefined} />
+            <img src={logo} alt="" draggable={false} className={grayLogo ? 'tw-info-menu__standard-logo' : undefined} />
             {projectFormat && <span id={formatDescriptionId} hidden>{formatDescription}</span>}
         </summary>
         <nav aria-label={label}>

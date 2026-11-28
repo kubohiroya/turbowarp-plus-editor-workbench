@@ -8,7 +8,7 @@ TurboWarp Plus Editor の作業画面。分割レイアウト、Plus 標準配�
 
 ## レイアウトの選択
 
-左上の Plus メニューの先頭「新レイアウトを有効化」で、Scratch 由来の旧レイアウトと Plus レイアウトを切り替える。選ぶと、有効化または無効化の内容を説明する確認ダイアログを出し、「有効化する」「無効化する」を押したときだけ切り替える。「TurboWarp Plus Editor について」は区切り線の下、ソースコードの上に、Editor のアイコン付きで並べる。未保存時はオフ。選択は localStorage の `twPlusNewLayoutEnabled` に `1` または `0` として保存し、次の起動で復元する。保存が拒否された場合も、そのセッションでは切り替えられる。作品の SB3 や画面配置データとは別の設定である。
+左上の Plus メニューの先頭「新レイアウトを有効化」で、Scratch 由来の旧レイアウトと Plus レイアウトを切り替える。選ぶと、有効化または無効化の内容を説明する確認ダイアログを出し、「有効化する」「無効化する」を押したときだけ切り替える。Plus メニューのアイコンは、新レイアウトが有効なときは青、無効なときはグレーで表示する。「TurboWarp Plus Editor について」は区切り線の下、ソースコードの上に、Editor のアイコン付きで並べる。未保存時はオフ。選択は localStorage の `twPlusNewLayoutEnabled` に `1` または `0` として保存し、次の起動で復元する。保存が拒否された場合も、そのセッションでは切り替えられる。作品の SB3 や画面配置データとは別の設定である。
 
 ホストは `layout-preference` の `createLayoutPreference({search})` を一度生成し、情報メニューの `layoutPreference` と `useLayoutPreference` に渡す。レイアウトの接続口は両モードで登録し、購読した値を `StandardLayout.enabled` に渡す。`useDockviewStage` の第3引数にも同じ値を渡し、ステージのキャンバスを維持したまま通常の編集タブと Dockview を往復する。URL の `twPlusStandardLayout=0/1` は起動時の明示指定として優先するが、メニューで選び直すと URL もその選択へ更新する。
 
