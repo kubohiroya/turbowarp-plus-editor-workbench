@@ -208,3 +208,11 @@ ul:has(> li .tw-project-file-menu__item) {
     outline: 3px solid #ffd166;
     outline-offset: 2px;
 }
+
+/* A text button, such as opening a renamed folder again. */
+.tw-project-notice > .tw-project-notice-action {
+    padding: 0 14px;
+    font: inherit;
+    font-weight: 600;
+    white-space: nowrap;
+}

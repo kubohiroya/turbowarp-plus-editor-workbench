@@ -238,14 +238,16 @@ const {createIn, newProject} = createNewProjectHandler({
 - フォルダとリポジトリの作品は初期の作品から始め、`nameProject(title, saveName)` で名前を付ける。
 - GitHub では、同じ作成先と名前（大文字・小文字を区別しない、`list()` から）の止まった作成があれば、新しく作らずに続きから再開する。なければ `start` が作業用の写し（`'browser'` か選んだフォルダ）を作る。結果が偽なら取り消しとし、それ以外はそのまま `advance` に渡して、`advance` を `open` の段まで繰り返す（9 段を超えるか、`unknown` が続いたら止める）。デバイスコードは `notify` で知らせ、新しい作品では `open` の前に `markSaved` を呼んで、開くときに何も尋ねないようにする。`popupBlocked`・`nameConflict` などの失敗は、ダイアログに出す文言に置き換える。
 
-**作品名の確定（`@kubohiroya/turbowarp-plus-editor-workbench/project-title`）。** `followProjectTitleCommits(document, {readTitle, onCommit})` はメニューバーの作品名の入力欄（`projectTitleFieldClassName`）を見張り、利用者が Enter（IME の変換中は除く）か入力欄から離れることで確定した編集ごとに 1 回、`onCommit(title)` を呼ぶ。読み込みやプロパティで変わった作品名と、変わらなかった作品名は知らせない。戻り値は見張りをやめる関数。続く `reflectProjectTitle({document, locale, title, saveName, location, gitBound, renameBrowserFolder, setSaveName, notify, current})` が作品名を反映する。
+**作品名の確定（`@kubohiroya/turbowarp-plus-editor-workbench/project-title`）。** `followProjectTitleCommits(document, {readTitle, onCommit})` はメニューバーの作品名の入力欄（`projectTitleFieldClassName`）を見張り、利用者が Enter（IME の変換中は除く）か入力欄から離れることで確定した編集ごとに 1 回、`onCommit(title)` を呼ぶ。読み込みやプロパティで変わった作品名と、変わらなかった作品名は知らせない。戻り値は見張りをやめる関数。続く `reflectProjectTitle({document, locale, title, saveName, location, gitBound, renameBrowserFolder, renameRepository, renameDeviceFolder, reopenDeviceFolder, setSaveName, notify, current})` が作品名を反映する。リポジトリと手元のフォルダには保存用の名前を使う。作品名が保存用の名前に使えればそれを、使えなければ `saveName`（無ければ尋ねる）を使う。
 
 | 作品 | 結果 |
 | --- | --- |
 | `location: 'browser'`（ブラウザー内のフォルダ） | `renameBrowserFolder(title)`（失敗は無視） |
-| `location: 'device'` | 手元のフォルダの名前は変わらないと知らせる |
-| `gitBound: true` | Git のリポジトリの名前はまだ変わらないと知らせる（フォルダの知らせの後に続ける） |
 | 作品名が保存用の名前に使えず、`saveName` が無く、フォルダかリポジトリに保存している | `askSaveName` で尋ね、OK なら `setSaveName(name)` |
+| `gitBound: true` で `renameRepository` がある | `renameRepository(name)` が GitHub で名前を変え、`origin` を書き換える（[Editor #681](https://github.com/kubohiroya/turbowarp-plus-editor/issues/681)）。結果（変えた、名前が使われている、App の Administration の権限の承認が要る、管理者でない、書き込みの接続がない、不明）を知らせる |
+| `gitBound: true` で `renameRepository` が無い | Git のリポジトリの名前は変わらないと知らせる |
+| `location: 'device'` で `renameDeviceFolder` がある（Desktop） | リポジトリの後で `renameDeviceFolder(name)`。変えたら、古いフォルダのハンドルが使えなくなるので、`reopenDeviceFolder()` を呼ぶボタンを知らせに付ける。保存していない変更、取り消し、別のフォルダ、使われている名前のときは名前を変えず、そう知らせる |
+| `location: 'device'` で `renameDeviceFolder` が無い | 手元のフォルダの名前は変わらないと知らせる |
 | `location: 'none'` で Git にも結び付いていない、または作品名が空 | 何もしない |
 
 `current()` は待つたびに確かめるので、別の作品を開く直前に確定した作品名は何も変えない。ホストは次のように結線する。
@@ -256,7 +258,7 @@ const stop = followProjectTitleCommits(document, {readTitle: () => store.getStat
         renameBrowserFolder: title => browserStorage.rename(entry.id, title), setSaveName, notify, current}).catch(() => {})});
 ```
 
-**通知（`@kubohiroya/turbowarp-plus-editor-workbench/project-notice`）。** `showNotice(document, text, {locale, timeout = 12000})` は、エディターを止めない通知を窓の下に出す（`role="status"`、`data-testid="project-notice-snackbar"`）。閉じるボタンは X のアイコンで、名前は `閉じる`／`Dismiss`。`timeout` が過ぎると、通知の中にフォーカスが無ければ消える。同じ文書に出ている通知は置き換え、戻り値は通知を消す関数。見た目は `project-file-menu.css`（`.tw-project-notice`）にある。
+**通知（`@kubohiroya/turbowarp-plus-editor-workbench/project-notice`）。** `showNotice(document, text, {locale, timeout = 12000, action})` は、エディターを止めない通知を窓の下に出す（`role="status"`、`data-testid="project-notice-snackbar"`）。閉じるボタンは X のアイコンで、名前は `閉じる`／`Dismiss`。`timeout` が過ぎると、通知の中にフォーカスが無ければ消える。同じ文書に出ている通知は置き換え、戻り値は通知を消す関数。`action`（`{label, run}`）を渡すと、それを実行して通知を消す文字のボタン（`.tw-project-notice-action`）が付き、その通知は時間切れで消えない。見た目は `project-file-menu.css`（`.tw-project-notice`）にある。
 
 ## 検証
 

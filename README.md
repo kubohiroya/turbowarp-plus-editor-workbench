@@ -228,14 +228,16 @@ const {createIn, newProject} = createNewProjectHandler({
 - A folder or repository project starts from the default project, named with `nameProject(title, saveName)`.
 - For GitHub, a stopped setup of the same owner and name (case-insensitively, from `list()`) is resumed instead of starting another. Otherwise `start` creates the working copy (`'browser'` or the picked folder); a falsy result cancels and any other result goes on to `advance`, and `advance` runs until the `open` phase (it gives up after nine steps, or when `unknown` repeats); the device code is shown with `notify`; `markSaved` runs before `open` for a fresh project so opening asks nothing. `popupBlocked`, `nameConflict` and other coded failures become localized messages that the dialog shows.
 
-**Project title commits (`@kubohiroya/turbowarp-plus-editor-workbench/project-title`).** `followProjectTitleCommits(document, {readTitle, onCommit})` watches the menu bar's title field (`projectTitleFieldClassName`) and calls `onCommit(title)` once per edit the person commits, on Enter (not while an IME is composing) or when the field loses focus; titles set by loading or the properties, and unchanged titles, are not reported. It returns a function that stops watching. `reflectProjectTitle({document, locale, title, saveName, location, gitBound, renameBrowserFolder, setSaveName, notify, current})` then reflects the title:
+**Project title commits (`@kubohiroya/turbowarp-plus-editor-workbench/project-title`).** `followProjectTitleCommits(document, {readTitle, onCommit})` watches the menu bar's title field (`projectTitleFieldClassName`) and calls `onCommit(title)` once per edit the person commits, on Enter (not while an IME is composing) or when the field loses focus; titles set by loading or the properties, and unchanged titles, are not reported. It returns a function that stops watching. `reflectProjectTitle({document, locale, title, saveName, location, gitBound, renameBrowserFolder, renameRepository, renameDeviceFolder, reopenDeviceFolder, setSaveName, notify, current})` then reflects the title. The repository and the device folder take the save name: the title when it is a valid save name, otherwise `saveName` (asked for when missing):
 
 | Project | Result |
 | --- | --- |
 | `location: 'browser'` (a folder in the browser's storage) | `renameBrowserFolder(title)` (failures ignored) |
-| `location: 'device'` | notice: the folder on the device keeps its name |
-| `gitBound: true` | notice: the Git repository keeps its name for now (joined after the folder note) |
 | title not a valid save name, no `saveName`, saved in a folder or repository | `askSaveName`, then `setSaveName(name)` on OK |
+| `gitBound: true` with `renameRepository` | `renameRepository(name)` renames it on GitHub and rewrites `origin` ([Editor #681](https://github.com/kubohiroya/turbowarp-plus-editor/issues/681)); a notice says the outcome (renamed, the name is taken, the App's Administration permission must be approved, not an admin, no write connection, unknown) |
+| `gitBound: true` without it | notice: the Git repository keeps its name |
+| `location: 'device'` with `renameDeviceFolder` (Desktop) | after the repository, `renameDeviceFolder(name)`; when renamed, the notice has a button that runs `reopenDeviceFolder()`, because the old folder handle no longer resolves. Unsaved changes, a cancel, another folder or a taken name keep the name, with a notice |
+| `location: 'device'` without it | notice: the folder on the device keeps its name |
 | `location: 'none'` and not Git-bound, or an empty title | nothing |
 
 `current()` is checked after each wait, so a title committed just before another project opened changes nothing. A host wires it as:
@@ -246,7 +248,7 @@ const stop = followProjectTitleCommits(document, {readTitle: () => store.getStat
         renameBrowserFolder: title => browserStorage.rename(entry.id, title), setSaveName, notify, current}).catch(() => {})});
 ```
 
-**Notices (`@kubohiroya/turbowarp-plus-editor-workbench/project-notice`).** `showNotice(document, text, {locale, timeout = 12000})` shows a snackbar at the bottom of the window (`role="status"`, `data-testid="project-notice-snackbar"`) with an X dismiss button named `閉じる` / `Dismiss`. It hides itself after `timeout` unless focus is inside it, replaces the notice already shown in that document, and returns a function that removes it. Its styles are in `project-file-menu.css` (`.tw-project-notice`).
+**Notices (`@kubohiroya/turbowarp-plus-editor-workbench/project-notice`).** `showNotice(document, text, {locale, timeout = 12000, action})` shows a snackbar at the bottom of the window (`role="status"`, `data-testid="project-notice-snackbar"`) with an X dismiss button named `閉じる` / `Dismiss`. It hides itself after `timeout` unless focus is inside it, replaces the notice already shown in that document, and returns a function that removes it. An `action` (`{label, run}`) adds a text button (`.tw-project-notice-action`) that runs it and removes the notice; such a notice does not time out. Its styles are in `project-file-menu.css` (`.tw-project-notice`).
 
 ## Verification
 
