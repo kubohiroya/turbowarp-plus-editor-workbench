@@ -87,9 +87,12 @@ test('first menu item asks before it switches both layouts live and restores bot
     await expect(trigger).toBeFocused();
     await trigger.click();
     await page.evaluate(() => { (window as any).originalCanvas = document.querySelector('canvas'); });
+    const logo = trigger.locator('img');
+    await expect(logo).toHaveCSS('filter', 'grayscale(1)');
     for (const enabled of [true, false, true]) {
         await item.click();
         await answer(page, enabled);
+        await expect(logo).toHaveCSS('filter', enabled ? 'none' : 'grayscale(1)');
         await expect(page.locator('#layout')).toHaveClass(enabled ? 'standard-body' : '');
         await expect(page.getByLabel('Project code')).toHaveValue('unsaved code');
         assert.equal(await page.evaluate(() => (window as any).originalCanvas === document.querySelector('canvas')), true);
