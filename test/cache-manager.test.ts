@@ -64,3 +64,52 @@ test('the cache manager lists and releases the Loader cache, then closes it and 
     assert.equal(document.querySelector('[data-turbowarp-title-menu-cache-manager]'), null);
     assert.equal(closed, opened);
 });
+
+test('embedding passes the open project rows to its payload host and releases only after a save', async t => {
+    const dom = new JSDOM('<body></body>', {pretendToBeVisual: true});
+    const document = dom.window.document;
+    const indexedDB = new IDBFactory();
+    const bytes = new TextEncoder().encode('<svg id="sky"/>');
+    const key = await digest(bytes);
+    const mine = 'https://example.test/projects/mine';
+    for (const uri of [mine, 'https://example.test/projects/other']) {
+        const writer = createIndexedDBContentCache({indexedDB, appURI: () => uri});
+        await writer.put(key, bytes, {label: {ref: 'assets:sky.svg', kind: 'backdrop', name: 'Sky'}});
+        await writer.close();
+    }
+    const applied: unknown[] = [];
+    const released: unknown[] = [];
+    let markSaved: (saved: boolean) => void = () => {};
+    const project = {
+        bucket: () => mine,
+        title: () => 'My story',
+        whenSaved: () => new Promise<boolean>(resolve => { markSaved = resolve; }),
+        payloads: {
+            cacheEmbedding: () => ({async apply(digests: readonly string[], options: unknown) {
+                applied.push([digests, options]);
+                return {embedded: [{}], skipped: [], releasable: [...digests]};
+            }}),
+            async releaseAfterSave(digests: readonly string[]) {
+                released.push(digests);
+                return {released: 1, freed: 20, kept: []};
+            }
+        }
+    };
+    const manager = createCacheManager({document, createCache: () => createExtensionCache({indexedDB, titleFor: bucket =>
+        bucket === mine ? project.title() : undefined})});
+    t.after(() => { manager.dispose(); dom.window.close(); });
+    await manager.open({locale: 'en', project});
+    const root = document.querySelector<HTMLElement>('[data-turbowarp-title-menu-cache-manager]')!;
+    assert.match(root.textContent!, /My story/);
+    (root.querySelector('[data-cache-select-all]') as HTMLElement).click();
+    assert.match(root.querySelector('[data-cache-embed-others]')!.textContent!, /1 selected belong to other projects/);
+    (root.querySelector('[data-cache-embed-release]') as HTMLElement).click();
+    await settle(() => /Embedded 1 of 1/.test(root.textContent!));
+    assert.deepEqual(applied, [[[key], {format: 'embedded-file'}]]);
+    assert.deepEqual(released, []);
+
+    markSaved(true);
+    await settle(() => released.length === 1);
+    assert.deepEqual(released, [[key]]);
+    await settle(() => /The project was saved: released 1/.test(root.textContent!));
+});
