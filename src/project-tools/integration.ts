@@ -13,6 +13,8 @@ import {editProjectURI, getExtensionAuthoringHost, projectSerializationOptions, 
     from '@kubohiroya/turbowarp-extension-loader/scratch-vm';
 import {createProjectDiagnostics} from './diagnostics.js';
 import {projectInfoTitle} from './project-info-key.js';
+import {createExtensionUpdates} from './extension-updates.js';
+import {renderExtensionUpdateForm} from './extension-update-form.js';
 import {flushPendingSurfaceEdits} from '@kubohiroya/turbowarp-plus-editor-windows/surfaces';
 import {isValidSaveName, projectFileDialogTitle, renderExportView, renderExtensionsForm, renderSaveAsForm, saveProjectAs,
     suggestSaveName} from '../project-file-dialogs.js';
@@ -254,6 +256,17 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
         }
     }
 
+    /** One opening of the extensions screen, over the project open now. */
+    function extensionUpdates(vm, tools, authoring) {
+        return createExtensionUpdates({
+            authoring,
+            snapshot: () => withProjectSerialization(vm, {preview: true}, () => vm.saveProjectSb3('arraybuffer')),
+            zip: JSZip,
+            projectKey: () => tools.properties.loadState().sequence,
+            ...(tools.fetchImpl ? {fetch: tools.fetchImpl} : {})
+        });
+    }
+
     function projectFileActions(vm, locale: string, storage: ProjectFileStorage, detachFolder: () => void, add?: () => void,
         folderWorkflows?: ProjectFolderWorkflows) {
         const tools = projects.get(vm);
@@ -338,6 +351,8 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
         } : undefined);
         const authoring = getExtensionAuthoringHost(vm);
         const openExtensions = () => dialogs.showView(label('機能拡張', 'Extensions'), locale, (document, close) => {
+            // Versions and stored forms follow the rules the sb3-toolchain CLI uses (#901).
+            if (authoring) return renderExtensionUpdateForm(document, locale, close, extensionUpdates(vm, tools, authoring), {add});
             let saved = new Map<string, ExtensionSpec>();
             return renderExtensionsForm(document, locale, close, add, {
                 async list() {
@@ -365,7 +380,8 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
             saveNew: () => showSaveForm('save'),
             saveCommit: showCommit,
             properties: hasProperties ?
-                () => dialogs.showProperties(locale, tools.projectURIEnabled ? editProjectURI(vm) : undefined, formatOptions) : undefined,
+                () => dialogs.showProperties(locale, tools.projectURIEnabled ? editProjectURI(vm) : undefined,
+                    {...formatOptions, openExtensions: authoring ? openExtensions : undefined}) : undefined,
             diagnostics: hasProperties ? undefined : () => dialogs.showDiagnostics(locale),
             payloads: payloads?.canEdit ? openPayloads : undefined,
             extensions: add || authoring ? openExtensions : undefined,
@@ -456,8 +472,11 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
         const open = type => {
             onRequestClose();
             if (type === 'properties') {
+                const authoring = getExtensionAuthoringHost(vm);
                 tools.dialogs.showProperties(locale, tools.projectURIEnabled ? editProjectURI(vm) : undefined,
-                    {offerSb3Formats: tools.offerSb3Formats});
+                    {offerSb3Formats: tools.offerSb3Formats, openExtensions: authoring ? () => tools.dialogs.showView(
+                        locale.startsWith('ja') ? '機能拡張' : 'Extensions', locale, (document, close) =>
+                            renderExtensionUpdateForm(document, locale, close, extensionUpdates(vm, tools, authoring))) : undefined});
             } else if (type === 'payloads') {
                 tools.dialogs.showPayloadFormats(tools.payloads.edit(), locale);
             } else if (type === 'bundle-assets') {
