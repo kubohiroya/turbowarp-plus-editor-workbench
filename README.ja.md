@@ -156,6 +156,7 @@ turbowarp-plus-editor の `packages/editor-ui` と `packages/editor-backpack` �
 | `./project-load-progress`・`./project-load-progress-view`・`./project-size-approval` | 読み込みの進み具合と、標準の上限を超える作品を開く前の確認 |
 | `./stage-controls`・`./stage-controls-view` | 拡張が登録するステージの操作と、デバッガーと録画のボタンを含むメニューバーの表示 |
 | `./busy-cursor`・`./browser-tab-title` | 時間のかかる処理の待ちカーソルと、ブラウザーのタブの題名 |
+| `./cache-manager` | 「キャッシュ管理…」の画面。Loader の IndexedDB キャッシュを Title Menu の一覧表で見せ、プロジェクトのメニューの `cacheManager` から開く |
 | `./backpack` | 別窓のバックパック。窓をまたぐコピーは `@kubohiroya/turbowarp-plus-editor-windows` を使う |
 | `./edit-menu.css`・`./info-menu.css`・`./project-file-menu.css`・`./project-load-progress.css`・`./project-search.css`・`./stage-controls.css` | 上のグローバルなスタイルシート |
 

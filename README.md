@@ -146,6 +146,7 @@ These moved here from `packages/editor-ui` and `packages/editor-backpack` in tur
 | `./project-load-progress`, `./project-load-progress-view`, `./project-size-approval` | Loading progress, and asking before opening a project over the standard size limit |
 | `./stage-controls`, `./stage-controls-view` | The stage controls that extensions register, and their view on the menu bar with the debugger and recorder buttons |
 | `./busy-cursor`, `./browser-tab-title` | The wait cursor around blocking work, and the browser tab title |
+| `./cache-manager` | The "Cache management…" screen: the Title Menu table over the Loader's IndexedDB cache, opened from the project menu's `cacheManager` entry |
 | `./backpack` | The backpack in its own window, with copies between windows through `@kubohiroya/turbowarp-plus-editor-windows` |
 | `./edit-menu.css`, `./info-menu.css`, `./project-file-menu.css`, `./project-load-progress.css`, `./project-search.css`, `./stage-controls.css` | Their global stylesheets |
 
