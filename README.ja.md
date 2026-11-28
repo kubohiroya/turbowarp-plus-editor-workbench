@@ -166,6 +166,12 @@ turbowarp-plus-editor の `packages/editor-ui` と `packages/editor-backpack` �
 
 これらは同じ作者が書いたもので、移すときに GPL-3.0 から MPL-2.0 にした。由来の監査は [turbowarp-plus-packages の移行計画](https://github.com/kubohiroya/turbowarp-plus-packages/blob/main/docs/editor-migration-plan.ja.md)の「由来の監査（7b）」にある。作品のメニューの Mark GitHub と Law のアイコンは GitHub Octicons（MIT）のもの。`NOTICE` を参照。
 
+### 機能拡張：版と保存形式
+
+「機能拡張」の画面（ファイルメニューの機能拡張の項目と、作品のプロパティの「機能拡張…」から開く）は、作品が使うすべての機能拡張を、保存形式・版・取得元・SHA-256 とともに一覧する。Plus マニフェストを持たない旧来の `data:` 拡張も含む。拡張ごとに、版（最新の安定版・指定した版・旧版）と保存形式（`remote-non-cacheable`・`remote-cacheable`・`embedded-file`・`embedded-data`）を変更できる。作品に取得元の記録がないコードは、公開元（npm パッケージか GitHub のリポジトリ）を指定し、解決したコードが作品の持つバイト列と一致する必要がある。
+
+規則は `@kubohiroya/sb3-toolchain` の `./project-extensions` で、CLI の `extensions update-sb3` と同じ関数を使う（turbowarp-plus-editor#901）。「変更内容を確認」は取得と検査だけを行い、作品を変更しない。「適用」は、その時点の作品に対して解決済みの版で計画し直し、表示した内容と同じ場合だけ変更する。結果は Loader の authoring controller が通常の作品の読み込みで反映する。新しいコードは改めて実行の許可を求め、作品は未保存になり、読み込みに失敗すれば元の作品に戻す。途中で別の作品を開くと、計画は適用しない。
+
 ### ファイルメニュー：新しいプロジェクトを作成…・プロジェクトのコピーを保存…
 
 ファイルメニューの先頭は「新しいプロジェクトを作成…」、保存の区切りには「プロジェクトのコピーを保存…」が並ぶ（コマンドの id は `save-as` のままなので、アイコンとホストはそのまま動く。未保存の印から開く保存の一覧も同じ表記）。ホストが `entries.createIn` を渡さないときは、先頭の項目は「新しいプロジェクトを作成」のままで、`entries.create` を直接呼ぶ。

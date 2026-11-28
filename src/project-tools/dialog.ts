@@ -133,7 +133,8 @@ export function createProjectDialogService({styles, snackbarStyles, isCancelled 
                 } else dialog.append(view);
                 dialog.showModal();
             },
-            showProperties(locale = 'en', editURI, {offerSb3Formats = false} = {}) {
+            showProperties(locale = 'en', editURI, {offerSb3Formats = false, openExtensions}: {offerSb3Formats?: boolean;
+                openExtensions?: () => void} = {}) {
                 const {dialog, label} = open(locale.startsWith('ja') ? '作品のプロパティ' : 'Project Properties', locale);
                 dialog.setAttribute('data-testid', 'project-properties');
                 const value = properties.snapshot();
@@ -267,8 +268,12 @@ export function createProjectDialogService({styles, snackbarStyles, isCancelled 
                 apply.disabled = value.loading || (!canApplyMetadata && !uriInput);
                 const diagnosticsButton = element(document, 'button', label('作品の診断…', 'Project Diagnostics…'), {type: 'button'});
                 diagnosticsButton.addEventListener('click', () => api.showDiagnostics(locale));
-                form.append(dialogActions(document, diagnosticsButton, dialogAction(cancel, 'cancel'),
-                    dialogAction(apply, 'confirm')));
+                // The extensions in use, their versions and stored forms (#901). Leaving discards this form's draft.
+                const extensionsButton = openExtensions ? element(document, 'button', label('機能拡張…', 'Extensions…'),
+                    {type: 'button', 'data-testid': 'project-properties-extensions'}) : undefined;
+                extensionsButton?.addEventListener('click', () => openExtensions());
+                form.append(dialogActions(document, ...(extensionsButton ? [extensionsButton] : []), diagnosticsButton,
+                    dialogAction(cancel, 'cancel'), dialogAction(apply, 'confirm')));
                 form.addEventListener('submit', async event => {
                     event.preventDefault();
                     if (apply.disabled) return;

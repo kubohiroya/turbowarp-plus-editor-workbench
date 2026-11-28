@@ -156,6 +156,12 @@ The debugger button comes from a GUI add-on. When handing it to `setDebuggerButt
 
 These came from the same author and changed from GPL-3.0 to MPL-2.0 in the move. The provenance audit is in the "由来の監査（7b）" section of the [migration plan in turbowarp-plus-packages](https://github.com/kubohiroya/turbowarp-plus-packages/blob/main/docs/editor-migration-plan.ja.md). The Mark GitHub and Law icons in the project menu are from GitHub Octicons (MIT); see `NOTICE`.
 
+### Extensions: versions and stored forms
+
+The **Extensions** screen (from the File menu's extension entry, and from **Extensions…** in Project Properties) lists every extension the project uses, including a legacy `data:` extension that has no Plus Manifest, with its stored form, version, source and SHA-256. For each one it can change the version (the latest stable release, an exact version, or an older one) and the stored form (`remote-non-cacheable`, `remote-cacheable`, `embedded-file`, `embedded-data`). Code whose source the project does not record needs a published source (an npm package or a GitHub repository), and the code it resolves to must be the bytes the project holds.
+
+The rules are `@kubohiroya/sb3-toolchain`'s `./project-extensions`, the same functions its `extensions update-sb3` command runs (turbowarp-plus-editor#901). **Check Changes** resolves and verifies without changing the project. **Apply** plans again against the project as it is then, using the versions already resolved, and changes nothing unless the steps are the ones shown. The Loader's authoring controller then loads the result through the usual project load: new code asks for permission again, the project becomes unsaved, and the original is restored if loading fails. Opening another project in the meantime refuses the plan.
+
 ### File menu: Create New Project… and Save a Copy of the Project…
 
 The File menu starts with **Create New Project…** and its save section has **Save a Copy of the Project…** (the command id stays `save-as`, so its icon and the hosts keep working; the unsaved-changes popup uses the same label). Without `entries.createIn` the first item keeps the label **Create New Project** and calls `entries.create` directly.
