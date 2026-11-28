@@ -46,3 +46,16 @@ test('a new notice replaces the shown one, and the returned function removes it'
     remove();
     assert.deepEqual(notices(document), []);
 });
+
+test('a notice with an action shows a button that runs it, and stays until used', async t => {
+    const {document} = dom(t);
+    let runs = 0;
+    showNotice(document, 'Renamed.', {locale: 'en', timeout: 5, action: {label: 'Open the folder again', run: () => {runs++;}}});
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const [notice] = notices(document);
+    const action = notice.querySelector<HTMLButtonElement>('.tw-project-notice-action');
+    assert.equal(action.textContent, 'Open the folder again');
+    action.click();
+    assert.equal(runs, 1);
+    assert.deepEqual(notices(document), []);
+});

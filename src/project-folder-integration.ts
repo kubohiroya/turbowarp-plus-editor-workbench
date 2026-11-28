@@ -22,8 +22,11 @@ import {createSaveCommitWorkflows, createPullRequestPublication, hasGitDirectory
 import type {PublicationBridge}
     from '@kubohiroya/turbowarp-plus-editor-git/project-publication';
 import {createCloudflarePublicationBridge} from '@kubohiroya/turbowarp-plus-editor-git/cloudflare-publication';
+import {readOriginUrl, remoteRepository, renameRemoteRepository, RepositoryRenameError, writeOriginUrl}
+    from '@kubohiroya/turbowarp-plus-editor-git/repository-rename';
 import type {createProjectTools} from './project-tools/integration.ts';
-import {followProjectTitleCommits, reflectProjectTitle} from './project-title.ts';
+import {followProjectTitleCommits, reflectProjectTitle, type DeviceFolderRenameOutcome, type RepositoryRenameOutcome}
+    from './project-title.ts';
 import {showNotice} from './project-notice.ts';
 import {bindProjectOpenTabActions, openBrowserProjectInNewTab, openProjectInNewTab} from './project-open-tabs.ts';
 import {flushPendingSurfaceEdits} from '@kubohiroya/turbowarp-plus-editor-windows/surfaces';
@@ -56,8 +59,15 @@ export interface ProjectFolderEnvironment {
     setTitle(title: string): void;
     getTitle(): string;
     desktop?: {auth?: DesktopGitPreload | null; accounts?: DesktopGitAccounts | null; creation?: DesktopRepositoryCreation | null;
-        publication?: PublicationBridge | null; author?(): Promise<GitAuthor | null>; mergePlanShare?: MergePlanSharePort};
+        publication?: PublicationBridge | null; author?(): Promise<GitAuthor | null>; mergePlanShare?: MergePlanSharePort;
+        /** Desktop's rename of the open device folder (#681); the person picks the folder in an OS dialog. */
+        projectFolderRename?: DesktopProjectFolderRename | null};
     captureHost?(host: EditorHost): void;
+}
+/** `EditorPreload.projectFolderRename` of Desktop. */
+export interface DesktopProjectFolderRename {
+    rename(currentName: string, newName: string): Promise<{renamed: true; name: string} |
+        {renamed: false; reason: 'canceled' | 'mismatch' | 'exists' | 'invalid'}>;
 }
 export interface ProjectFolderIntegrationServices {
     environment(vm: ProjectFolderVM, document: Document): ProjectFolderEnvironment | null;
@@ -307,18 +317,78 @@ export function createProjectFolderIntegration(services: ProjectFolderIntegratio
             openBrowserProject: async id =>
                 await folder.openBrowserProject(id, () => true, {notProjectDialog: false}) === 'opened'
         });
-        // A title the person committed in the menu bar renames what the browser can rename, and says what it cannot (#679).
+        /** Renames the repository on GitHub through the connection's proxy, then its `origin` and connection (#681). */
+        const renameProjectRepository = async (root: FileSystemDirectoryHandle, name: string): Promise<RepositoryRenameOutcome> => {
+            if (!connectionSettings) return 'unavailable';
+            const origin = await readOriginUrl(root).catch(() => undefined);
+            let current: ReturnType<typeof remoteRepository>;
+            try {
+                if (!origin) return 'unavailable';
+                current = remoteRepository(origin);
+            } catch {
+                return 'unavailable';
+            }
+            if (current.repo === name) return 'unchanged';
+            let renamed: Awaited<ReturnType<typeof renameRemoteRepository>>;
+            try {
+                renamed = await renameRemoteRepository({remote: origin, name,
+                    getSession: (remote, write) => connectionSettings.getSession(remote, write)});
+            } catch (error) {
+                if (!(error instanceof RepositoryRenameError)) return 'failed';
+                if (error.unknown) return 'unknown';
+                switch (error.code) {
+                case 'REPOSITORY_NAME_UNAVAILABLE': return 'name-unavailable';
+                case 'ADMINISTRATION_PERMISSION_REQUIRED': return 'permission-required';
+                case 'FORBIDDEN': return 'forbidden';
+                case 'SESSION_REQUIRED': case 'SESSION_EXPIRED': case 'REAUTH_REQUIRED': case 'SESSION_UNAVAILABLE':
+                    return 'not-connected';
+                case 'GITHUB_API_UNAVAILABLE': case 'INVALID_CONNECTION': return 'unavailable';
+                default: return 'failed';
+                }
+            }
+            try {
+                await writeOriginUrl(root, {from: origin, to: renamed.remote});
+            } catch {
+                return 'origin-failed';
+            }
+            // The proxy already serves the new name; the connection follows without a new login.
+            await accountConnections?.renameRemote(origin, renamed.remote).catch(() => false);
+            await baseConnectionSettings?.renameRemote(origin, renamed.remote).catch(() => false);
+            void gitPanel?.refresh();
+            return 'renamed';
+        };
+        /** Renames the open folder on the device with Desktop's OS dialog (#681). */
+        const renameDeviceFolder = async (rename: DesktopProjectFolderRename, name: string): Promise<DeviceFolderRenameOutcome> => {
+            const directory = folder.directory;
+            if (!directory) return 'failed';
+            if (directory.name === name) return 'unchanged';
+            // Saving after the rename would write to the old folder, which no longer resolves.
+            if (environment.isProjectDirty() || getDocumentWorkspace(vm).fileEdits().some(file => file.directory === directory))
+                return 'unsaved';
+            const result = await rename.rename(directory.name, name);
+            if (!('reason' in result)) return 'renamed';
+            return result.reason === 'invalid' ? 'failed' : result.reason;
+        };
+        // A title the person committed in the menu bar renames the folder and the GitHub repository where it can, and
+        // says what it cannot (#679, #681).
         const stopTitleWatch = followProjectTitleCommits(document, {
             readTitle: environment.getTitle,
             onCommit(title) {
                 const directory = folder.directory;
                 const language = document.documentElement.lang || locale;
+                const repository = gitPanel?.getCommitRepository?.();
+                const deviceRename = environment.desktop?.projectFolderRename;
                 void reflectProjectTitle({document, locale: language, title, saveName: projectSaveName(vm),
                     location: folder.location ?? 'none',
-                    gitBound: Boolean(gitPanel?.getCommitRepository?.()),
+                    gitBound: Boolean(repository),
                     renameBrowserFolder: async name => {await folder.renameCurrentBrowserFolder(name);},
+                    ...repository && connectionSettings && {renameRepository: (name: string) => renameProjectRepository(repository.root, name)},
+                    ...deviceRename && {
+                        renameDeviceFolder: (name: string) => renameDeviceFolder(deviceRename, name),
+                        reopenDeviceFolder: () => {void projectFolderActions(vm, language)?.open();}
+                    },
                     setSaveName: name => setProjectSaveName(vm, name),
-                    notify: text => showNotice(document, text, {locale: language}),
+                    notify: (text, action) => showNotice(document, text, {locale: language, action}),
                     current: () => folder.directory === directory}).catch(() => {});
             }
         });
