@@ -76,7 +76,10 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
         const document = settings.document || globalThis.document;
         const runProjectLoad = document ? <T>(run: () => Promise<T>) =>
             withWaitCursor([document], run, {releaseAfterPaint: true}) : undefined;
+        // The URI the cache files this project's claims under, as the extension host reports it.
+        let projectURI: string | undefined;
         const host = installEditorExtensionHost(vm, {...settings, showDiagnostics: false, runProjectLoad,
+            onProjectURI: (uri: string | undefined) => { projectURI = uri; settings.onProjectURI?.(uri); },
             projectArchives: editorProjectArchives,
             captureProjectProgress: () => captureProjectLoad(vm),
             waitForUser: document ? ask => duringProjectLoadApproval(vm, () => withoutWaitCursor(document, ask)) : undefined,
@@ -107,7 +110,8 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
                     '選択した形式でプロジェクトを保存できませんでした。' : 'The project could not be saved in its selected format.';
                 showNotice(document, `${prefix} ${message}`, {locale});
             },
-            catalog: undefined as ReturnType<typeof createProjectCatalogRuntime> | undefined};
+            catalog: undefined as ReturnType<typeof createProjectCatalogRuntime> | undefined,
+            projectURI: () => projectURI};
         const environment = document && catalogEnvironment?.(document);
         if (environment) tools.catalog = createProjectCatalogRuntime({document, vm, properties, ...environment,
             report: error => showNotice(document, (settings.getLocale?.() ?? settings.locale ?? 'en').startsWith('ja') ?
@@ -479,6 +483,40 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
     const projectCatalog = (vm: object, locale: string, storage: ProjectFileStorage, createProject?: () => void) =>
         projects.get(vm)?.catalog?.show(locale, storage, createProject);
     const projectFileOpened = (vm: object, file: File | null) => projects.get(vm)?.catalog?.fileOpened(file);
-    return {installProjectToolsHost, projectFormatSource, prepareProjectSb3Save, projectScreenState, loadedProjectTitle, restoreProjectTitle, isProjectLoading, subscribeProjectLoad, projectSaveName, setProjectSaveName, createFolderFromCurrentProject, projectFileActions, projectCreation, renderFileMenu, projectToolsOwnKeyEvent,
+    /**
+     * The open project as the cache manager embeds into it (turbowarp-plus-editor#902): its cache
+     * bucket, title and payload host, and when the Editor reports it saved. "Saved" is the Editor's
+     * own unsaved-changes flag turning clear after it was set, within the same load; another load
+     * first settles false. Undefined before the project tools are installed.
+     */
+    const cacheManagerProject = (vm: object, document: Document | undefined = globalThis.document) => {
+        const tools = projects.get(vm);
+        if (!tools) return undefined;
+        const environment = document ? catalogEnvironment?.(document) : undefined;
+        return {
+            bucket: (): string | undefined => tools.projectURI(),
+            title: (): string | undefined => tools.projectState?.getTitle?.() ?? tools.properties.loadedTitle?.(),
+            payloads: tools.payloads,
+            whenSaved: () => new Promise<boolean>(resolve => {
+                if (!environment) return;
+                const sequence = tools.properties.loadState().sequence;
+                let dirty = environment.isDirty();
+                let unsubscribe: (() => void) | undefined;
+                const check = () => {
+                    if (projects.get(vm) !== tools || tools.properties.loadState().sequence !== sequence) {
+                        unsubscribe?.();
+                        resolve(false);
+                    } else if (environment.isDirty()) dirty = true;
+                    else if (dirty) {
+                        unsubscribe?.();
+                        resolve(true);
+                    }
+                };
+                unsubscribe = environment.subscribeLocation(check);
+                check();
+            })
+        };
+    };
+    return {installProjectToolsHost, cacheManagerProject, projectFormatSource, prepareProjectSb3Save, projectScreenState, loadedProjectTitle, restoreProjectTitle, isProjectLoading, subscribeProjectLoad, projectSaveName, setProjectSaveName, createFolderFromCurrentProject, projectFileActions, projectCreation, renderFileMenu, projectToolsOwnKeyEvent,
         bindProjectCatalogFolder, projectCatalog, projectFileOpened};
 }
