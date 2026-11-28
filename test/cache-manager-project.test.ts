@@ -14,6 +14,7 @@ test('the cache manager project follows the open project URI and the Editor save
     const vm = {loadProject: async (input: unknown) => { current = input; }, toJSON: () => JSON.stringify(current), runtime: {}};
     const payloads = {cacheEmbedding() {}, releaseAfterSave() {}};
     let reportURI: (uri: string | undefined) => void = () => {};
+    let projectName: ((project: unknown) => string | undefined) | undefined;
     const forwarded: (string | undefined)[] = [];
     let dirty = false;
     const listeners = new Set<() => void>();
@@ -25,6 +26,7 @@ test('the cache manager project follows the open project URI and the Editor save
     const tools = createProjectTools({
         installEditorExtensionHost: (_vm, options) => {
             reportURI = options.onProjectURI;
+            projectName = options.projectName;
             return {enabled: true, payloads, dispose() {}};
         },
         installProjectProperties: createProjectProperties({
@@ -48,6 +50,13 @@ test('the cache manager project follows the open project URI and the Editor save
     assert.deepEqual(forwarded, ['https://workbench.test/projects/a']);
     assert.equal(project.title(), 'Story');
     assert.equal(project.payloads, payloads);
+
+    // Cached data is named from the project being decoded, not the one open before.
+    assert.equal(projectName?.({turboWarpPlusProject: {schemaVersion: 1, title: 'Next'}}), 'Next');
+    assert.equal(projectName?.({turboWarpPlusProject: {schemaVersion: 2, title: 'Next'}}), undefined);
+    assert.equal(projectName?.({turboWarpPlusProject: {schemaVersion: 1, title: ''}}), undefined);
+    assert.equal(projectName?.({targets: []}), undefined);
+    assert.equal(projectName?.(undefined), undefined);
 
     // A clean project is not "saved" until it has had unsaved changes and they clear.
     let saved: boolean | undefined;

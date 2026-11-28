@@ -12,6 +12,7 @@ import type {createProjectDialogService} from './dialog.js';
 import {editProjectURI, getExtensionAuthoringHost, projectSerializationOptions, withProjectSerialization}
     from '@kubohiroya/turbowarp-extension-loader/scratch-vm';
 import {createProjectDiagnostics} from './diagnostics.js';
+import {projectInfoTitle} from './project-info-key.js';
 import {flushPendingSurfaceEdits} from '@kubohiroya/turbowarp-plus-editor-windows/surfaces';
 import {isValidSaveName, projectFileDialogTitle, renderExportView, renderExtensionsForm, renderSaveAsForm, saveProjectAs,
     suggestSaveName} from '../project-file-dialogs.js';
@@ -78,7 +79,9 @@ export function createProjectTools({installEditorExtensionHost, installProjectPr
             withWaitCursor([document], run, {releaseAfterPaint: true}) : undefined;
         // The URI the cache files this project's claims under, as the extension host reports it.
         let projectURI: string | undefined;
-        const host = installEditorExtensionHost(vm, {...settings, showDiagnostics: false, runProjectLoad,
+        // Cached project data is named after the project being opened: its title is read from the
+        // decoded project, since the properties only learn it after the load finishes.
+        const host = installEditorExtensionHost(vm, {projectName: projectInfoTitle, ...settings, showDiagnostics: false, runProjectLoad,
             onProjectURI: (uri: string | undefined) => { projectURI = uri; settings.onProjectURI?.(uri); },
             projectArchives: editorProjectArchives,
             captureProjectProgress: () => captureProjectLoad(vm),
