@@ -63,9 +63,13 @@ export function createStageDisplayMenu({WindowLayoutContext, StageDisplayMenuCon
     }) {
         // Use the GUI's existing fullscreen controls row, including its alignment and stacking.
         const mount = fullscreenMount(header);
+        React.useLayoutEffect(() => {
+            if (!mount) return;
+            mount.setAttribute('data-plus-fullscreen-menu', '');
+            return () => mount.removeAttribute('data-plus-fullscreen-menu');
+        }, [mount]);
         return mount ? createPortal(
-            <StageLayoutMenu locale={locale} className={styles.fullscreenLayoutMenu}
-                items={[fullscreenItem(locale, true, onExit)]} />, mount
+            <StageLayoutMenu locale={locale} items={[fullscreenItem(locale, true, onExit)]} />, mount
         ) : null;
     });
 
